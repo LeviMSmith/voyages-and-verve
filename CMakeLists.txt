@@ -12,7 +12,6 @@ set(SRC_DIR sauce)
 # Recursively find all .cpp and .h files in the src directory
 file(GLOB_RECURSE SOURCES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h")
 
-# Add the executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
