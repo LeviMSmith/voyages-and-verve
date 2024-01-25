@@ -4,21 +4,20 @@
 using namespace YC;
 
 int main(int argc, char *argv[]) {
-  g_config = default_config();
+  App *app = new App;
   LOG_INFO("Log initialized");
 
   Dimension overworld;
 
   load_chunks_square(overworld, 0.0, 0.0, 3);
 
-  if (init_rendering() != Result::SUCCESS) {
-    LOG_FATAL("Failed to initialize rendering. Quiting...");
-    destroy_rendering();
-  }
+  init_app(*app);
 
   SDL_Delay(2000);
 
-  destroy_rendering();
+  destroy_app(*app);
+
+  delete app;
 
   return 0;
 }

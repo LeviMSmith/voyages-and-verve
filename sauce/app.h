@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SDL_video.h"
 #include <cstdint>
 #include <map>
 
@@ -60,8 +61,6 @@ struct Config {
 };
 
 Config default_config();
-
-extern Config g_config;
 
 ////////////////////////
 /// Math definitions ///
@@ -137,8 +136,25 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 /// Rendering definitions ///
 /////////////////////////////
 
-// Uses global config
-Result init_rendering();
-void destroy_rendering();
+struct Render_State {
+  int window_width, window_height;
 
+  SDL_Window *window;
+};
+
+// Uses global config
+Result init_rendering(Render_State &render_state);
+void destroy_rendering(Render_State &render_state);
+
+/////////////////////////
+/// State definitions ///
+/////////////////////////
+
+struct App {
+  Render_State render_state;
+  Config config;
+};
+
+Result init_app(App &app);
+void destroy_app(App &app);
 } // namespace YC

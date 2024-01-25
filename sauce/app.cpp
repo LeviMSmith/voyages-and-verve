@@ -14,6 +14,8 @@ namespace YC {
 
 /// Log implemenations ///
 
+Log_Level g_log_level_threshold;
+
 void app_log(Log_Level level, const char *format, ...) {
   const char *log_level_names[] = {"DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
   const char *log_level_colors[] = {
@@ -25,7 +27,7 @@ void app_log(Log_Level level, const char *format, ...) {
   };
   const long CLOCKS_PER_MILLISEC = CLOCKS_PER_SEC / 1000;
 
-  if (level >= g_config.log_level_threshold) {
+  if (level >= g_log_level_threshold) {
     va_list args;
     va_start(args, format);
 
@@ -130,16 +132,8 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
 /// Rendering implementations ///
 /////////////////////////////////
 
-struct Render_State {
-  int window_width, window_height;
-
-  SDL_Window *window;
-};
-
-Render_State g_render_state;
-
 // Uses global config
-Result init_rendering() {
+Result init_rendering(App &app) {
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     LOG_ERROR("Failed to initialize sdl: %s", SDL_GetError());
     return Result::SDL_ERROR;
@@ -147,26 +141,27 @@ Result init_rendering() {
 
   LOG_INFO("SDL initialized");
 
-  g_render_state.window = SDL_CreateWindow(
+  app.render_state.window = SDL_CreateWindow(
       "Yellow Copper", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-      g_config.window_width, g_config.window_height, SDL_WINDOW_SHOWN);
+      app.config.window_width, app.config.window_height,
+      SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
 
-  if (g_render_state.window == nullptr) {
+  if (app.render_state.window == nullptr) {
     LOG_ERROR("Failed to create sdl window: %s", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
   LOG_INFO("Window created");
 
-  g_render_state.window_width = g_config.window_width;
-  g_render_state.window_height = g_config.window_height;
+  app.config.window_width = app.render_state.window_width;
+  app.config.window_height = app.render_state.window_height;
 
   return Result::SUCCESS;
 }
 
-void destroy_rendering() {
-  if (g_render_state.window != nullptr) {
-    SDL_DestroyWindow(g_render_state.window);
+void destroy_rendering(Render_State &render_state) {
+  if (render_state.window != nullptr) {
+    SDL_DestroyWindow(render_state.window);
     LOG_INFO("Destroyed SDL window");
   }
 
@@ -174,4 +169,20 @@ void destroy_rendering() {
   LOG_INFO("Quit SDL");
 }
 
+/////////////////////////////
+/// State implementations ///
+/////////////////////////////
+
+Result init_app(App &app) {
+#ifndef NDEBUG
+  g_log_level_threshold = Log_Level::DEBUG;
+#else
+  g_log_level_threshold = Log_Level::INFO;
+#endif
+  init_rendering(app);
+
+  return Result::SUCCESS;
+}
+
+void destroy_app(App &app) { destroy_rendering(app.render_state); }
 } // namespace YC
