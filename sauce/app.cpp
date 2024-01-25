@@ -68,7 +68,7 @@ u64 mod_cantor(s32 a, s32 b) {
   return 0.5 * (a + b) * (a + b + 1) + b;
 }
 
-bool Chunk_Coord::operator<(const Chunk_Coord &b) {
+bool Chunk_Coord::operator<(const Chunk_Coord &b) const {
   u64 a_cantor = mod_cantor(x, y);
   u64 b_cantor = mod_cantor(b.x, b.y);
 
@@ -79,8 +79,47 @@ bool Chunk_Coord::operator<(const Chunk_Coord &b) {
 /// World implementations ///
 /////////////////////////////
 
+Chunk_Coord get_chunk_coord(f64 x, f64 y) {
+  Chunk_Coord return_chunk_coord;
+
+  return_chunk_coord.x = x / 16;
+  return_chunk_coord.y = y / 16;
+
+  if (x < 0) {
+    return_chunk_coord.x -= 1;
+  }
+
+  if (y < 0) {
+    return_chunk_coord.y -= 1;
+  }
+
+  return return_chunk_coord;
+}
+
 Result gen_chunk(Chunk &chunk) {
   std::memset(&chunk.cells, (int)Cell_Type::DIRT, CHUNK_CELLS);
+  // Leaving the color unset for now so that it looks trippy
+  // when we get to rendering
+
+  return Result::SUCCESS;
+}
+
+Result load_chunk(Dimension &dim, const Chunk_Coord &coord) {
+  // Eventually we'll also load from disk
+  gen_chunk(dim.chunks[coord]);
+
+  return Result::SUCCESS;
+}
+
+Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
+  Chunk_Coord origin = get_chunk_coord(x, y);
+
+  Chunk_Coord icc;
+  for (icc.x = origin.x - radius; icc.x < origin.x + radius; icc.x++) {
+    for (icc.y = origin.y - radius; icc.y < origin.y + radius; icc.y++) {
+      load_chunk(dim, icc);
+    }
+  }
 
   return Result::SUCCESS;
 }

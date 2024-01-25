@@ -73,7 +73,25 @@ u64 mod_cantor(s32 a, s32 b);
 struct Chunk_Coord {
   s32 x, y;
 
-  bool operator<(const Chunk_Coord &b);
+  bool operator<(const Chunk_Coord &b) const;
+};
+
+//////////////////////////
+/// Entity definitions ///
+//////////////////////////
+
+// Monolithic Entity struct. Every entity possess every possible
+// attribute to simplify the data. I'm thinking we'll probably
+// never have more than at max hundreds of thousands of these
+// so even at hundreds of bytes this struct should be totally fine
+// to fit into memory. (Like maybe 100MB max)
+// AOS, so a little OOP, but I think this is very flexible way
+// to hold all the data. Plus no mapping like a SOA would require.
+struct Entity {
+  f64 x, y;
+  f32 vx, vy;
+  f32 ax, ay;
+  f32 camx, camy; // This is relative to the main pos
 };
 
 /////////////////////////
@@ -88,6 +106,7 @@ enum class Cell_Type : u8 { DIRT, AIR, WATER };
 // info or static.
 struct Cell {
   Cell_Type type;
+  u8 cr, cg, cb, ca; // Color rgba8
 };
 
 // All cell interactions are done in chunks. This is how they're simulated,
@@ -109,4 +128,7 @@ Result gen_chunk(Chunk &chunk);
 struct Dimension {
   std::map<Chunk_Coord, Chunk> chunks;
 };
+
+Result load_chunk(Dimension &dim, const Chunk_Coord &coord);
+Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 } // namespace YC
