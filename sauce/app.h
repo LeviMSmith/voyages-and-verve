@@ -29,6 +29,7 @@ typedef bool b8;
 
 enum class Result {
   SUCCESS,
+  SDL_ERROR,
 };
 
 /// Log definitions ///
@@ -131,4 +132,12 @@ struct Dimension {
 
 Result load_chunk(Dimension &dim, const Chunk_Coord &coord);
 Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
+
+/////////////////////////////
+/// Rendering definitions ///
+/////////////////////////////
+
+// Uses global config
+Result init_rendering();
+
 } // namespace YC

@@ -123,4 +123,12 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
 
   return Result::SUCCESS;
 }
+
+/////////////////////////////////
+/// Rendering implementations ///
+/////////////////////////////////
+
+// Uses global config
+Result init_rendering() { return Result::SUCCESS; }
+
 } // namespace YC
