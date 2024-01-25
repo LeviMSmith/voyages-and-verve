@@ -27,11 +27,11 @@ struct Chunk {
   Cell cells[CHUNK_CELLS];
 };
 
+Result gen_chunk(Chunk &chunk);
+
 // Entities will also go here in their own map
 struct Dimension {
   std::map<Chunk_Coord, Chunk> chunks;
 };
-
-Result gen_chunk(Chunk &chunk);
 
 } // namespace YC
