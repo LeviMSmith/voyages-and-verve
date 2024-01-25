@@ -21,8 +21,17 @@ struct Cell {
 constexpr u16 CHUNK_CELL_WIDTH = 16;
 constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH; // 256
 
-struct Dimension {
-  std::map<Chunk_Coord, Cell[CHUNK_CELLS]> cells;
+// All a chunk ever should be is a list of cells, but it's easier to struct
+// then type that all out
+struct Chunk {
+  Cell cells[CHUNK_CELLS];
 };
+
+// Entities will also go here in their own map
+struct Dimension {
+  std::map<Chunk_Coord, Chunk> chunks;
+};
+
+Result gen_chunk(Chunk &chunk);
 
 } // namespace YC
