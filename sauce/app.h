@@ -139,5 +139,6 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 
 // Uses global config
 Result init_rendering();
+void destroy_rendering();
 
 } // namespace YC
