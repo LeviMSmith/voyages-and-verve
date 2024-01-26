@@ -1,8 +1,10 @@
 #pragma once
 
+#include "SDL_events.h"
 #include "SDL_video.h"
 #include <cstdint>
 #include <map>
+#include <vector>
 
 namespace YC {
 /////////////////////////////
@@ -31,6 +33,7 @@ typedef bool b8;
 enum class Result {
   SUCCESS,
   SDL_ERROR,
+  WINDOW_CLOSED,
 };
 
 /// Log definitions ///
@@ -132,6 +135,18 @@ struct Dimension {
 Result load_chunk(Dimension &dim, const Chunk_Coord &coord);
 Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 
+//////////////////////////
+/// Update definitions ///
+//////////////////////////
+
+struct Update_State {
+  Dimension overworld;
+  std::vector<SDL_Event> pending_events;
+};
+
+Result init_updating(Update_State &update_state);
+Result update(Update_State &update_state);
+
 /////////////////////////////
 /// Rendering definitions ///
 /////////////////////////////
@@ -140,6 +155,8 @@ struct Render_State {
   int window_width, window_height;
 
   SDL_Window *window;
+
+  std::vector<SDL_Event> pending_events;
 };
 
 // Uses global config
@@ -151,10 +168,13 @@ void destroy_rendering(Render_State &render_state);
 /////////////////////////
 
 struct App {
+  Update_State update_state;
   Render_State render_state;
   Config config;
 };
 
+Result poll_events(App &app);
 Result init_app(App &app);
+Result run_app(App &app);
 void destroy_app(App &app);
 } // namespace YC

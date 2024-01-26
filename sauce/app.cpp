@@ -1,5 +1,7 @@
 #include "app.h"
 #include "SDL.h"
+#include "SDL_events.h"
+#include "SDL_timer.h"
 #include "SDL_video.h"
 
 #include <cstdarg>
@@ -169,9 +171,43 @@ void destroy_rendering(Render_State &render_state) {
   LOG_INFO("Quit SDL");
 }
 
+//////////////////////////////
+/// Update implementations ///
+//////////////////////////////
+
+Result init_updating(Update_State &update_state) {
+  load_chunks_square(update_state.overworld, 0.0, 0.0, 4);
+
+  return Result::SUCCESS;
+}
+
 /////////////////////////////
 /// State implementations ///
 /////////////////////////////
+
+Result poll_events(App &app) {
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    switch (event.type) {
+    case SDL_WINDOWEVENT: {
+      if (event.window.windowID == SDL_GetWindowID(app.render_state.window)) {
+        switch (event.window.event) {
+        case SDL_WINDOWEVENT_CLOSE: {
+          return Result::WINDOW_CLOSED;
+        }
+        }
+      }
+    }
+    case SDL_QUIT: {
+      LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
+      return Result::WINDOW_CLOSED;
+    }
+    }
+    LOG_INFO("Polled an event");
+  }
+
+  return Result::SUCCESS;
+}
 
 Result init_app(App &app) {
 #ifndef NDEBUG
@@ -179,8 +215,21 @@ Result init_app(App &app) {
 #else
   g_log_level_threshold = Log_Level::INFO;
 #endif
+  init_updating(app.update_state);
   init_rendering(app);
 
+  return Result::SUCCESS;
+}
+
+Result run_app(App &app) {
+  while (true) {
+    Result poll_result = poll_events(app);
+    if (poll_result == Result::WINDOW_CLOSED) {
+      LOG_INFO("Window should close.");
+      return Result::SUCCESS;
+    }
+    SDL_Delay(1);
+  }
   return Result::SUCCESS;
 }
 
