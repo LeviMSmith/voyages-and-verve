@@ -1,6 +1,8 @@
 #pragma once
 
 #include "SDL_events.h"
+#include "SDL_render.h"
+#include "SDL_surface.h"
 #include "SDL_video.h"
 #include <cstdint>
 #include <map>
@@ -155,13 +157,18 @@ struct Render_State {
   int window_width, window_height;
 
   SDL_Window *window;
+  SDL_Renderer *renderer;
+  SDL_Surface *surface;
 
   std::vector<SDL_Event> pending_events;
 };
 
 // Uses global config
 Result init_rendering(Render_State &render_state);
+Result render(Render_State &render_state);
 void destroy_rendering(Render_State &render_state);
+
+Result handle_window_resize(Render_State &render_state);
 
 /////////////////////////
 /// State definitions ///

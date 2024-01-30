@@ -1,5 +1,5 @@
-#include "SDL_timer.h"
 #include "app.h"
+#include <cstdlib>
 
 using namespace YC;
 
@@ -7,11 +7,13 @@ int main(int argc, char *argv[]) {
   App *app = new App;
   LOG_INFO("Log initialized");
 
-  init_app(*app);
+  if (init_app(*app) != Result::SUCCESS) {
+    return EXIT_FAILURE;
+  }
   run_app(*app);
   destroy_app(*app);
 
   delete app;
 
-  return 0;
+  return EXIT_SUCCESS;
 }
