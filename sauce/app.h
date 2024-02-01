@@ -99,6 +99,8 @@ struct Entity {
   f32 camx, camy; // This is relative to the main pos
 };
 
+Entity default_entity();
+
 /////////////////////////
 /// World definitions ///
 /////////////////////////
@@ -125,6 +127,7 @@ struct Chunk {
   Cell cells[CHUNK_CELLS];
 };
 
+Chunk_Coord get_chunk_coord(f64 x, f64 y);
 Result gen_chunk(Chunk &chunk);
 
 // Entities will also go here in their own map
@@ -143,6 +146,7 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 
 struct Update_State {
   Dimension overworld;
+  Entity active_player;
   std::vector<SDL_Event> pending_events;
 };
 
@@ -153,12 +157,21 @@ Result update(Update_State &update_state);
 /// Rendering definitions ///
 /////////////////////////////
 
+constexpr u8 SCREEN_CHUNK_SIZE =
+    12; // 16 * 12 = 196; 196 * 196 = 36864 pixels in texture
+
+// This is the part of the texture that will not be shown
+constexpr u8 SCREEN_CELL_PADDING = 27; // Makes screen width 169 (13*13) cells
+
 struct Render_State {
   int window_width, window_height;
 
   SDL_Window *window;
   SDL_Renderer *renderer;
   SDL_Surface *surface;
+
+  u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
+  SDL_Texture *cell_texture;
 
   std::vector<SDL_Event> pending_events;
 };
@@ -169,6 +182,8 @@ Result render(Render_State &render_state);
 void destroy_rendering(Render_State &render_state);
 
 Result handle_window_resize(Render_State &render_state);
+
+Result gen_world_texture(Dimension &dim, Render_State &render_state);
 
 /////////////////////////
 /// State definitions ///

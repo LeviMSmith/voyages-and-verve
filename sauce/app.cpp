@@ -85,6 +85,24 @@ bool Chunk_Coord::operator<(const Chunk_Coord &b) const {
   return a_cantor < b_cantor;
 }
 
+//////////////////////////////
+/// Entity implementations ///
+//////////////////////////////
+
+Entity default_entity() {
+  Entity return_entity;
+  return_entity.x = 0;
+  return_entity.y = 0;
+  return_entity.vx = 0;
+  return_entity.vy = 0;
+  return_entity.ax = 0;
+  return_entity.ay = 0;
+  return_entity.camx = 0;
+  return_entity.camy = 0;
+
+  return return_entity;
+}
+
 /////////////////////////////
 /// World implementations ///
 /////////////////////////////
@@ -140,9 +158,11 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
 
 // Uses global config
 Result init_rendering(App &app) {
-  // For some reason SDL_QUIT is triggered randomly on my system, so we're not
-  // quiting on that. If SDL holds on to the handlers, we can't exit with a
-  // break otherwise.
+  // SDL init
+
+  // For some reason SDL_QUIT is triggered randomly on my (Levi's) system, so
+  // we're not quiting on that. If SDL holds on to the handlers, we can't exit
+  // with a break otherwise.
   if (!SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1")) {
     LOG_WARN("SDL didn't relinquish the signal handlers. Good luck quiting.");
   }
@@ -158,12 +178,14 @@ Result init_rendering(App &app) {
   LOG_DEBUG("Config window values: %d, %d", app.config.window_width,
             app.config.window_height);
 
+  // Window
   SDL_ClearError();
   int window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
   if (app.config.window_start_maximized) {
     window_flags = window_flags | SDL_WINDOW_MAXIMIZED;
     LOG_DEBUG("Starting window maximized");
   }
+
   app.render_state.window = SDL_CreateWindow(
       "Yellow Copper", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
       app.config.window_width, app.config.window_height, window_flags);
@@ -176,6 +198,7 @@ Result init_rendering(App &app) {
 
   LOG_INFO("Window created");
 
+  // Renderer
   SDL_ClearError();
   app.render_state.renderer =
       SDL_CreateRenderer(app.render_state.window, -1, 0);
@@ -184,9 +207,22 @@ Result init_rendering(App &app) {
     return Result::SDL_ERROR;
   }
 
+  // Do an initial resize to get all the base info from the screen loading into
+  // the state
   Result resize_res = handle_window_resize(app.render_state);
   if (resize_res != Result::SUCCESS) {
     LOG_WARN("Failed to handle window resize! EC: %d", resize_res);
+  }
+
+  // Create the world cell texture
+  SDL_ClearError();
+  app.render_state.cell_texture = SDL_CreateTexture(
+      app.render_state.renderer, SDL_PIXELFORMAT_RGBA8888,
+      SDL_TEXTUREACCESS_STREAMING, SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH,
+      SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH);
+  if (app.render_state.cell_texture == nullptr) {
+    LOG_ERROR("Failed to create cell texture with SDL: %s", SDL_GetError());
+    return Result::SDL_ERROR;
   }
 
   return Result::SUCCESS;
@@ -226,12 +262,73 @@ Result handle_window_resize(Render_State &render_state) {
   return Result::SUCCESS;
 }
 
+Result gen_world_texture(Update_State &update_state,
+                         Render_State &render_state) {
+  // TODO: Might be good to have this ask the world for chunks it needs.
+
+  // How to generate:
+  // First need to find which chunks are centered around active_player cam.
+  // Then essentially write the colors of each cell to the texture. Should
+  // probably multithread.
+  // TODO: multithread
+
+  Entity &active_player = update_state.active_player;
+
+  // Remember, Entity::cam is relative to the entity's position
+  f64 camx, camy;
+  camx = active_player.camx + active_player.x;
+  camy = active_player.camy + active_player.y;
+
+  Chunk_Coord center = get_chunk_coord(camx, camy);
+  Chunk_Coord ic;
+  Chunk_Coord ic_max;
+  u8 radius = SCREEN_CHUNK_SIZE / 2;
+
+  // NOTE (Levi): There's no overflow checking on this right now.
+  // Just don't go to the edge of the world I guess.
+  ic.x = center.x - radius;
+  ic.y = center.y - radius;
+
+  ic_max.x = ic.x + SCREEN_CHUNK_SIZE;
+  ic_max.y = ic.y + SCREEN_CHUNK_SIZE;
+
+  // Need these for indexing
+  u8 x = 0;
+  u8 y = 0;
+
+  // This should be the dimension that the player in. But that will come later
+  Dimension &active_dimension = update_state.overworld;
+
+  u32 *buffer = render_state.cell_texture_buffer;
+
+  // For each chunk in the texture...
+  for (; ic.x < ic_max.x; ic.x++) {
+    for (; ic.y < ic_max.y; ic.y++) {
+      // ...copy cell colors into correct place
+      Chunk &chunk = active_dimension.chunks[ic];
+
+      for (u16 cell_x = 0; cell_x < CHUNK_CELL_WIDTH; cell_x++) {
+        for (u16 cell_y = 0; cell_y < CHUNK_CELL_WIDTH; cell_y++) {
+          buffer[] = chunk.cells[]
+        }
+      }
+
+      y++;
+    }
+    x++;
+  }
+
+  return Result::SUCCESS;
+}
+
 //////////////////////////////
 /// Update implementations ///
 //////////////////////////////
 
 Result init_updating(Update_State &update_state) {
-  load_chunks_square(update_state.overworld, 0.0, 0.0, 4);
+  update_state.active_player = default_entity();
+  load_chunks_square(update_state.overworld, update_state.active_player.x,
+                     update_state.active_player.y, SCREEN_CHUNK_SIZE / 2);
 
   return Result::SUCCESS;
 }
@@ -261,7 +358,7 @@ Result poll_events(App &app) {
     case SDL_QUIT: {
       // LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
       // return Result::WINDOW_CLOSED;
-      LOG_DEBUG("Got event SDL_QUIT. Don't know why. Continuing.");
+      LOG_DEBUG("Got event SDL_QUIT but don't trust it. Continuing.");
     }
     }
     LOG_DEBUG("Finished polling an event");
