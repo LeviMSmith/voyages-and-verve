@@ -1,7 +1,7 @@
 #include "app.h"
 #include <cstdlib>
 
-using namespace YC;
+using namespace VV;
 
 int main(int argc, char *argv[]) {
   App *app = new App;

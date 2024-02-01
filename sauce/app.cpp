@@ -14,7 +14,7 @@
 #include <cstring>
 #include <ctime>
 
-namespace YC {
+namespace VV {
 /////////////////////////////////
 /// Utilities implementations ///
 /////////////////////////////////
@@ -463,4 +463,4 @@ Result run_app(App &app) {
 }
 
 void destroy_app(App &app) { destroy_rendering(app.render_state); }
-} // namespace YC
+} // namespace VV

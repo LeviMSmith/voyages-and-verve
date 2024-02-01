@@ -8,7 +8,7 @@
 #include <map>
 #include <vector>
 
-namespace YC {
+namespace VV {
 /////////////////////////////
 /// Utilities definitions ///
 /////////////////////////////
@@ -200,4 +200,4 @@ Result poll_events(App &app);
 Result init_app(App &app);
 Result run_app(App &app);
 void destroy_app(App &app);
-} // namespace YC
+} // namespace VV

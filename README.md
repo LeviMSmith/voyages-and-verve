@@ -1,4 +1,4 @@
-# Yellow Copper
+# Voyages & Verve
 
 Fully simulated pixel world
 
@@ -12,7 +12,7 @@ Build the generated cmake config
 
 `cmake --build ./build`
 
-Now the executable is build in, likely, build/yellow-copper
+Now the executable is built in, likely, build/voyages-and-verve
 
 ## Progam structure
 
