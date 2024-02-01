@@ -423,7 +423,6 @@ Result poll_events(App &app) {
       LOG_DEBUG("Got event SDL_QUIT but don't trust it. Continuing.");
     }
     }
-    LOG_DEBUG("Finished polling an event");
   }
 
   return Result::SUCCESS;
