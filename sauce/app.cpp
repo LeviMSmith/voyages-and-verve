@@ -8,6 +8,7 @@
 #include "SDL_timer.h"
 #include "SDL_video.h"
 
+#include <cassert>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -124,17 +125,31 @@ Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   return return_chunk_coord;
 }
 
-Result gen_chunk(Chunk &chunk) {
-  std::memset(&chunk.cells, (int)Cell_Type::DIRT, CHUNK_CELLS);
-  // Leaving the color unset for now so that it looks trippy
-  // when we get to rendering
+Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
+  if (chunk_coord.y <= 0) {
+    for (Cell &cell : chunk.cells) {
+      cell.type = Cell_Type::DIRT;
+      cell.cr = 255;
+      cell.cg = 255;
+      cell.cb = 0;
+      cell.ca = 255;
+    }
+  } else {
+    for (Cell &cell : chunk.cells) {
+      cell.type = Cell_Type::AIR;
+      cell.cr = 255;
+      cell.cg = 255;
+      cell.cb = 255;
+      cell.ca = 255;
+    }
+  }
 
   return Result::SUCCESS;
 }
 
 Result load_chunk(Dimension &dim, const Chunk_Coord &coord) {
   // Eventually we'll also load from disk
-  gen_chunk(dim.chunks[coord]);
+  gen_chunk(dim.chunks[coord], coord);
 
   return Result::SUCCESS;
 }
@@ -207,8 +222,8 @@ Result init_rendering(App &app) {
     return Result::SDL_ERROR;
   }
 
-  // Do an initial resize to get all the base info from the screen loading into
-  // the state
+  // Do an initial resize to get all the base info from the screen loading
+  // into the state
   Result resize_res = handle_window_resize(app.render_state);
   if (resize_res != Result::SUCCESS) {
     LOG_WARN("Failed to handle window resize! EC: %d", resize_res);
@@ -225,11 +240,23 @@ Result init_rendering(App &app) {
     return Result::SDL_ERROR;
   }
 
+  LOG_INFO("Created cell texture");
+
   return Result::SUCCESS;
 }
 
-Result render(Render_State &render_state) {
+Result render(Render_State &render_state, Update_State &update_state) {
   SDL_RenderClear(render_state.renderer);
+
+  gen_world_texture(render_state, update_state);
+
+  // The world texture
+  SDL_Rect destRect = {
+      0, 0, render_state.window_width,
+      render_state.window_height}; // Example destination rectangle; adjust
+                                   // as necessary
+  SDL_RenderCopy(render_state.renderer, render_state.cell_texture, NULL,
+                 &destRect);
 
   SDL_RenderPresent(render_state.renderer);
 
@@ -237,6 +264,10 @@ Result render(Render_State &render_state) {
 }
 
 void destroy_rendering(Render_State &render_state) {
+  if (render_state.cell_texture != nullptr) {
+    SDL_DestroyTexture(render_state.cell_texture);
+    LOG_INFO("Destroyed cell texture");
+  }
   if (render_state.window != nullptr) {
     SDL_DestroyWindow(render_state.window);
     LOG_INFO("Destroyed SDL window");
@@ -262,8 +293,8 @@ Result handle_window_resize(Render_State &render_state) {
   return Result::SUCCESS;
 }
 
-Result gen_world_texture(Update_State &update_state,
-                         Render_State &render_state) {
+Result gen_world_texture(Render_State &render_state,
+                         Update_State &update_state) {
   // TODO: Might be good to have this ask the world for chunks it needs.
 
   // How to generate:
@@ -292,31 +323,62 @@ Result gen_world_texture(Update_State &update_state,
   ic_max.x = ic.x + SCREEN_CHUNK_SIZE;
   ic_max.y = ic.y + SCREEN_CHUNK_SIZE;
 
-  // Need these for indexing
-  u8 x = 0;
-  u8 y = 0;
+  u8 chunk_x = 0;
+  u8 chunk_y = 0;
 
   // This should be the dimension that the player in. But that will come later
   Dimension &active_dimension = update_state.overworld;
 
-  u32 *buffer = render_state.cell_texture_buffer;
+  // LOG_DEBUG("Generating world texture");
+  // For each chunk in the texture...
+
+  u32 *pixels;
+  int pitch;
+  SDL_ClearError();
+  if (SDL_LockTexture(render_state.cell_texture, NULL, (void **)&pixels,
+                      &pitch) != 0) {
+    LOG_WARN("Failed to lock cell texture for updating: %s", SDL_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  assert(pitch == CHUNK_CELL_WIDTH * SCREEN_CHUNK_SIZE * sizeof(u32));
 
   // For each chunk in the texture...
-  for (; ic.x < ic_max.x; ic.x++) {
-    for (; ic.y < ic_max.y; ic.y++) {
-      // ...copy cell colors into correct place
+  for (ic.y = center.y - radius; ic.y < ic_max.y; ic.y++) {
+    for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
       Chunk &chunk = active_dimension.chunks[ic];
 
-      for (u16 cell_x = 0; cell_x < CHUNK_CELL_WIDTH; cell_x++) {
-        for (u16 cell_y = 0; cell_y < CHUNK_CELL_WIDTH; cell_y++) {
-          buffer[] = chunk.cells[]
+      for (u16 cell_y = 0; cell_y < CHUNK_CELL_WIDTH; cell_y++) {
+        for (u16 cell_x = 0; cell_x < CHUNK_CELL_WIDTH; cell_x++) {
+          size_t buffer_index =
+              (cell_x + chunk_x * CHUNK_CELL_WIDTH) +
+              (cell_y * CHUNK_CELL_WIDTH * SCREEN_CHUNK_SIZE) +
+              (chunk_y * CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH *
+               SCREEN_CHUNK_SIZE);
+          size_t chunk_index = chunk_x + chunk_y * CHUNK_CELL_WIDTH;
+          u8 cr = chunk.cells[chunk_index].cr;
+          u8 cg = chunk.cells[chunk_index].cg;
+          u8 cb = chunk.cells[chunk_index].cb;
+          u8 ca = chunk.cells[chunk_index].ca;
+          pixels[buffer_index] = (cr << 24) | (cg << 16) | (cb << 8) | ca;
+          if (buffer_index >
+              SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS - 1) {
+            LOG_ERROR(
+                "Somehow surpassed the texture size while generating: %d "
+                "cell texture chunk_x: %d, chunk_y: %d, cell_x: %d, cell_y: "
+                "%d",
+                buffer_index, chunk_x, chunk_y, cell_x, cell_y);
+          }
         }
       }
 
-      y++;
+      chunk_y++;
     }
-    x++;
+    chunk_y = 0;
+    chunk_x++;
   }
+
+  SDL_UnlockTexture(render_state.cell_texture);
 
   return Result::SUCCESS;
 }
@@ -381,8 +443,6 @@ Result init_app(App &app) {
     return renderer_res;
   }
 
-  render(app.render_state);
-
   return Result::SUCCESS;
 }
 
@@ -396,7 +456,7 @@ Result run_app(App &app) {
     }
 
     // Render
-    render(app.render_state);
+    render(app.render_state, app.update_state);
     SDL_Delay(1);
   }
 

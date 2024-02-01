@@ -128,7 +128,7 @@ struct Chunk {
 };
 
 Chunk_Coord get_chunk_coord(f64 x, f64 y);
-Result gen_chunk(Chunk &chunk);
+Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord);
 
 // Entities will also go here in their own map
 // Using map right now because implementation is quick,
@@ -178,12 +178,13 @@ struct Render_State {
 
 // Uses global config
 Result init_rendering(Render_State &render_state);
-Result render(Render_State &render_state);
+Result render(Render_State &render_state, Update_State &update_state);
 void destroy_rendering(Render_State &render_state);
 
 Result handle_window_resize(Render_State &render_state);
 
-Result gen_world_texture(Dimension &dim, Render_State &render_state);
+Result gen_world_texture(Render_State &render_state,
+                         Update_State &update_state);
 
 /////////////////////////
 /// State definitions ///
