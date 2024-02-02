@@ -260,10 +260,12 @@ Result render(Render_State &render_state, Update_State &update_state) {
   gen_world_texture(render_state, update_state);
 
   // The world texture
-  SDL_Rect destRect = {
-      0, 0, render_state.window_width,
-      render_state.window_height}; // Example destination rectangle; adjust
-                                   // as necessary
+  s32 width = (render_state.window_width / SCREEN_CELL_SIZE) * SCREEN_CELL_SIZE;
+  s32 height = width;
+  s32 offset_x = 0, offset_y = 0;
+  SDL_Rect destRect = {offset_x, offset_y, width,
+                       height}; // Example destination rectangle; adjust
+                                // as necessary
   SDL_RenderCopy(render_state.renderer, render_state.cell_texture, NULL,
                  &destRect);
 
@@ -382,10 +384,17 @@ Result gen_world_texture(Render_State &render_state,
               ((SCREEN_CHUNK_SIZE - 1) * CHUNK_CELL_WIDTH * PITCH -
                (chunk_x * CHUNK_CELL_WIDTH * PITCH));
           size_t chunk_index = chunk_y + chunk_x * CHUNK_CELL_WIDTH;
-          cr = chunk.cells[chunk_index].cr;
-          cg = chunk.cells[chunk_index].cg;
-          cb = chunk.cells[chunk_index].cb;
-          ca = chunk.cells[chunk_index].ca;
+          if (cell_y == 0 && cell_x == 1) {
+            cr = 255;
+            cg = 0;
+            cb = 0;
+            ca = 0;
+          } else {
+            cr = chunk.cells[chunk_index].cr;
+            cg = chunk.cells[chunk_index].cg;
+            cb = chunk.cells[chunk_index].cb;
+            ca = chunk.cells[chunk_index].ca;
+          }
           pixels[buffer_index] = (cr << 24) | (cg << 16) | (cb << 8) | ca;
           if (buffer_index >
               SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS - 1) {

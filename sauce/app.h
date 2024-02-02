@@ -164,6 +164,8 @@ constexpr u8 SCREEN_CHUNK_SIZE =
 
 // This is the part of the texture that will not be shown
 constexpr u8 SCREEN_CELL_PADDING = 27; // Makes screen width 169 (13*13) cells
+constexpr u16 SCREEN_CELL_SIZE =
+    SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH - SCREEN_CELL_PADDING * 2;
 
 struct Render_State {
   int window_width, window_height;
