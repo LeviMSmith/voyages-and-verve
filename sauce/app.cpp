@@ -64,19 +64,22 @@ Config default_config() {
 ////////////////////////////
 
 u64 mod_cantor(s32 a, s32 b) {
+  u64 ua, ub;
   if (a < 0) {
-    a = a * 2;
+    ua = static_cast<u64>(std::abs(a) * 2);
   } else {
-    a = a * 2 - 1;
+    ua = static_cast<u64>(a * 2 - 1);
   }
 
   if (b < 0) {
-    b = b * 2;
+    ub = static_cast<u64>(std::abs(b) * 2);
   } else {
-    b = b * 2 - 1;
+    ub = static_cast<u64>(b * 2 - 1);
   }
 
-  return 0.5 * (a + b) * (a + b + 1) + b;
+  u64 result = ((ua + ub) * (ua + ub + 1)) / 2 + ub;
+
+  return result;
 }
 
 bool Chunk_Coord::operator<(const Chunk_Coord &b) const {
@@ -84,6 +87,10 @@ bool Chunk_Coord::operator<(const Chunk_Coord &b) const {
   u64 b_cantor = mod_cantor(b.x, b.y);
 
   return a_cantor < b_cantor;
+}
+
+bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
+  return (x == b.x) && (y == b.y);
 }
 
 //////////////////////////////
@@ -143,6 +150,8 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
       cell.ca = 255;
     }
   }
+
+  chunk.coord = chunk_coord;
 
   return Result::SUCCESS;
 }
@@ -342,24 +351,41 @@ Result gen_world_texture(Render_State &render_state,
   }
 
   assert(pitch == CHUNK_CELL_WIDTH * SCREEN_CHUNK_SIZE * sizeof(u32));
+  constexpr u16 PITCH = CHUNK_CELL_WIDTH * SCREEN_CHUNK_SIZE;
 
   // For each chunk in the texture...
+  u8 cr, cg, cb, ca;
   for (ic.y = center.y - radius; ic.y < ic_max.y; ic.y++) {
     for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
       Chunk &chunk = active_dimension.chunks[ic];
+      if (chunk.coord != ic) {
+        // LOG_WARN("Cantor mapping of chunks failed! %d, %d: %d, %d", ic.x,
+        // ic.y,
+        //          chunk.coord.x, chunk.coord.y);
+      }
+
+      // assert(chunk.coord == ic);
+      // if (chunk.cells[0].type == Cell_Type::AIR) {
+      //   LOG_DEBUG("Chunk %d, %d is a air chunk", ic.x, ic.y);
+      // } else {
+      //   LOG_DEBUG("Chunk %d, %d is a dirt chunk", ic.x, ic.y);
+      // }
 
       for (u16 cell_y = 0; cell_y < CHUNK_CELL_WIDTH; cell_y++) {
         for (u16 cell_x = 0; cell_x < CHUNK_CELL_WIDTH; cell_x++) {
+          // NOTE (Levi): Everything seems to be rotated 90 clockwise when
+          // entered normally into this texture, so we swap x and y and subtract
+          // x from it's max to mirror
           size_t buffer_index =
-              (cell_x + chunk_x * CHUNK_CELL_WIDTH) +
-              (cell_y * CHUNK_CELL_WIDTH * SCREEN_CHUNK_SIZE) +
-              (chunk_y * CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH *
-               SCREEN_CHUNK_SIZE);
-          size_t chunk_index = chunk_x + chunk_y * CHUNK_CELL_WIDTH;
-          u8 cr = chunk.cells[chunk_index].cr;
-          u8 cg = chunk.cells[chunk_index].cg;
-          u8 cb = chunk.cells[chunk_index].cb;
-          u8 ca = chunk.cells[chunk_index].ca;
+              (cell_y + chunk_y * CHUNK_CELL_WIDTH) +
+              ((CHUNK_CELL_WIDTH - 1) * PITCH - (cell_x * PITCH)) +
+              ((SCREEN_CHUNK_SIZE - 1) * CHUNK_CELL_WIDTH * PITCH -
+               (chunk_x * CHUNK_CELL_WIDTH * PITCH));
+          size_t chunk_index = chunk_y + chunk_x * CHUNK_CELL_WIDTH;
+          cr = chunk.cells[chunk_index].cr;
+          cg = chunk.cells[chunk_index].cg;
+          cb = chunk.cells[chunk_index].cb;
+          ca = chunk.cells[chunk_index].ca;
           pixels[buffer_index] = (cr << 24) | (cg << 16) | (cb << 8) | ca;
           if (buffer_index >
               SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS - 1) {
@@ -369,6 +395,8 @@ Result gen_world_texture(Render_State &render_state,
                 "%d",
                 buffer_index, chunk_x, chunk_y, cell_x, cell_y);
           }
+          assert(buffer_index <=
+                 SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS - 1);
         }
       }
 

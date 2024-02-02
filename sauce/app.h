@@ -79,6 +79,7 @@ struct Chunk_Coord {
   s32 x, y;
 
   bool operator<(const Chunk_Coord &b) const;
+  bool operator==(const Chunk_Coord &b) const;
 };
 
 //////////////////////////
@@ -124,6 +125,7 @@ constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH; // 256
 // All a chunk ever should be is a list of cells, but it's easier to struct
 // then type that all out
 struct Chunk {
+  Chunk_Coord coord;
   Cell cells[CHUNK_CELLS];
 };
 
