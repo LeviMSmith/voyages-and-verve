@@ -379,12 +379,12 @@ Result gen_world_texture(Render_State &render_state,
           // entered normally into this texture, so we swap x and y and subtract
           // x from it's max to mirror
           size_t buffer_index =
-              (cell_y + chunk_y * CHUNK_CELL_WIDTH) +
-              ((CHUNK_CELL_WIDTH - 1) * PITCH - (cell_x * PITCH)) +
+              (cell_x + chunk_y * CHUNK_CELL_WIDTH) +
+              ((CHUNK_CELL_WIDTH - 1) * PITCH - (cell_y * PITCH)) +
               ((SCREEN_CHUNK_SIZE - 1) * CHUNK_CELL_WIDTH * PITCH -
                (chunk_x * CHUNK_CELL_WIDTH * PITCH));
           size_t chunk_index = chunk_y + chunk_x * CHUNK_CELL_WIDTH;
-          if (cell_y == 0 && cell_x == 1) {
+          if (cell_y == 1 && cell_x == 0) {
             cr = 255;
             cg = 0;
             cb = 0;
