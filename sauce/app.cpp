@@ -99,8 +99,10 @@ bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
 
 Entity default_entity() {
   Entity return_entity;
-  return_entity.x = 0;
-  return_entity.y = 0;
+  return_entity.coord = {
+      0.0, // x
+      0.0  // y
+  };
   return_entity.vx = 0;
   return_entity.vy = 0;
   return_entity.ax = 0;
@@ -111,15 +113,31 @@ Entity default_entity() {
   return return_entity;
 }
 
+Entity_Coord get_cam_coord(const Entity &e) {
+  return {
+      e.coord.x + e.camx, // x
+      e.coord.y + e.camy  // y
+  };
+}
+
 /////////////////////////////
 /// World implementations ///
 /////////////////////////////
 
+Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord) {
+  Entity_Coord ret_entity_coord;
+
+  ret_entity_coord.x = coord.x * CHUNK_CELL_WIDTH;
+  ret_entity_coord.y = coord.y * CHUNK_CELL_WIDTH;
+
+  return ret_entity_coord;
+}
+
 Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   Chunk_Coord return_chunk_coord;
 
-  return_chunk_coord.x = x / 16;
-  return_chunk_coord.y = y / 16;
+  return_chunk_coord.x = x / CHUNK_CELL_WIDTH;
+  return_chunk_coord.y = y / CHUNK_CELL_WIDTH;
 
   if (x < 0) {
     return_chunk_coord.x -= 1;
@@ -259,17 +277,48 @@ Result init_rendering(App &app) {
 Result render(Render_State &render_state, Update_State &update_state) {
   SDL_RenderClear(render_state.renderer);
 
+  // TODO: Might want to only call this when necessary. Maybe have an event for
+  // the player moving chunks
   gen_world_texture(render_state, update_state);
 
-  // The world texture
   u16 screen_cell_size =
       render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
-  s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL;
-  s32 height = width;
-  s32 offset_x = -3 * screen_cell_size, offset_y = -3 * screen_cell_size;
-  SDL_Rect destRect = {offset_y, offset_x, height,
-                       width}; // Example destination rectangle; adjust
-                               // as necessary
+
+  LOG_DEBUG("tl_tex_chunk: %d, %d", render_state.tl_tex_chunk.x,
+            render_state.tl_tex_chunk.y);
+
+  Entity_Coord tl_chunk = get_world_pos_from_chunk(render_state.tl_tex_chunk);
+  LOG_DEBUG("Base tl_chunk: %d, %d", tl_chunk.x, tl_chunk.y);
+  tl_chunk.y += (CHUNK_CELL_WIDTH - 1);
+
+  // This is where the top left of the screen should be in world coordinates
+  Entity_Coord good_tl_chunk;
+  good_tl_chunk.x =
+      update_state.active_player.camx + update_state.active_player.coord.x;
+  good_tl_chunk.x -= (render_state.window_width / 2.0f) / screen_cell_size;
+  good_tl_chunk.y =
+      update_state.active_player.camy + update_state.active_player.coord.y;
+  good_tl_chunk.y += (render_state.window_height / 2.0f) / screen_cell_size;
+
+  LOG_DEBUG("Good: %d, %d. OG: %d, %d", good_tl_chunk.x, good_tl_chunk.y,
+            tl_chunk.x, tl_chunk.y);
+
+  s32 offset_x = (good_tl_chunk.x - tl_chunk.x) * screen_cell_size * -1;
+  s32 offset_y = (tl_chunk.y - good_tl_chunk.y) * screen_cell_size * -1;
+
+#ifndef NDEBUG
+  if (offset_y > 0 || offset_x > 0) {
+    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
+             "above 0: x:%d, y:%d",
+             offset_x, offset_y);
+  }
+#endif
+
+  s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL - offset_x;
+  s32 height = screen_cell_size * SCREEN_CELL_SIZE_FULL - offset_y;
+
+  SDL_Rect destRect = {offset_x, offset_y, width, height};
+
   SDL_RenderCopy(render_state.renderer, render_state.cell_texture, NULL,
                  &destRect);
 
@@ -310,7 +359,8 @@ Result handle_window_resize(Render_State &render_state) {
 
 Result gen_world_texture(Render_State &render_state,
                          Update_State &update_state) {
-  // TODO: Might be good to have this ask the world for chunks it needs.
+  // TODO: Might be good to have this ask the world for chunks it needs if they
+  // aren't loaded
 
   // How to generate:
   // First need to find which chunks are centered around active_player cam.
@@ -322,8 +372,8 @@ Result gen_world_texture(Render_State &render_state,
 
   // Remember, Entity::cam is relative to the entity's position
   f64 camx, camy;
-  camx = active_player.camx + active_player.x;
-  camy = active_player.camy + active_player.y;
+  camx = active_player.camx + active_player.coord.x;
+  camy = active_player.camy + active_player.coord.y;
 
   Chunk_Coord center = get_chunk_coord(camx, camy);
   Chunk_Coord ic;
@@ -337,6 +387,9 @@ Result gen_world_texture(Render_State &render_state,
 
   ic_max.x = ic.x + SCREEN_CHUNK_SIZE;
   ic_max.y = ic.y + SCREEN_CHUNK_SIZE;
+
+  // Update the top left chunk of the texture
+  render_state.tl_tex_chunk = {ic.x, ic_max.y};
 
   u8 chunk_x = 0;
   u8 chunk_y = 0;
@@ -430,8 +483,8 @@ Result gen_world_texture(Render_State &render_state,
 
 Result init_updating(Update_State &update_state) {
   update_state.active_player = default_entity();
-  load_chunks_square(update_state.overworld, update_state.active_player.x,
-                     update_state.active_player.y, SCREEN_CHUNK_SIZE / 2);
+  load_chunks_square(update_state.overworld, update_state.active_player.coord.x,
+                     update_state.active_player.coord.y, SCREEN_CHUNK_SIZE / 2);
 
   return Result::SUCCESS;
 }

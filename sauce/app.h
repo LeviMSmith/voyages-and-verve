@@ -93,14 +93,20 @@ struct Chunk_Coord {
 // to fit into memory. (Like maybe 100MB max)
 // AOS, so a little OOP, but I think this is very flexible way
 // to hold all the data. Plus no mapping like a SOA would require.
-struct Entity {
+
+struct Entity_Coord {
   f64 x, y;
+};
+
+struct Entity {
+  Entity_Coord coord;
   f32 vx, vy;
   f32 ax, ay;
   f32 camx, camy; // This is relative to the main pos
 };
 
 Entity default_entity();
+inline Entity_Coord get_cam_coord(const Entity &e);
 
 /////////////////////////
 /// World definitions ///
@@ -129,6 +135,8 @@ struct Chunk {
   Cell cells[CHUNK_CELLS];
 };
 
+// For finding out where a chunk bottom right corner is
+Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);
 Chunk_Coord get_chunk_coord(f64 x, f64 y);
 Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord);
 
@@ -177,6 +185,8 @@ struct Render_State {
   SDL_Texture *cell_texture;
 
   std::vector<SDL_Event> pending_events;
+
+  Chunk_Coord tl_tex_chunk;
 };
 
 // Uses global config
