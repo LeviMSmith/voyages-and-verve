@@ -260,11 +260,11 @@ Result render(Render_State &render_state, Update_State &update_state) {
   gen_world_texture(render_state, update_state);
 
   // The world texture
-  s32 width = (render_state.window_width /
-               (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING)) *
-              SCREEN_CELL_SIZE_FULL;
+  u16 screen_cell_size =
+      render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
+  s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL;
   s32 height = width;
-  s32 offset_x = 0, offset_y = 0;
+  s32 offset_x = -3 * screen_cell_size, offset_y = -3 * screen_cell_size;
   SDL_Rect destRect = {offset_y, offset_x, height,
                        width}; // Example destination rectangle; adjust
                                // as necessary
@@ -386,7 +386,7 @@ Result gen_world_texture(Render_State &render_state,
               ((SCREEN_CHUNK_SIZE - 1) * CHUNK_CELL_WIDTH * PITCH -
                (chunk_x * CHUNK_CELL_WIDTH * PITCH));
           size_t chunk_index = chunk_y + chunk_x * CHUNK_CELL_WIDTH;
-          if (cell_y == 1 && cell_x == 0) {
+          if (cell_y == 0 && cell_x == 0) {
             cr = 255;
             cg = 0;
             cb = 0;
