@@ -119,8 +119,8 @@ struct Cell {
 
 // All cell interactions are done in chunks. This is how they're simulated,
 // loaded, and generated.
-constexpr u16 CHUNK_CELL_WIDTH = 16;
-constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH; // 256
+constexpr u16 CHUNK_CELL_WIDTH = 64;
+constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH; // 4096
 
 // All a chunk ever should be is a list of cells, but it's easier to struct
 // then type that all out
@@ -160,12 +160,11 @@ Result update(Update_State &update_state);
 /////////////////////////////
 
 constexpr u8 SCREEN_CHUNK_SIZE =
-    12; // 16 * 12 = 196; 196 * 196 = 36864 pixels in texture
+    4; // 64 * 4 = 256; 256 * 256 = 65536 pixels in texture
 
 // This is the part of the texture that will not be shown
-constexpr u8 SCREEN_CELL_PADDING = 27; // Makes screen width 169 (13*13) cells
-constexpr u16 SCREEN_CELL_SIZE =
-    SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH - SCREEN_CELL_PADDING * 2;
+constexpr u8 SCREEN_CELL_PADDING = 60; // Makes screen width 169 (13*13) cells
+constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
 
 struct Render_State {
   int window_width, window_height;

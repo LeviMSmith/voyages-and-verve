@@ -260,9 +260,9 @@ Result render(Render_State &render_state, Update_State &update_state) {
   gen_world_texture(render_state, update_state);
 
   // The world texture
-  s32 width =
-      (render_state.window_width / (SCREEN_CELL_SIZE - SCREEN_CELL_PADDING)) *
-      SCREEN_CELL_SIZE;
+  s32 width = (render_state.window_width /
+               (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING)) *
+              SCREEN_CELL_SIZE_FULL;
   s32 height = width;
   s32 offset_x = 0, offset_y = 0;
   SDL_Rect destRect = {offset_y, offset_x, height,
