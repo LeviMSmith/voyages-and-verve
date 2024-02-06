@@ -191,8 +191,10 @@ Result init_rendering(App &app) {
     LOG_WARN("SDL didn't relinquish the signal handlers. Good luck quiting.");
   }
 
+  int sdl_init_flags = SDL_INIT_VIDEO;
+
   SDL_ClearError();
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+  if (SDL_Init(sdl_init_flags) != 0) {
     LOG_ERROR("Failed to initialize sdl: %s", SDL_GetError());
     return Result::SDL_ERROR;
   }
