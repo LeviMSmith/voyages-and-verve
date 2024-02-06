@@ -211,7 +211,7 @@ Result init_rendering(App &app) {
   }
 
   app.render_state.window = SDL_CreateWindow(
-      "Yellow Copper", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+      "Voyages & Verve", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
       app.config.window_width, app.config.window_height, window_flags);
 
   SDL_ClearError();
@@ -260,12 +260,14 @@ Result render(Render_State &render_state, Update_State &update_state) {
   gen_world_texture(render_state, update_state);
 
   // The world texture
-  s32 width = (render_state.window_width / SCREEN_CELL_SIZE) * SCREEN_CELL_SIZE;
+  s32 width =
+      (render_state.window_width / (SCREEN_CELL_SIZE - SCREEN_CELL_PADDING)) *
+      SCREEN_CELL_SIZE;
   s32 height = width;
   s32 offset_x = 0, offset_y = 0;
-  SDL_Rect destRect = {offset_x, offset_y, width,
-                       height}; // Example destination rectangle; adjust
-                                // as necessary
+  SDL_Rect destRect = {offset_y, offset_x, height,
+                       width}; // Example destination rectangle; adjust
+                               // as necessary
   SDL_RenderCopy(render_state.renderer, render_state.cell_texture, NULL,
                  &destRect);
 
@@ -388,7 +390,7 @@ Result gen_world_texture(Render_State &render_state,
             cr = 255;
             cg = 0;
             cb = 0;
-            ca = 0;
+            ca = 255;
           } else {
             cr = chunk.cells[chunk_index].cr;
             cg = chunk.cells[chunk_index].cg;
