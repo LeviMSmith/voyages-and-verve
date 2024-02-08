@@ -20,34 +20,6 @@ namespace VV {
 /// Utilities implementations ///
 /////////////////////////////////
 
-/// Log implemenations ///
-
-Log_Level g_log_level_threshold;
-
-void app_log(Log_Level level, const char *format, ...) {
-  const char *log_level_names[] = {"DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
-  const char *log_level_colors[] = {
-      "\033[94m", // Bright Blue
-      "\033[32m", // Dark Green
-      "\033[93m", // Bright Yellow
-      "\033[31m", // Dark Red
-      "\033[35m"  // Dark Magenta
-  };
-  const long CLOCKS_PER_MILLISEC = CLOCKS_PER_SEC / 1000;
-
-  if (level >= g_log_level_threshold) {
-    va_list args;
-    va_start(args, format);
-
-    printf("[%ld] [%s%s\033[0m] ", clock() / CLOCKS_PER_MILLISEC,
-           log_level_colors[level], log_level_names[level]);
-    vprintf(format, args);
-    printf("\n");
-
-    va_end(args);
-  }
-}
-
 /// Config implementations ///
 
 Config g_config;
@@ -215,13 +187,13 @@ Result init_rendering(App &app) {
 
   SDL_ClearError();
   if (SDL_Init(sdl_init_flags) != 0) {
-    LOG_ERROR("Failed to initialize sdl: %s", SDL_GetError());
+    LOG_ERROR("Failed to initialize sdl: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
   LOG_INFO("SDL initialized");
 
-  LOG_DEBUG("Config window values: %d, %d", app.config.window_width,
+  LOG_DEBUG("Config window values: {}, {}", app.config.window_width,
             app.config.window_height);
 
   // Window
@@ -238,7 +210,7 @@ Result init_rendering(App &app) {
 
   SDL_ClearError();
   if (app.render_state.window == nullptr) {
-    LOG_ERROR("Failed to create sdl window: %s", SDL_GetError());
+    LOG_ERROR("Failed to create sdl window: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
@@ -249,7 +221,7 @@ Result init_rendering(App &app) {
   app.render_state.renderer =
       SDL_CreateRenderer(app.render_state.window, -1, 0);
   if (app.render_state.renderer == nullptr) {
-    LOG_ERROR("Failed to create sdl renderer: %s", SDL_GetError());
+    LOG_ERROR("Failed to create sdl renderer: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
@@ -257,7 +229,8 @@ Result init_rendering(App &app) {
   // into the state
   Result resize_res = handle_window_resize(app.render_state);
   if (resize_res != Result::SUCCESS) {
-    LOG_WARN("Failed to handle window resize! EC: %d", resize_res);
+    LOG_WARN("Failed to handle window resize! EC: {}",
+             static_cast<s32>(resize_res));
   }
 
   // Create the world cell texture
@@ -267,7 +240,7 @@ Result init_rendering(App &app) {
       SDL_TEXTUREACCESS_STREAMING, SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH,
       SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH);
   if (app.render_state.cell_texture == nullptr) {
-    LOG_ERROR("Failed to create cell texture with SDL: %s", SDL_GetError());
+    LOG_ERROR("Failed to create cell texture with SDL: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
@@ -305,7 +278,7 @@ Result render(Render_State &render_state, Update_State &update_state) {
 #ifndef NDEBUG
   if (offset_y > 0 || offset_x > 0) {
     LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
-             "above 0: x:%d, y:%d",
+             "above 0: x:{}, y:{}",
              offset_x, offset_y);
   }
 #endif
@@ -404,7 +377,7 @@ Result gen_world_texture(Render_State &render_state,
   SDL_ClearError();
   if (SDL_LockTexture(render_state.cell_texture, NULL, (void **)&pixels,
                       &pitch) != 0) {
-    LOG_WARN("Failed to lock cell texture for updating: %s", SDL_GetError());
+    LOG_WARN("Failed to lock cell texture for updating: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
@@ -522,11 +495,7 @@ Result poll_events(App &app) {
 }
 
 Result init_app(App &app) {
-#ifndef NDEBUG
-  g_log_level_threshold = Log_Level::DEBUG;
-#else
-  g_log_level_threshold = Log_Level::INFO;
-#endif
+  spdlog::set_level(spdlog::level::debug);
   app.config = default_config();
   init_updating(app.update_state);
   Result renderer_res = init_rendering(app);
