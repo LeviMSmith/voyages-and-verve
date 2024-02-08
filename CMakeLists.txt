@@ -17,10 +17,14 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL/include)
+target_include_directories(${PROJECT_NAME} PRIVATE vendor/spdlog/include)
 
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
 set(SDL_TEST OFF)
 add_subdirectory(vendor/SDL)
 
+add_subdirectory(vendor/spdlog)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL2-static)
+target_link_libraries(${PROJECT_NAME} PRIVATE spdlog)
