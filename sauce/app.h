@@ -4,6 +4,9 @@
 #include "SDL_render.h"
 #include "SDL_surface.h"
 #include "SDL_video.h"
+
+#include "spdlog/spdlog.h"
+
 #include <cstdint>
 #include <map>
 #include <vector>
@@ -40,29 +43,21 @@ enum class Result {
 
 /// Log definitions ///
 
-enum Log_Level {
-  DEBUG = 0,
-  INFO,
-  WARN,
-  ERROR,
-  FATAL,
-};
-
-void app_log(Log_Level level, const char *format, ...);
-
-#define LOG_DEBUG(...) app_log(Log_Level::DEBUG, __VA_ARGS__)
-#define LOG_INFO(...) app_log(Log_Level::INFO, __VA_ARGS__)
-#define LOG_WARN(...) app_log(Log_Level::WARN, __VA_ARGS__)
-#define LOG_ERROR(...) app_log(Log_Level::ERROR, __VA_ARGS__)
-#define LOG_FATAL(...) app_log(Log_Level::FATAL, __VA_ARGS__)
+#ifndef NDEBUG
+#define LOG_DEBUG(...) spdlog::debug(__VA_ARGS__)
+#else
+#define LOG_DEBUG(...) noop
+#endif
+#define LOG_INFO(...) spdlog::info(__VA_ARGS__)
+#define LOG_WARN(...) spdlog::warn(__VA_ARGS__)
+#define LOG_ERROR(...) spdlog::error(__VA_ARGS__)
+#define LOG_FATAL(...) spdlog::critical(__VA_ARGS__)
 
 /// Config definitions ///
 
 struct Config {
   int window_width, window_height; // using int since that's what sdl takes
   bool window_start_maximized;
-
-  Log_Level log_level_threshold;
 };
 
 Config default_config();
