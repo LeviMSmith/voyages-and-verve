@@ -9,6 +9,7 @@
 #include "SDL_video.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -136,8 +137,9 @@ Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord) {
 Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   Chunk_Coord return_chunk_coord;
 
-  return_chunk_coord.x = x / CHUNK_CELL_WIDTH;
-  return_chunk_coord.y = y / CHUNK_CELL_WIDTH;
+  // floor to ensure it goes toward bottom left
+  return_chunk_coord.x = std::floor(x / CHUNK_CELL_WIDTH);
+  return_chunk_coord.y = std::floor(y / CHUNK_CELL_WIDTH);
 
   if (x < 0) {
     return_chunk_coord.x -= 1;
@@ -151,7 +153,7 @@ Chunk_Coord get_chunk_coord(f64 x, f64 y) {
 }
 
 Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
-  if (chunk_coord.y <= 0) {
+  if (chunk_coord.y < 0) {
     for (Cell &cell : chunk.cells) {
       cell.type = Cell_Type::DIRT;
       cell.cr = 255;
@@ -284,24 +286,18 @@ Result render(Render_State &render_state, Update_State &update_state) {
   u16 screen_cell_size =
       render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
 
-  LOG_DEBUG("tl_tex_chunk: %d, %d", render_state.tl_tex_chunk.x,
-            render_state.tl_tex_chunk.y);
-
   Entity_Coord tl_chunk = get_world_pos_from_chunk(render_state.tl_tex_chunk);
-  LOG_DEBUG("Base tl_chunk: %d, %d", tl_chunk.x, tl_chunk.y);
-  tl_chunk.y += (CHUNK_CELL_WIDTH - 1);
+  tl_chunk.y--; // This is what makes it TOP left instead of bottom left
 
   // This is where the top left of the screen should be in world coordinates
   Entity_Coord good_tl_chunk;
   good_tl_chunk.x =
       update_state.active_player.camx + update_state.active_player.coord.x;
   good_tl_chunk.x -= (render_state.window_width / 2.0f) / screen_cell_size;
+
   good_tl_chunk.y =
       update_state.active_player.camy + update_state.active_player.coord.y;
   good_tl_chunk.y += (render_state.window_height / 2.0f) / screen_cell_size;
-
-  LOG_DEBUG("Good: %d, %d. OG: %d, %d", good_tl_chunk.x, good_tl_chunk.y,
-            tl_chunk.x, tl_chunk.y);
 
   s32 offset_x = (good_tl_chunk.x - tl_chunk.x) * screen_cell_size * -1;
   s32 offset_y = (tl_chunk.y - good_tl_chunk.y) * screen_cell_size * -1;
@@ -314,10 +310,13 @@ Result render(Render_State &render_state, Update_State &update_state) {
   }
 #endif
 
-  s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL - offset_x;
-  s32 height = screen_cell_size * SCREEN_CELL_SIZE_FULL - offset_y;
+  s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL;
+  s32 height = screen_cell_size * SCREEN_CELL_SIZE_FULL;
 
   SDL_Rect destRect = {offset_x, offset_y, width, height};
+  // SDL_Rect destRect = {10 * screen_cell_size, 10 * screen_cell_size,
+  //                      SCREEN_CELL_SIZE_FULL * screen_cell_size,
+  //                      SCREEN_CELL_SIZE_FULL * screen_cell_size};
 
   SDL_RenderCopy(render_state.renderer, render_state.cell_texture, NULL,
                  &destRect);
