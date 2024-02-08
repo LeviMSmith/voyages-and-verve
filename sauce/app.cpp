@@ -322,7 +322,7 @@ Result handle_window_resize(Render_State &render_state) {
 
   SDL_GetWindowSize(render_state.window, &render_state.window_width,
                     &render_state.window_height);
-  LOG_INFO("SDL window resized to %d, %d", render_state.window_width,
+  LOG_INFO("SDL window resized to {}, {}", render_state.window_width,
            render_state.window_height);
 
   return Result::SUCCESS;
@@ -412,6 +412,8 @@ Result gen_world_texture(Render_State &render_state,
               ((SCREEN_CHUNK_SIZE - 1) * CHUNK_CELL_WIDTH * PITCH -
                (chunk_x * CHUNK_CELL_WIDTH * PITCH));
           size_t chunk_index = chunk_y + chunk_x * CHUNK_CELL_WIDTH;
+
+#ifndef NDEBUG
           if (cell_y == 0 && cell_x == 0) {
             cr = 255;
             cg = 0;
@@ -423,13 +425,19 @@ Result gen_world_texture(Render_State &render_state,
             cb = chunk.cells[chunk_index].cb;
             ca = chunk.cells[chunk_index].ca;
           }
+#else
+          cr = chunk.cells[chunk_index].cr;
+          cg = chunk.cells[chunk_index].cg;
+          cb = chunk.cells[chunk_index].cb;
+          ca = chunk.cells[chunk_index].ca;
+#endif
           pixels[buffer_index] = (cr << 24) | (cg << 16) | (cb << 8) | ca;
           if (buffer_index >
               SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS - 1) {
             LOG_ERROR(
-                "Somehow surpassed the texture size while generating: %d "
-                "cell texture chunk_x: %d, chunk_y: %d, cell_x: %d, cell_y: "
-                "%d",
+                "Somehow surpassed the texture size while generating: {} "
+                "cell texture chunk_x: {}, chunk_y: {}, cell_x: {}, cell_y: "
+                "{}",
                 buffer_index, chunk_x, chunk_y, cell_x, cell_y);
           }
           assert(buffer_index <=
