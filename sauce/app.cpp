@@ -10,7 +10,6 @@
 
 #include <cassert>
 #include <cmath>
-#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
