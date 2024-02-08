@@ -12,8 +12,7 @@ required.
 All code dependancies should be in vendor and built automatically by cmake,
 so you'll just need that and a compiler.
 
-That, and make sure that after cloning this repo, you'll also need to grab 
-the submodules:
+Make sure to also clone the submodules to actually get that code into vendor:
 
 `git submodule update --init --recursive`
 
