@@ -46,7 +46,7 @@ enum class Result {
 #ifndef NDEBUG
 #define LOG_DEBUG(...) spdlog::debug(__VA_ARGS__)
 #else
-#define LOG_DEBUG(...) noop
+#define LOG_DEBUG(...) (void)0
 #endif
 #define LOG_INFO(...) spdlog::info(__VA_ARGS__)
 #define LOG_WARN(...) spdlog::warn(__VA_ARGS__)
