@@ -22,7 +22,7 @@ Make sure to also clone the submodules to actually get that code into vendor:
 
 Configure cmake:
 
-`cmake =S . -B ./build -DCMAKE_BUILD_TYPE=Debug`
+`cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Debug`
 
 Build the generated cmake config
 
