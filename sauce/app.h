@@ -42,6 +42,7 @@ enum class Result {
   WINDOW_CLOSED,
   NONEXIST,
   FILESYSTEM_ERROR,
+  GENERAL_ERROR,
 };
 
 /// Log definitions ///
@@ -61,6 +62,9 @@ enum class Result {
 struct Config {
   int window_width, window_height; // using int since that's what sdl takes
   bool window_start_maximized;
+
+  std::filesystem::path res_dir;
+  std::filesystem::path tex_dir;
 };
 
 Config default_config();
@@ -104,7 +108,11 @@ struct Entity {
   Entity_Coord coord;
   f32 vx, vy;
   f32 ax, ay;
-  f32 camx, camy; // This is relative to the main pos
+  f32 camx, camy; // This is relative to coord
+
+  // These are what will be manipulated by the animation system
+  u8 texture;       // a number that is mapped to a file in resources.json
+  u8 texture_index; // an index into a texture atlas
 };
 
 Entity default_entity();
@@ -173,7 +181,7 @@ constexpr u8 SCREEN_CHUNK_SIZE =
     4; // 64 * 4 = 256; 256 * 256 = 65536 pixels in texture
 
 // This is the part of the texture that will not be shown
-constexpr u8 SCREEN_CELL_PADDING = 60; // Makes screen width 169 (13*13) cells
+constexpr u8 SCREEN_CELL_PADDING = 60; // Makes screen width 196 cells
 constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
 
 struct Render_State {
@@ -185,6 +193,8 @@ struct Render_State {
 
   u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
   SDL_Texture *cell_texture;
+  std::map<u8, SDL_Texture *>
+      textures; // This mapping should be the same as in resources.json
 
   std::vector<SDL_Event> pending_events;
 
@@ -195,6 +205,9 @@ struct Render_State {
 Result init_rendering(Render_State &render_state);
 Result render(Render_State &render_state, Update_State &update_state);
 void destroy_rendering(Render_State &render_state);
+
+// No need to steam textures in, so we'll just create them all up front and then use them as needed.
+Result init_render_textures(Render_State &render_state, const Config &config);
 
 Result handle_window_resize(Render_State &render_state);
 
@@ -209,8 +222,6 @@ struct App {
   Update_State update_state;
   Render_State render_state;
   Config config;
-
-  std::filesystem::path res_dir;
 };
 
 Result poll_events(App &app);

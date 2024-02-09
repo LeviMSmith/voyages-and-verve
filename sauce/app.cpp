@@ -4,7 +4,9 @@
 #include "SDL_error.h"
 #include "SDL_events.h"
 #include "SDL_hints.h"
+#include "SDL_pixels.h"
 #include "SDL_render.h"
+#include "SDL_surface.h"
 #include "SDL_timer.h"
 #include "SDL_video.h"
 
@@ -14,6 +16,7 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
+#include <regex>
 
 // Platform specific includes
 #ifdef _WIN32
@@ -41,6 +44,8 @@ Config default_config() {
       600,  // window_width
       400,  // window_height
       true, // window_start_maximized
+      "",   // res_dir: Should be set by caller
+      "",   // tex_dir: set with res_dir
   };
 }
 
@@ -294,6 +299,17 @@ Result init_rendering(App &app) {
 
   LOG_INFO("Created cell texture");
 
+  // Create the rest of the textures from resources
+
+  Result render_tex_res = init_render_textures(app.render_state, app.config);
+  if (render_tex_res != Result::SUCCESS) {
+    LOG_WARN("Something went wrong while generating textures from resources. "
+             "Going to try to continue.");
+  } else {
+    LOG_INFO("Created {} resource texture(s)",
+             app.render_state.textures.size());
+  }
+
   return Result::SUCCESS;
 }
 
@@ -352,6 +368,12 @@ void destroy_rendering(Render_State &render_state) {
     SDL_DestroyTexture(render_state.cell_texture);
     LOG_INFO("Destroyed cell texture");
   }
+
+  for (const std::pair<u8, SDL_Texture *> &pair : render_state.textures) {
+    SDL_DestroyTexture(pair.second);
+  }
+  LOG_INFO("Destroyed {} resource textures", render_state.textures.size());
+
   if (render_state.window != nullptr) {
     SDL_DestroyWindow(render_state.window);
     LOG_INFO("Destroyed SDL window");
@@ -359,6 +381,92 @@ void destroy_rendering(Render_State &render_state) {
 
   SDL_Quit();
   LOG_INFO("Quit SDL");
+}
+
+Result init_render_textures(Render_State &render_state, const Config &config) {
+  try {
+    if (!std::filesystem::is_directory(config.tex_dir)) {
+      LOG_ERROR("Can't initialize textures. {} is not a directory!",
+                config.tex_dir.c_str());
+      return Result::NONEXIST;
+    }
+
+    for (const auto &entry :
+         std::filesystem::directory_iterator(config.tex_dir)) {
+      if (entry.is_regular_file()) {
+        std::regex pattern(
+            "^([a-zA-Z0-9]+)-([0-9A-Fa-f]{2})\\.([a-zA-Z0-9]+)$");
+        std::smatch matches;
+
+        std::string filename = entry.path().filename().string();
+
+        if (std::regex_match(filename, matches, pattern)) {
+          if (matches.size() == 4) { // matches[0] is the entire string, 1-3 are
+                                     // the capture groups
+            std::string name = matches[1].str();
+            std::string hexStr = matches[2].str();
+            std::string extension = matches[3].str();
+
+            unsigned int hexValue;
+            std::stringstream ss;
+            ss << std::hex << hexStr;
+            ss >> hexValue;
+            u8 id = static_cast<unsigned char>(hexValue);
+
+            if (extension == "bmp") {
+              SDL_ClearError();
+              SDL_Surface *bmp_surface = SDL_LoadBMP(entry.path().c_str());
+              if (bmp_surface == nullptr) {
+                LOG_ERROR("Failed to create surface for bitmap texture {}. SDL "
+                          "error: {}",
+                          entry.path().c_str(), SDL_GetError());
+                break;
+              }
+
+              // Assume no conflicting texture ids, but check after with the
+              // emplacement
+
+              SDL_ClearError();
+              SDL_Texture *texture = SDL_CreateTextureFromSurface(
+                  render_state.renderer, bmp_surface);
+              SDL_FreeSurface(bmp_surface); // Shouldn't overwrite any potential
+                                            // errors from texture creation
+              if (texture == nullptr) {
+                LOG_ERROR("Failed to create texture for bitmap texture {}. SDL "
+                          "error: {}",
+                          entry.path().c_str(), SDL_GetError());
+                break;
+              }
+
+              auto emplace_res = render_state.textures.emplace(id, texture);
+              if (!emplace_res.second) {
+                LOG_ERROR("Couldn't create texture of id {}. Already exists",
+                          id);
+                SDL_DestroyTexture(texture);
+                break;
+              }
+            }
+          }
+        } else {
+          LOG_WARN("File {} in {} doesn't match the texture format. Skipping. "
+                   "Should be "
+                   "name-XX.ext",
+                   filename, config.tex_dir.c_str());
+        }
+      }
+    }
+  } catch (const std::filesystem::filesystem_error &e) {
+    LOG_ERROR("Something went wrong on the filesystem side while creating "
+              "textures: {}",
+              e.what());
+    return Result::FILESYSTEM_ERROR;
+  } catch (const std::exception &e) {
+    LOG_ERROR("General standard library error while creating textures: {}",
+              e.what());
+    return Result::GENERAL_ERROR;
+  }
+
+  return Result::SUCCESS;
 }
 
 Result handle_window_resize(Render_State &render_state) {
@@ -556,13 +664,15 @@ Result init_app(App &app) {
   app.config = default_config();
 
   std::filesystem::path res_dir;
-  Result res_dir_res = get_resource_dir(app.res_dir);
+  Result res_dir_res = get_resource_dir(app.config.res_dir);
   if (res_dir_res != Result::SUCCESS) {
     LOG_FATAL("Couldn't find resource dir! Exiting...");
     return res_dir_res;
   } else {
-    LOG_INFO("Resource dir found at {}", app.res_dir.c_str());
+    LOG_INFO("Resource dir found at {}", app.config.res_dir.c_str());
   }
+
+  app.config.tex_dir = app.config.res_dir / "textures";
 
   init_updating(app.update_state);
   Result renderer_res = init_rendering(app);
