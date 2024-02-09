@@ -8,6 +8,7 @@
 #include "spdlog/spdlog.h"
 
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <vector>
 
@@ -39,6 +40,8 @@ enum class Result {
   SUCCESS,
   SDL_ERROR,
   WINDOW_CLOSED,
+  NONEXIST,
+  FILESYSTEM_ERROR,
 };
 
 /// Log definitions ///
@@ -61,6 +64,10 @@ struct Config {
 };
 
 Config default_config();
+
+/// Resource definitions ///
+
+Result get_resource_dir(std::filesystem::path &res_dir);
 
 ////////////////////////
 /// Math definitions ///
@@ -202,6 +209,8 @@ struct App {
   Update_State update_state;
   Render_State render_state;
   Config config;
+
+  std::filesystem::path res_dir;
 };
 
 Result poll_events(App &app);

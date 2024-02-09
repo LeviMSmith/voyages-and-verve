@@ -13,6 +13,19 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
+
+// Platform specific includes
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(__linux__)
+#include <limits.h>
+#include <unistd.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#else
+#error "Unsupported platform"
+#endif
 
 namespace VV {
 /////////////////////////////////
@@ -29,6 +42,42 @@ Config default_config() {
       400,  // window_height
       true, // window_start_maximized
   };
+}
+
+/// Resource implementations ///
+
+// NOTE (Levi): I don't know the other platforms, so ChatGPT did them. Platform
+// specific includes for this are at the top of the file.
+Result get_resource_dir(std::filesystem::path &res_dir) {
+#ifdef _WIN32
+  char path[MAX_PATH];
+  GetModuleFileNameA(NULL, path, MAX_PATH);
+  res_dir = std::filesystem::path(path).parent_path() / "res";
+  return Result::SUCCESS;
+#elif defined(__linux__)
+  char path[PATH_MAX];
+  ssize_t count = readlink("/proc/self/exe", path, PATH_MAX - 1);
+  if (count > 0) {
+    path[count] = '\0';
+    res_dir = std::filesystem::path(path).parent_path() / "res";
+    return Result::SUCCESS;
+  } else {
+    LOG_ERROR("Failed to find resource dir on linux!");
+    return Result::FILESYSTEM_ERROR;
+  }
+#elif defined(__APPLE__)
+  char path[1024];
+  uint32_t size = sizeof(path);
+  if (_NSGetExecutablePath(path, &size) == 0) {
+    path[size] =
+        '\0'; // Ensure null-termination, might need adjustment for actual size
+    res_dir = std::filesystem::path(path).parent_path() / "res";
+    return Result::SUCCESS;
+  } else {
+    LOG_ERROR("Failed to find resource dir on Apple!");
+    return Result::FILESYSTEM_ERROR;
+  }
+#endif
 }
 
 ////////////////////////////
@@ -503,7 +552,18 @@ Result poll_events(App &app) {
 
 Result init_app(App &app) {
   spdlog::set_level(spdlog::level::debug);
+
   app.config = default_config();
+
+  std::filesystem::path res_dir;
+  Result res_dir_res = get_resource_dir(app.res_dir);
+  if (res_dir_res != Result::SUCCESS) {
+    LOG_FATAL("Couldn't find resource dir! Exiting...");
+    return res_dir_res;
+  } else {
+    LOG_INFO("Resource dir found at {}", app.res_dir.c_str());
+  }
+
   init_updating(app.update_state);
   Result renderer_res = init_rendering(app);
   if (renderer_res != Result::SUCCESS) {

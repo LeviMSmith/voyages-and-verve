@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
   App *app = new App;
   LOG_INFO("Log initialized");
 
-  LOG_DEBUG("The App state struct is %d bytes", sizeof(App));
+  LOG_INFO("The App state struct is {} bytes", sizeof(App));
 
   if (init_app(*app) != Result::SUCCESS) {
     return EXIT_FAILURE;
