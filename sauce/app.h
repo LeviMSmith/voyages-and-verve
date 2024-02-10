@@ -104,8 +104,9 @@ struct Entity_Coord {
   f64 x, y;
 };
 
+// If you add something to this, make sure it works with default_entity!
 struct Entity {
-  Entity_Coord coord;
+  Entity_Coord coord; // For bounding box and rendering, this is top left
   f32 vx, vy;
   f32 ax, ay;
   f32 camx, camy; // This is relative to coord
@@ -150,11 +151,16 @@ Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);
 Chunk_Coord get_chunk_coord(f64 x, f64 y);
 Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord);
 
-// Entities will also go here in their own map
-// Using map right now because implementation is quick,
-// but it'd be better to have a specialized binary tree
+enum class DimensionIndex : u8 {
+  OVERWORLD,
+};
+
 struct Dimension {
   std::map<Chunk_Coord, Chunk> chunks;
+
+  // Entities are all stored in Update_State, but for existance based
+  // processing, we keep an index here
+  std::vector<size_t> entity_indicies;
 };
 
 Result load_chunk(Dimension &dim, const Chunk_Coord &coord);
@@ -165,13 +171,22 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 //////////////////////////
 
 struct Update_State {
-  Dimension overworld;
-  Entity active_player;
   std::vector<SDL_Event> pending_events;
+
+  std::map<DimensionIndex, Dimension> dimensions;
+  std::vector<Entity> entities;
+
+  DimensionIndex active_dimension; // Key of active dimension
+  size_t active_player;            // Index into entities
 };
 
 Result init_updating(Update_State &update_state);
 Result update(Update_State &update_state);
+
+// Don't hold on to these pointers too long. Additions to the vectors could
+// invalidate them
+inline Dimension *get_active_dimension(Update_State &update_state);
+inline Entity *get_active_player(Update_State &update_state);
 
 /////////////////////////////
 /// Rendering definitions ///
@@ -199,6 +214,7 @@ struct Render_State {
   std::vector<SDL_Event> pending_events;
 
   Chunk_Coord tl_tex_chunk;
+  u16 screen_cell_size;
 };
 
 // Uses global config
@@ -206,13 +222,18 @@ Result init_rendering(Render_State &render_state);
 Result render(Render_State &render_state, Update_State &update_state);
 void destroy_rendering(Render_State &render_state);
 
-// No need to steam textures in, so we'll just create them all up front and then use them as needed.
+// No need to steam textures in, so we'll just create them all up front and then
+// use them as needed.
 Result init_render_textures(Render_State &render_state, const Config &config);
 
 Result handle_window_resize(Render_State &render_state);
 
 Result gen_world_texture(Render_State &render_state,
                          Update_State &update_state);
+
+Result render_cell_texture(Render_State &render_state,
+                           Update_State &update_state);
+Result render_entities(Render_State &render_state, Update_State &update_state);
 
 /////////////////////////
 /// State definitions ///

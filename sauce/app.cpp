@@ -17,6 +17,7 @@
 #include <ctime>
 #include <filesystem>
 #include <regex>
+#include <set>
 
 // Platform specific includes
 #ifdef _WIN32
@@ -125,16 +126,18 @@ bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
 
 Entity default_entity() {
   Entity return_entity;
-  return_entity.coord = {
-      0.0, // x
-      0.0  // y
-  };
+
+  // std::memset(&return_entity, 0, sizeof(Entity));
+  return_entity.coord.x = 0;
+  return_entity.coord.y = 0;
   return_entity.vx = 0;
   return_entity.vy = 0;
   return_entity.ax = 0;
   return_entity.ay = 0;
   return_entity.camx = 0;
   return_entity.camy = 0;
+  return_entity.texture = 0;
+  return_entity.texture_index = 0;
 
   return return_entity;
 }
@@ -320,43 +323,8 @@ Result render(Render_State &render_state, Update_State &update_state) {
   // the player moving chunks
   gen_world_texture(render_state, update_state);
 
-  u16 screen_cell_size =
-      render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
-
-  Entity_Coord tl_chunk = get_world_pos_from_chunk(render_state.tl_tex_chunk);
-  tl_chunk.y--; // This is what makes it TOP left instead of bottom left
-
-  // This is where the top left of the screen should be in world coordinates
-  Entity_Coord good_tl_chunk;
-  good_tl_chunk.x =
-      update_state.active_player.camx + update_state.active_player.coord.x;
-  good_tl_chunk.x -= (render_state.window_width / 2.0f) / screen_cell_size;
-
-  good_tl_chunk.y =
-      update_state.active_player.camy + update_state.active_player.coord.y;
-  good_tl_chunk.y += (render_state.window_height / 2.0f) / screen_cell_size;
-
-  s32 offset_x = (good_tl_chunk.x - tl_chunk.x) * screen_cell_size * -1;
-  s32 offset_y = (tl_chunk.y - good_tl_chunk.y) * screen_cell_size * -1;
-
-#ifndef NDEBUG
-  if (offset_y > 0 || offset_x > 0) {
-    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
-             "above 0: x:{}, y:{}",
-             offset_x, offset_y);
-  }
-#endif
-
-  s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL;
-  s32 height = screen_cell_size * SCREEN_CELL_SIZE_FULL;
-
-  SDL_Rect destRect = {offset_x, offset_y, width, height};
-  // SDL_Rect destRect = {10 * screen_cell_size, 10 * screen_cell_size,
-  //                      SCREEN_CELL_SIZE_FULL * screen_cell_size,
-  //                      SCREEN_CELL_SIZE_FULL * screen_cell_size};
-
-  SDL_RenderCopy(render_state.renderer, render_state.cell_texture, NULL,
-                 &destRect);
+  render_cell_texture(render_state, update_state);
+  render_entities(render_state, update_state);
 
   SDL_RenderPresent(render_state.renderer);
 
@@ -412,6 +380,11 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
             ss << std::hex << hexStr;
             ss >> hexValue;
             u8 id = static_cast<unsigned char>(hexValue);
+
+            if (id == 0) {
+              LOG_ERROR("Texture {} id can't be 0!", entry.path().c_str());
+              break;
+            }
 
             if (extension == "bmp") {
               SDL_ClearError();
@@ -482,6 +455,9 @@ Result handle_window_resize(Render_State &render_state) {
   LOG_INFO("SDL window resized to {}, {}", render_state.window_width,
            render_state.window_height);
 
+  render_state.screen_cell_size =
+      render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
+
   return Result::SUCCESS;
 }
 
@@ -496,7 +472,7 @@ Result gen_world_texture(Render_State &render_state,
   // probably multithread.
   // TODO: multithread
 
-  Entity &active_player = update_state.active_player;
+  Entity &active_player = *get_active_player(update_state);
 
   // Remember, Entity::cam is relative to the entity's position
   f64 camx, camy;
@@ -522,8 +498,7 @@ Result gen_world_texture(Render_State &render_state,
   u8 chunk_x = 0;
   u8 chunk_y = 0;
 
-  // This should be the dimension that the player in. But that will come later
-  Dimension &active_dimension = update_state.overworld;
+  Dimension &active_dimension = *get_active_dimension(update_state);
 
   // LOG_DEBUG("Generating world texture");
   // For each chunk in the texture...
@@ -613,16 +588,153 @@ Result gen_world_texture(Render_State &render_state,
   return Result::SUCCESS;
 }
 
+Result render_cell_texture(Render_State &render_state,
+                           Update_State &update_state) {
+  Entity &active_player = *get_active_player(update_state);
+
+  u16 screen_cell_size = render_state.screen_cell_size;
+
+  Entity_Coord tl_chunk = get_world_pos_from_chunk(render_state.tl_tex_chunk);
+  tl_chunk.y--; // This is what makes it TOP left instead of bottom left
+
+  // This is where the top left of the screen should be in world coordinates
+  Entity_Coord good_tl_chunk;
+  good_tl_chunk.x = active_player.camx + active_player.coord.x;
+  good_tl_chunk.x -= (render_state.window_width / 2.0f) / screen_cell_size;
+
+  good_tl_chunk.y = active_player.camy + active_player.coord.y;
+  good_tl_chunk.y += (render_state.window_height / 2.0f) / screen_cell_size;
+
+  s32 offset_x = (good_tl_chunk.x - tl_chunk.x) * screen_cell_size * -1;
+  s32 offset_y = (tl_chunk.y - good_tl_chunk.y) * screen_cell_size * -1;
+
+#ifndef NDEBUG
+  if (offset_y > 0 || offset_x > 0) {
+    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
+             "above 0: x:{}, y:{}",
+             offset_x, offset_y);
+  }
+#endif
+
+  s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL;
+  s32 height = screen_cell_size * SCREEN_CELL_SIZE_FULL;
+
+  SDL_Rect destRect = {offset_x, offset_y, width, height};
+  // SDL_Rect destRect = {10 * screen_cell_size, 10 * screen_cell_size,
+  //                      SCREEN_CELL_SIZE_FULL * screen_cell_size,
+  //                      SCREEN_CELL_SIZE_FULL * screen_cell_size};
+
+  SDL_RenderCopy(render_state.renderer, render_state.cell_texture, NULL,
+                 &destRect);
+
+  return Result::SUCCESS;
+}
+
+Result render_entities(Render_State &render_state, Update_State &update_state) {
+  Dimension &active_dimension = *get_active_dimension(update_state);
+  static std::set<u8> suppressed_id_warns;
+
+  u16 screen_cell_size = render_state.screen_cell_size;
+  Entity &active_player = *get_active_player(update_state);
+
+  Entity_Coord tl;
+  tl.x = active_player.camx + active_player.coord.x;
+  tl.x -= (render_state.window_width / 2.0f) / screen_cell_size;
+
+  tl.y = active_player.camy + active_player.coord.y;
+  tl.y += (render_state.window_height / 2.0f) / screen_cell_size;
+
+  for (size_t entity_index : active_dimension.entity_indicies) {
+    Entity &entity = update_state.entities[entity_index];
+
+    if (entity.texture != 0) {
+      auto sdk_texture = render_state.textures.find(entity.texture);
+
+      if (sdk_texture == render_state.textures.end()) {
+        if (!suppressed_id_warns.contains(entity.texture)) {
+          LOG_WARN("Entity want's texture {} which isn't loaded!",
+                   entity.texture);
+          suppressed_id_warns.insert(entity.texture);
+        }
+      } else {
+        // Now it's time to render!
+
+        SDL_Texture *actual_texture = sdk_texture->second;
+
+        // TODO: The map that holds the texture should hold a struct with the
+        // pointer and this infer to avoid this extra SDL call and the
+        // uncertainty that comes with it
+        int width, height;
+        SDL_ClearError();
+        if (SDL_QueryTexture(actual_texture, NULL, NULL, &width, &height) !=
+            0) {
+          LOG_WARN("Failed to get width and height for texture {}. Guessing. "
+                   "SDL error: {}",
+                   entity.texture, SDL_GetError());
+          width = 32;
+          height = 32;
+        }
+
+        // LOG_DEBUG("entity coord: {} {}", entity.coord.x, entity.coord.y);
+        // LOG_DEBUG("tl: {} {}", tl.x, tl.y);
+
+        Entity_Coord world_offset;
+        world_offset.x = entity.coord.x - tl.x;
+        world_offset.y = tl.y - entity.coord.y;
+
+        // LOG_DEBUG("World offset: {} {}", world_offset.x, world_offset.y);
+
+        // If visable
+        if (world_offset.x >= 0 &&
+            world_offset.x <= SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING &&
+            world_offset.y >= 0 &&
+            world_offset.y <=
+                render_state.window_height / render_state.screen_cell_size) {
+
+          SDL_Rect dest_rect = {
+              (int)(world_offset.x * render_state.screen_cell_size),
+              (int)(world_offset.y * render_state.screen_cell_size),
+              width * screen_cell_size, height * screen_cell_size};
+
+          SDL_RenderCopy(render_state.renderer, actual_texture, NULL,
+                         &dest_rect);
+        }
+      }
+    }
+  }
+
+  return Result::SUCCESS;
+}
+
 //////////////////////////////
 /// Update implementations ///
 //////////////////////////////
 
 Result init_updating(Update_State &update_state) {
-  update_state.active_player = default_entity();
-  load_chunks_square(update_state.overworld, update_state.active_player.coord.x,
-                     update_state.active_player.coord.y, SCREEN_CHUNK_SIZE / 2);
+  update_state.dimensions.emplace(DimensionIndex::OVERWORLD, Dimension());
+  update_state.active_dimension = DimensionIndex::OVERWORLD;
+
+  update_state.entities.push_back(default_entity());
+  update_state.active_player = update_state.entities.size() - 1;
+
+  Entity &active_player = *get_active_player(update_state);
+
+  Dimension &active_dimension = *get_active_dimension(update_state);
+  active_dimension.entity_indicies.push_back(update_state.active_player);
+
+  active_player.texture = 1;
+  load_chunks_square(*get_active_dimension(update_state), active_player.coord.x,
+                     active_player.coord.y, SCREEN_CHUNK_SIZE / 2);
 
   return Result::SUCCESS;
+}
+
+Dimension *get_active_dimension(Update_State &update_state) {
+  return &update_state.dimensions.at(update_state.active_dimension);
+}
+
+Entity *get_active_player(Update_State &update_state) {
+  return &update_state.entities[update_state.active_player];
 }
 
 /////////////////////////////
