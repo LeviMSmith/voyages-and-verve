@@ -222,8 +222,8 @@ Result init_rendering(Render_State &render_state);
 Result render(Render_State &render_state, Update_State &update_state);
 void destroy_rendering(Render_State &render_state);
 
-// No need to steam textures in, so we'll just create them all up front and then
-// use them as needed.
+// No need to stream textures in, so we'll just create them all up front and
+// then use them as needed.
 Result init_render_textures(Render_State &render_state, const Config &config);
 
 Result handle_window_resize(Render_State &render_state);
