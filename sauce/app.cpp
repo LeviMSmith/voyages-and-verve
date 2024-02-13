@@ -168,15 +168,15 @@ Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   Chunk_Coord return_chunk_coord;
 
   // floor to ensure it goes toward bottom left
-  return_chunk_coord.x = std::floor(x / CHUNK_CELL_WIDTH);
-  return_chunk_coord.y = std::floor(y / CHUNK_CELL_WIDTH);
+  return_chunk_coord.x = static_cast<s32>(x / CHUNK_CELL_WIDTH);
+  return_chunk_coord.y = static_cast<s32>(y / CHUNK_CELL_WIDTH);
 
   if (x < 0) {
-    return_chunk_coord.x -= 1;
+    // return_chunk_coord.x -= 1;
   }
 
   if (y < 0) {
-    return_chunk_coord.y -= 1;
+    // return_chunk_coord.y -= 1;
   }
 
   return return_chunk_coord;
@@ -520,11 +520,11 @@ Result gen_world_texture(Render_State &render_state,
   for (ic.y = center.y - radius; ic.y < ic_max.y; ic.y++) {
     for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
       Chunk &chunk = active_dimension.chunks[ic];
-      if (chunk.coord != ic) {
-        // LOG_WARN("Cantor mapping of chunks failed! %d, %d: %d, %d", ic.x,
-        // ic.y,
-        //          chunk.coord.x, chunk.coord.y);
-      }
+      // if (chunk.coord != ic) {
+      // LOG_WARN("Cantor mapping of chunks failed! %d, %d: %d, %d", ic.x,
+      // ic.y,
+      //          chunk.coord.x, chunk.coord.y);
+      // }
 
       // assert(chunk.coord == ic);
       // if (chunk.cells[0].type == Cell_Type::AIR) {
@@ -608,14 +608,15 @@ Result render_cell_texture(Render_State &render_state,
   s32 offset_x = (good_tl_chunk.x - tl_chunk.x) * screen_cell_size * -1;
   s32 offset_y = (tl_chunk.y - good_tl_chunk.y) * screen_cell_size * -1;
 
-  // #ifndef NDEBUG
-  //   if (offset_y > 0 || offset_x > 0) {
-  //     LOG_WARN("Texture appears to be copied incorrectly. One of the offsets
-  //     are "
-  //              "above 0: x:{}, y:{}",
-  //              offset_x, offset_y);
-  //   }
-  // #endif
+  /*
+#ifndef NDEBUG
+  if (offset_y > 0 || offset_x > 0) {
+    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
+             "above 0: x:{}, y:{}",
+             offset_x, offset_y);
+  }
+#endif
+*/
 
   s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL;
   s32 height = screen_cell_size * SCREEN_CELL_SIZE_FULL;
@@ -842,9 +843,9 @@ void update_kinetic(Update_State &update_state) {
             // way here for now.
 
             // This will cause it to bounce back the way it came but oh well
-            entity.ax = entity.ax * -0.25; // Decrease and flip
+            entity.ax = entity.ax * -0.25; // Decrease and go back
             entity.ay = entity.ay * -0.25;
-            entity.vx = entity.vx * -0.25;
+            entity.vx = entity.vx * -0.25; // Decrease and go back
             entity.vy = entity.vy * -0.25;
             entity.coord.x += entity.vx;
             entity.coord.y += entity.vy;
@@ -861,8 +862,8 @@ Entity default_player() {
   player.texture = Texture_Id::PLAYER;
   player.coord.y = 33;
   player.camy -= 20;
-  player.ax = -1.001;
-  player.ay = -1.001;
+  player.ax = -1.01;
+  player.ay = -1.01;
 
   // TODO: Should be in a resource description file. This will be different than
   // texture width and height.
