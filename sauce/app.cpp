@@ -172,11 +172,11 @@ Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   return_chunk_coord.y = static_cast<s32>(y / CHUNK_CELL_WIDTH);
 
   if (x < 0) {
-    // return_chunk_coord.x -= 1;
+    return_chunk_coord.x -= 1;
   }
 
   if (y < 0) {
-    // return_chunk_coord.y -= 1;
+    return_chunk_coord.y -= 1;
   }
 
   return return_chunk_coord;
@@ -480,6 +480,12 @@ Result gen_world_texture(Render_State &render_state,
   camy = active_player.camy + active_player.coord.y;
 
   Chunk_Coord center = get_chunk_coord(camx, camy);
+  if (center.x < 0) {
+    center.x++;
+  }
+  if (center.y < 0) {
+    center.y++;
+  }
   Chunk_Coord ic;
   Chunk_Coord ic_max;
   u8 radius = SCREEN_CHUNK_SIZE / 2;
@@ -801,6 +807,11 @@ void update_kinetic(Update_State &update_state) {
     Entity &entity = update_state.entities[entity_index];
 
     Chunk_Coord cc = get_chunk_coord(entity.coord.x, entity.coord.y);
+    static Chunk_Coord last_chunk = cc;
+
+    if (cc != last_chunk) {
+      LOG_DEBUG("New chunk {} {}", cc.x, cc.y);
+    }
 
     // TODO: Should also definitly multithread this
 
@@ -811,8 +822,8 @@ void update_kinetic(Update_State &update_state) {
     // This is bad. It's going to take forever. Definitly have to only do this
     // on entities that absolutly need it.
     Chunk_Coord ic = cc;
-    for (ic.x = cc.x; ic.x < cc.x + 1; ic.x++) {
-      for (ic.y = cc.y; ic.y < cc.y - 1; ic.y--) {
+    for (ic.x = cc.x; ic.x < cc.x + 2; ic.x++) {
+      for (ic.y = cc.y + 1; ic.y > cc.y - 1; ic.y--) {
         Chunk &chunk = active_dimension.chunks[ic];
 
         for (u32 cell = 0; cell < CHUNK_CELLS; cell++) {
