@@ -186,6 +186,9 @@ struct Update_State {
 Result init_updating(Update_State &update_state);
 Result update(Update_State &update_state);
 
+constexpr f32 KINETIC_FRICTION = 1.0f;
+void update_kinetic(Update_State &update_state);
+
 // Factory functions
 Entity default_player();
 

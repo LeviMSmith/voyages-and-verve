@@ -734,11 +734,90 @@ Result init_updating(Update_State &update_state) {
 
 Result update(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
+  Dimension &active_dimension = *get_active_dimension(update_state);
 
-  // active_player.camy -= 0.1;
-  // active_player.coord.y += 0.1;
+  update_kinetic(update_state);
 
   return Result::SUCCESS;
+}
+
+void update_kinetic(Update_State &update_state) {
+  Dimension &active_dimension = *get_active_dimension(update_state);
+
+  // TODO: Multithread
+
+  // Start by updating kinetics values: acc, vel, pos
+  for (size_t entity_index : active_dimension.entity_indicies) {
+    // Have to trust that entity_indicies is correct at them moment.
+    Entity &entity = update_state.entities[entity_index];
+
+    // If not 0, move toward 0. Only other forces increase acceleration
+    // No epsilon since it will be explicitly set to zero
+    if (entity.ax != 0.0f) {
+      if (entity.ax > 0) {
+        entity.ax -= KINETIC_FRICTION;
+
+        if (entity.ax <= 0.0f) { // If we flipped signs, set to 0
+          entity.ax = 0.0f;
+        }
+      } else {
+        entity.ax += KINETIC_FRICTION;
+
+        if (entity.ax > 0.0f) {
+          entity.ax = 0.0f;
+        }
+      }
+    }
+
+    if (entity.ay != 0.0f) {
+      if (entity.ay > 0) {
+        entity.ay -= KINETIC_FRICTION;
+
+        if (entity.ay <= 0.0f) { // If we flipped signs, set to 0
+          entity.ay = 0.0f;
+        }
+      } else {
+        entity.ay += KINETIC_FRICTION;
+
+        if (entity.ay > 0.0f) {
+          entity.ay = 0.0f;
+        }
+      }
+    }
+
+    entity.vx += entity.ax;
+    entity.vy += entity.ay;
+    entity.coord.x += entity.vx;
+    entity.coord.y += entity.vy;
+  }
+
+  // Now resolve colisions
+
+  // TODO: this just does cell collisions. We need some kind of spacial data
+  // sctructure to determine if we're colliding with other entities
+  for (size_t entity_index : active_dimension.entity_indicies) {
+    Entity &entity = update_state.entities[entity_index];
+
+    Chunk_Coord cc = get_chunk_coord(entity.coord.x, entity.coord.y);
+
+    // TODO: Should also definitly multithread this
+
+    // Right now just checking the chunks below and to the right since that's
+    // where the bounding box might spill over. If an entity every becomes
+    // larger than a chunk, we'll have to do this range based on that
+    Chunk_Coord ic = cc;
+    for (ic.x = cc.x; ic.x < cc.x + 1; ic.x++) {
+      for (ic.y = cc.y; ic.y < cc.y - 1; ic.y--) {
+        Chunk &chunk = active_dimension.chunks[ic];
+
+        for (u32 cell = 0; cell < CHUNK_CELLS; cell++) {
+          if (chunk.cells[cell].type == Cell_Type::DIRT) {
+            // Bounding box colision between the entity and the cell
+          }
+        }
+      }
+    }
+  }
 }
 
 Entity default_player() {
@@ -835,7 +914,7 @@ Result run_app(App &app) {
     // Update
     update(app.update_state);
 
-    // Render
+    // Render. This just draws, the flip is after the delay
     render(app.render_state, app.update_state);
     // TODO: This should delay the remaining time to make this frame 1/60 of a
     // second
