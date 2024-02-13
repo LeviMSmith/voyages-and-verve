@@ -136,7 +136,7 @@ Entity default_entity() {
   return_entity.ay = 0;
   return_entity.camx = 0;
   return_entity.camy = 0;
-  return_entity.texture = 0;
+  return_entity.texture = Texture_Id::NONE; // Also 0
   return_entity.texture_index = 0;
 
   return return_entity;
@@ -631,7 +631,7 @@ Result render_cell_texture(Render_State &render_state,
 
 Result render_entities(Render_State &render_state, Update_State &update_state) {
   Dimension &active_dimension = *get_active_dimension(update_state);
-  static std::set<u8> suppressed_id_warns;
+  static std::set<Texture_Id> suppressed_id_warns;
 
   u16 screen_cell_size = render_state.screen_cell_size;
   Entity &active_player = *get_active_player(update_state);
@@ -646,13 +646,14 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
   for (size_t entity_index : active_dimension.entity_indicies) {
     Entity &entity = update_state.entities[entity_index];
 
-    if (entity.texture != 0) {
-      auto sdk_texture = render_state.textures.find(entity.texture);
+    if (entity.texture != Texture_Id::NONE) {
+      auto sdk_texture =
+          render_state.textures.find(static_cast<u8>(entity.texture));
 
       if (sdk_texture == render_state.textures.end()) {
         if (!suppressed_id_warns.contains(entity.texture)) {
           LOG_WARN("Entity want's texture {} which isn't loaded!",
-                   entity.texture);
+                   (u8)entity.texture);
           suppressed_id_warns.insert(entity.texture);
         }
       } else {
@@ -669,7 +670,7 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
             0) {
           LOG_WARN("Failed to get width and height for texture {}. Guessing. "
                    "SDL error: {}",
-                   entity.texture, SDL_GetError());
+                   (u8)entity.texture, SDL_GetError());
           width = 32;
           height = 32;
         }
@@ -715,7 +716,7 @@ Result init_updating(Update_State &update_state) {
   update_state.dimensions.emplace(DimensionIndex::OVERWORLD, Dimension());
   update_state.active_dimension = DimensionIndex::OVERWORLD;
 
-  update_state.entities.push_back(default_entity());
+  update_state.entities.push_back(default_player());
   update_state.active_player = update_state.entities.size() - 1;
 
   Entity &active_player = *get_active_player(update_state);
@@ -723,7 +724,6 @@ Result init_updating(Update_State &update_state) {
   Dimension &active_dimension = *get_active_dimension(update_state);
   active_dimension.entity_indicies.push_back(update_state.active_player);
 
-  active_player.texture = 1;
   load_chunks_square(*get_active_dimension(update_state), active_player.coord.x,
                      active_player.coord.y, SCREEN_CHUNK_SIZE / 2);
 
@@ -737,6 +737,15 @@ Result update(Update_State &update_state) {
   active_player.coord.y += 0.1;
 
   return Result::SUCCESS;
+}
+
+Entity default_player() {
+  Entity player = default_entity();
+
+  player.texture = Texture_Id::PLAYER;
+  player.coord.y = 10;
+
+  return player;
 }
 
 Dimension *get_active_dimension(Update_State &update_state) {

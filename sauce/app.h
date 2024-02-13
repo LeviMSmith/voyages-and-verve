@@ -104,6 +104,8 @@ struct Entity_Coord {
   f64 x, y;
 };
 
+enum class Texture_Id : u8 { NONE = 0, PLAYER = 1 };
+
 // If you add something to this, make sure it works with default_entity!
 struct Entity {
   Entity_Coord coord; // For bounding box and rendering, this is top left
@@ -112,8 +114,8 @@ struct Entity {
   f32 camx, camy; // This is relative to coord
 
   // These are what will be manipulated by the animation system
-  u8 texture;       // a number that is mapped to a file in resources.json
-  u8 texture_index; // an index into a texture atlas
+  Texture_Id texture; // a number that is mapped to a file in resources.json
+  u8 texture_index;   // an index into a texture atlas
 };
 
 Entity default_entity();
@@ -139,8 +141,6 @@ struct Cell {
 constexpr u16 CHUNK_CELL_WIDTH = 64;
 constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH; // 4096
 
-// All a chunk ever should be is a list of cells, but it's easier to struct
-// then type that all out
 struct Chunk {
   Chunk_Coord coord;
   Cell cells[CHUNK_CELLS];
@@ -182,6 +182,9 @@ struct Update_State {
 
 Result init_updating(Update_State &update_state);
 Result update(Update_State &update_state);
+
+// Factory functions
+Entity default_player();
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them
