@@ -136,6 +136,8 @@ Entity default_entity() {
   return_entity.ay = 0;
   return_entity.camx = 0;
   return_entity.camy = 0;
+  return_entity.boundingw = 0;
+  return_entity.boundingh = 0;
   return_entity.texture = Texture_Id::NONE; // Also 0
   return_entity.texture_index = 0;
 
@@ -733,8 +735,8 @@ Result init_updating(Update_State &update_state) {
 Result update(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
 
-  active_player.camy -= 0.1;
-  active_player.coord.y += 0.1;
+  // active_player.camy -= 0.1;
+  // active_player.coord.y += 0.1;
 
   return Result::SUCCESS;
 }
@@ -743,7 +745,13 @@ Entity default_player() {
   Entity player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
-  player.coord.y = 10;
+  player.coord.y = 31;
+  player.camy -= 20;
+
+  // TODO: Should be in a resource description file. This will be different than
+  // texture width and height.
+  player.boundingw = 16;
+  player.boundingh = 32;
 
   return player;
 }

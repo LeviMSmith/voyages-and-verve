@@ -113,6 +113,9 @@ struct Entity {
   f32 ax, ay;
   f32 camx, camy; // This is relative to coord
 
+  // The physics bounding box starting from coord as top left
+  f32 boundingw, boundingh;
+
   // These are what will be manipulated by the animation system
   Texture_Id texture; // a number that is mapped to a file in resources.json
   u8 texture_index;   // an index into a texture atlas
