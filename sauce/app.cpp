@@ -326,8 +326,6 @@ Result render(Render_State &render_state, Update_State &update_state) {
   render_cell_texture(render_state, update_state);
   render_entities(render_state, update_state);
 
-  SDL_RenderPresent(render_state.renderer);
-
   return Result::SUCCESS;
 }
 
@@ -608,13 +606,14 @@ Result render_cell_texture(Render_State &render_state,
   s32 offset_x = (good_tl_chunk.x - tl_chunk.x) * screen_cell_size * -1;
   s32 offset_y = (tl_chunk.y - good_tl_chunk.y) * screen_cell_size * -1;
 
-#ifndef NDEBUG
-  if (offset_y > 0 || offset_x > 0) {
-    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
-             "above 0: x:{}, y:{}",
-             offset_x, offset_y);
-  }
-#endif
+  // #ifndef NDEBUG
+  //   if (offset_y > 0 || offset_x > 0) {
+  //     LOG_WARN("Texture appears to be copied incorrectly. One of the offsets
+  //     are "
+  //              "above 0: x:{}, y:{}",
+  //              offset_x, offset_y);
+  //   }
+  // #endif
 
   s32 width = screen_cell_size * SCREEN_CELL_SIZE_FULL;
   s32 height = screen_cell_size * SCREEN_CELL_SIZE_FULL;
@@ -661,9 +660,9 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
 
         SDL_Texture *actual_texture = sdk_texture->second;
 
-        // TODO: The map that holds the texture should hold a struct with the
-        // pointer and this infer to avoid this extra SDL call and the
-        // uncertainty that comes with it
+        // TODO: The map that holds the texture should be replaced with a struct
+        // with the texture and it's width and height to avoid this extra SDL
+        // call and the uncertainty that comes with it
         int width, height;
         SDL_ClearError();
         if (SDL_QueryTexture(actual_texture, NULL, NULL, &width, &height) !=
@@ -685,11 +684,13 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
         // LOG_DEBUG("World offset: {} {}", world_offset.x, world_offset.y);
 
         // If visable
-        if (world_offset.x >= 0 &&
-            world_offset.x <= SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING &&
-            world_offset.y >= 0 &&
+        if (world_offset.x >= -width &&
+            world_offset.x <=
+                SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING + width &&
+            world_offset.y >= -height &&
             world_offset.y <=
-                render_state.window_height / render_state.screen_cell_size) {
+                render_state.window_height / render_state.screen_cell_size +
+                    height) {
 
           SDL_Rect dest_rect = {
               (int)(world_offset.x * render_state.screen_cell_size),
@@ -725,6 +726,15 @@ Result init_updating(Update_State &update_state) {
   active_player.texture = 1;
   load_chunks_square(*get_active_dimension(update_state), active_player.coord.x,
                      active_player.coord.y, SCREEN_CHUNK_SIZE / 2);
+
+  return Result::SUCCESS;
+}
+
+Result update(Update_State &update_state) {
+  Entity &active_player = *get_active_player(update_state);
+
+  active_player.camy -= 0.1;
+  active_player.coord.y += 0.1;
 
   return Result::SUCCESS;
 }
@@ -805,9 +815,16 @@ Result run_app(App &app) {
       return Result::SUCCESS;
     }
 
+    // Update
+    update(app.update_state);
+
     // Render
     render(app.render_state, app.update_state);
+    // TODO: This should delay the remaining time to make this frame 1/60 of a
+    // second
     SDL_Delay(1);
+
+    SDL_RenderPresent(app.render_state.renderer);
   }
 
   return Result::SUCCESS;
