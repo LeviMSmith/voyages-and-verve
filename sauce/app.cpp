@@ -785,6 +785,7 @@ void update_kinetic(Update_State &update_state) {
       }
     }
 
+    // Velocity should also tend toward 0
     entity.vx += entity.ax;
     entity.vy += entity.ay;
     entity.coord.x += entity.vx;
@@ -805,6 +806,9 @@ void update_kinetic(Update_State &update_state) {
     // Right now just checking the chunks below and to the right since that's
     // where the bounding box might spill over. If an entity every becomes
     // larger than a chunk, we'll have to do this range based on that
+
+    // This is bad. It's going to take forever. Definitly have to only do this
+    // on entities that absolutly need it.
     Chunk_Coord ic = cc;
     for (ic.x = cc.x; ic.x < cc.x + 1; ic.x++) {
       for (ic.y = cc.y; ic.y < cc.y - 1; ic.y--) {
@@ -813,6 +817,37 @@ void update_kinetic(Update_State &update_state) {
         for (u32 cell = 0; cell < CHUNK_CELLS; cell++) {
           if (chunk.cells[cell].type == Cell_Type::DIRT) {
             // Bounding box colision between the entity and the cell
+
+            Entity_Coord cell_coord;
+            cell_coord.x = ic.x * CHUNK_CELL_WIDTH;
+            cell_coord.y = ic.y * CHUNK_CELL_WIDTH;
+
+            u8 x = cell % CHUNK_CELL_WIDTH;
+            cell_coord.x += x;
+            cell_coord.y += static_cast<s32>(
+                (cell - x) / CHUNK_CELL_WIDTH); // -x is probably unecessary.
+
+            if (entity.coord.x + entity.boundingw < cell_coord.x ||
+                cell_coord.x + 1 < entity.coord.x) {
+              continue;
+            }
+            if (entity.coord.y > cell_coord.y - 1 ||
+                cell_coord.y < entity.coord.y - entity.boundingh) {
+              continue;
+            }
+
+            LOG_DEBUG("Colision!");
+
+            // If neither, we are colliding. Lets resolve it in a really basic
+            // way here for now.
+
+            // This will cause it to bounce back the way it came but oh well
+            entity.ax = entity.ax * -0.25; // Decrease and flip
+            entity.ay = entity.ay * -0.25;
+            entity.vx = entity.vx * -0.25;
+            entity.vy = entity.vy * -0.25;
+            entity.coord.x += entity.vx;
+            entity.coord.y += entity.vy;
           }
         }
       }
@@ -824,8 +859,10 @@ Entity default_player() {
   Entity player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
-  player.coord.y = 31;
+  player.coord.y = 33;
   player.camy -= 20;
+  player.ax = -1.001;
+  player.ay = -1.001;
 
   // TODO: Should be in a resource description file. This will be different than
   // texture width and height.
