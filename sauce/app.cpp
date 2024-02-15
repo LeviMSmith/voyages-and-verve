@@ -823,7 +823,7 @@ void update_kinetic(Update_State &update_state) {
     // on entities that absolutly need it.
     Chunk_Coord ic = cc;
     for (ic.x = cc.x; ic.x < cc.x + 2; ic.x++) {
-      for (ic.y = cc.y + 1; ic.y > cc.y - 1; ic.y--) {
+      for (ic.y = cc.y; ic.y > cc.y - 2; ic.y--) {
         Chunk &chunk = active_dimension.chunks[ic];
 
         for (u32 cell = 0; cell < CHUNK_CELLS; cell++) {
@@ -839,12 +839,12 @@ void update_kinetic(Update_State &update_state) {
             cell_coord.y += static_cast<s32>(
                 (cell - x) / CHUNK_CELL_WIDTH);  // -x is probably unecessary.
 
-            if (entity.coord.x + entity.boundingw < cell_coord.x ||
-                cell_coord.x + 1 < entity.coord.x) {
-              continue;
-            }
-            if (entity.coord.y > cell_coord.y - 1 ||
-                cell_coord.y < entity.coord.y - entity.boundingh) {
+            // if (entity.coord.x + entity.boundingw < cell_coord.x ||
+            //     cell_coord.x + 1 < entity.coord.x) {
+            //   continue;
+            // }
+            if (entity.coord.y - entity.boundingh > cell_coord.y ||
+                cell_coord.y > entity.coord.y) {
               continue;
             }
 
@@ -869,15 +869,15 @@ Entity default_player() {
   Entity player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
-  player.coord.y = 33;
+  player.coord.y = 65;
+  player.coord.x = 15;
   player.camy -= 20;
-  player.ax = -1.01;
-  player.ay = -1.01;
+  player.ay = -1.03;
 
   // TODO: Should be in a resource description file. This will be different than
   // texture width and height.
-  player.boundingw = 16;
-  player.boundingh = 32;
+  player.boundingw = 11;
+  player.boundingh = 29;
 
   return player;
 }
