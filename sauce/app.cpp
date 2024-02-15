@@ -187,9 +187,10 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
   if (chunk_coord.y < 0) {
     for (Cell &cell : chunk.cells) {
       cell.type = Cell_Type::DIRT;
-      cell.cr = 255;
-      cell.cg = 255;
-      cell.cb = 0;
+
+      cell.cr = 130 + std::rand() % 90;
+      cell.cg = 50 + std::rand() % 56;
+      cell.cb = 40 + std::rand() % 20;
       cell.ca = 255;
     }
   } else {
@@ -198,7 +199,7 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
       cell.cr = 255;
       cell.cg = 255;
       cell.cb = 255;
-      cell.ca = 255;
+      cell.ca = 0;
     }
   }
 
@@ -303,6 +304,8 @@ Result init_rendering(App &app) {
     return Result::SDL_ERROR;
   }
 
+  SDL_SetTextureBlendMode(app.render_state.cell_texture, SDL_BLENDMODE_BLEND);
+
   LOG_INFO("Created cell texture");
 
   // Create the rest of the textures from resources
@@ -322,6 +325,11 @@ Result init_rendering(App &app) {
 
 Result render(Render_State &render_state, Update_State &update_state) {
   SDL_RenderClear(render_state.renderer);
+
+  // Sky
+  SDL_RenderCopy(render_state.renderer,
+                 render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
+                 NULL);
 
   // TODO: Might want to only call this when necessary. Maybe have an event for
   // the player moving chunks
@@ -568,7 +576,8 @@ Result gen_world_texture(Render_State &render_state,
               ((CHUNK_CELL_WIDTH - 1) * PITCH - (cell_y * PITCH)) +
               ((SCREEN_CHUNK_SIZE - 1) * CHUNK_CELL_WIDTH * PITCH -
                (chunk_x * CHUNK_CELL_WIDTH * PITCH));
-          size_t chunk_index = chunk_y + chunk_x * CHUNK_CELL_WIDTH;
+
+          size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
 
 #ifndef NDEBUG
           if (cell_y == 0 && cell_x == 0) {
@@ -577,16 +586,16 @@ Result gen_world_texture(Render_State &render_state,
             cb = 0;
             ca = 255;
           } else {
-            cr = chunk.cells[chunk_index].cr;
-            cg = chunk.cells[chunk_index].cg;
-            cb = chunk.cells[chunk_index].cb;
-            ca = chunk.cells[chunk_index].ca;
+            cr = chunk.cells[cell_index].cr;
+            cg = chunk.cells[cell_index].cg;
+            cb = chunk.cells[cell_index].cb;
+            ca = chunk.cells[cell_index].ca;
           }
 #else
-          cr = chunk.cells[chunk_index].cr;
-          cg = chunk.cells[chunk_index].cg;
-          cb = chunk.cells[chunk_index].cb;
-          ca = chunk.cells[chunk_index].ca;
+          cr = chunk.cells[cell_index].cr;
+          cg = chunk.cells[cell_index].cg;
+          cb = chunk.cells[cell_index].cb;
+          ca = chunk.cells[cell_index].ca;
 #endif
           pixels[buffer_index] = (cr << 24) | (cg << 16) | (cb << 8) | ca;
           if (buffer_index >

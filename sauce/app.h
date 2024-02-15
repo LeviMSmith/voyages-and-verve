@@ -110,7 +110,7 @@ struct Entity_Coord {
   f64 x, y;
 };
 
-enum class Texture_Id : u8 { NONE = 0, PLAYER = 1 };
+enum class Texture_Id : u8 { NONE = 0, PLAYER = 1, SKY = 2 };
 
 // If you add something to this, make sure it works with default_entity!
 struct Entity {
