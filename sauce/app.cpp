@@ -759,19 +759,24 @@ Result update(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
   Dimension &active_dimension = *get_active_dimension(update_state);
 
-  update_keypresses(update_state);
+  Result res = update_keypresses(update_state);
+  if (res == Result::WINDOW_CLOSED) {
+    LOG_INFO("Got close from keyboard");
+    return res;
+  }
   update_kinetic(update_state);
 
   return Result::SUCCESS;
 }
 
-void update_keypresses(Update_State &us) {
+Result update_keypresses(Update_State &us) {
   static int num_keys;
 
   const Uint8 *keys = SDL_GetKeyboardState(&num_keys);
 
   Entity &active_player = *get_active_player(us);
 
+  // Movement
   if (keys[SDL_SCANCODE_W] == 1) {
     active_player.coord.y += 0.1;
   }
@@ -784,6 +789,13 @@ void update_keypresses(Update_State &us) {
   if (keys[SDL_SCANCODE_D] == 1) {
     active_player.coord.x += 0.1;
   }
+
+  // Quit
+  if (keys[SDL_SCANCODE_Q] == 1) {
+    return Result::WINDOW_CLOSED;
+  }
+
+  return Result::SUCCESS;
 }
 
 void update_kinetic(Update_State &update_state) {
@@ -1009,7 +1021,11 @@ Result run_app(App &app) {
     }
 
     // Update
-    update(app.update_state);
+    Result update_res = update(app.update_state);
+    if (update_res == Result::WINDOW_CLOSED) {
+      LOG_INFO("Window should close.");
+      return Result::SUCCESS;
+    }
 
     // Render. This just draws, the flip is after the delay
     render(app.render_state, app.update_state, app.config);
