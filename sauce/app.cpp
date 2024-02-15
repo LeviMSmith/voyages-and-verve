@@ -775,18 +775,20 @@ Result update_keypresses(Update_State &us) {
 
   Entity &active_player = *get_active_player(us);
 
+  static constexpr f32 MOVEMENT_CONSTANT = 0.7;
+
   // Movement
   if (keys[SDL_SCANCODE_W] == 1) {
-    active_player.coord.y += 0.1;
+    active_player.coord.y += MOVEMENT_CONSTANT;
   }
   if (keys[SDL_SCANCODE_A] == 1) {
-    active_player.coord.x -= 0.1;
+    active_player.coord.x -= MOVEMENT_CONSTANT;
   }
   if (keys[SDL_SCANCODE_S] == 1) {
-    active_player.coord.y -= 0.1;
+    active_player.coord.y -= MOVEMENT_CONSTANT;
   }
   if (keys[SDL_SCANCODE_D] == 1) {
-    active_player.coord.x += 0.1;
+    active_player.coord.x += MOVEMENT_CONSTANT;
   }
 
   // Quit
@@ -896,13 +898,14 @@ void update_kinetic(Update_State &update_state) {
             // If neither, we are colliding. Lets resolve it in a really basic
             // way here for now.
 
-            // This will cause it to bounce back the way it came but oh well
-            entity.ax = entity.ax * -0.25;  // Decrease and go back
-            entity.ay = entity.ay * -0.25;
+            entity.ax = 0;  // Decrease and go back
+            entity.ay = 0;
             entity.vx = entity.vx * -0.25;  // Decrease and go back
             entity.vy = entity.vy * -0.25;
             entity.coord.x += entity.vx;
             entity.coord.y += entity.vy;
+            entity.vx = 0;
+            entity.vy = 0;
           }
         }
       }
@@ -928,7 +931,7 @@ u32 create_player(Update_State &us, DimensionIndex dim) {
   player.coord.y = 65;
   player.coord.x = 15;
   player.camy -= 20;
-  player.ay = -1.03;
+  player.ay = -1.1;
 
   // TODO: Should be in a resource description file. This will be different than
   // texture width and height. Possibly with offsets. Maybe multiple bounding
