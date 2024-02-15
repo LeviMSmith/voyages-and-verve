@@ -120,6 +120,7 @@ struct Entity {
   Entity_Coord coord;  // For bounding box and rendering, this is top left
   f32 vx, vy;
   f32 ax, ay;
+  bool on_ground;
   f32 camx, camy;  // This is relative to coord
 
   // The physics bounding box starting from coord as top left

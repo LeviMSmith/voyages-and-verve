@@ -137,6 +137,7 @@ Entity default_entity() {
   return_entity.vy = 0;
   return_entity.ax = 0;
   return_entity.ay = 0;
+  return_entity.on_ground = false;
   return_entity.camx = 0;
   return_entity.camy = 0;
   return_entity.boundingw = 0;
@@ -799,12 +800,15 @@ Result update_keypresses(Update_State &us) {
   // Movement
   if (keys[SDL_SCANCODE_W] == 1 || keys[SDL_SCANCODE_UP] == 1) {
     active_player.vy += MOVEMENT_CONSTANT;
+    active_player.on_ground = false;
   }
   if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
     active_player.vx -= MOVEMENT_CONSTANT;
   }
   if (keys[SDL_SCANCODE_S] == 1 || keys[SDL_SCANCODE_DOWN] == 1) {
-    active_player.vy -= MOVEMENT_CONSTANT;
+    if (!active_player.on_ground) {
+      active_player.vy -= MOVEMENT_CONSTANT;
+    }
   }
   if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
     active_player.vx += MOVEMENT_CONSTANT;
@@ -834,8 +838,8 @@ void update_kinetic(Update_State &update_state) {
 
     entity.vx += entity.ax;
     entity.vy += entity.ay;
-    if (entity.vy > -5.0) {
-      entity.vy -= 0.05f;
+    if (entity.vy > -100.0 && !entity.on_ground) {
+      entity.vy -= 0.2f;
     }
     entity.coord.x += entity.vx;
     entity.coord.y += entity.vy;
@@ -884,6 +888,8 @@ void update_kinetic(Update_State &update_state) {
             if (entity.coord.y - entity.boundingh > cell_coord.y ||
                 cell_coord.y > entity.coord.y) {
               continue;
+            } else {
+              entity.on_ground = true;
             }
 
             // If neither, we are colliding. Lets resolve it in a really basic
