@@ -13,6 +13,7 @@
 #include "SDL_error.h"
 #include "SDL_events.h"
 #include "SDL_hints.h"
+#include "SDL_keyboard.h"
 #include "SDL_pixels.h"
 #include "SDL_render.h"
 #include "SDL_surface.h"
@@ -747,17 +748,31 @@ Result update(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
   Dimension &active_dimension = *get_active_dimension(update_state);
 
-  // Handle keypresses
-  int num_keys;
-  const Uint8 *keys = SDL_GetKeyboardState(&num_keys);
-
-  if (keys[SDL_SCANCODE_W] == 1) {
-    active_player.coord.y += 0.5;
-  }
-
+  update_keypresses(update_state);
   update_kinetic(update_state);
 
   return Result::SUCCESS;
+}
+
+void update_keypresses(Update_State &us) {
+  static int num_keys;
+
+  const Uint8 *keys = SDL_GetKeyboardState(&num_keys);
+
+  Entity &active_player = *get_active_player(us);
+
+  if (keys[SDL_SCANCODE_W] == 1) {
+    active_player.coord.y += 0.1;
+  }
+  if (keys[SDL_SCANCODE_A] == 1) {
+    active_player.coord.x -= 0.1;
+  }
+  if (keys[SDL_SCANCODE_S] == 1) {
+    active_player.coord.y -= 0.1;
+  }
+  if (keys[SDL_SCANCODE_D] == 1) {
+    active_player.coord.x += 0.1;
+  }
 }
 
 void update_kinetic(Update_State &update_state) {
