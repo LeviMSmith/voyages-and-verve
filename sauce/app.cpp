@@ -839,10 +839,10 @@ void update_kinetic(Update_State &update_state) {
             cell_coord.y += static_cast<s32>(
                 (cell - x) / CHUNK_CELL_WIDTH);  // -x is probably unecessary.
 
-            // if (entity.coord.x + entity.boundingw < cell_coord.x ||
-            //     cell_coord.x + 1 < entity.coord.x) {
-            //   continue;
-            // }
+            if (entity.coord.x + entity.boundingw < cell_coord.x ||
+                cell_coord.x + 1 < entity.coord.x) {
+              continue;
+            }
             if (entity.coord.y - entity.boundingh > cell_coord.y ||
                 cell_coord.y > entity.coord.y) {
               continue;
