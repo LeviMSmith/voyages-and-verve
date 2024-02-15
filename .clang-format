@@ -1,0 +1,5 @@
+﻿---
+BasedOnStyle: Google
+AllowShortBlocksOnASingleLine: "false"
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never

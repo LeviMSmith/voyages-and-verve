@@ -1,5 +1,14 @@
 #include "app.h"
 
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <filesystem>
+#include <regex>
+#include <set>
+
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_events.h"
@@ -9,15 +18,6 @@
 #include "SDL_surface.h"
 #include "SDL_timer.h"
 #include "SDL_video.h"
-
-#include <cassert>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <filesystem>
-#include <regex>
-#include <set>
 
 // Platform specific includes
 #ifdef _WIN32
@@ -42,11 +42,11 @@ Config g_config;
 
 Config default_config() {
   return {
-      600,  // window_width
-      400,  // window_height
-      true, // window_start_maximized
-      "",   // res_dir: Should be set by caller
-      "",   // tex_dir: set with res_dir
+      600,   // window_width
+      400,   // window_height
+      true,  // window_start_maximized
+      "",    // res_dir: Should be set by caller
+      "",    // tex_dir: set with res_dir
   };
 }
 
@@ -76,7 +76,7 @@ Result get_resource_dir(std::filesystem::path &res_dir) {
   uint32_t size = sizeof(path);
   if (_NSGetExecutablePath(path, &size) == 0) {
     path[size] =
-        '\0'; // Ensure null-termination, might need adjustment for actual size
+        '\0';  // Ensure null-termination, might need adjustment for actual size
     res_dir = std::filesystem::path(path).parent_path() / "res";
     return Result::SUCCESS;
   } else {
@@ -138,7 +138,7 @@ Entity default_entity() {
   return_entity.camy = 0;
   return_entity.boundingw = 0;
   return_entity.boundingh = 0;
-  return_entity.texture = Texture_Id::NONE; // Also 0
+  return_entity.texture = Texture_Id::NONE;  // Also 0
   return_entity.texture_index = 0;
 
   return return_entity;
@@ -146,8 +146,8 @@ Entity default_entity() {
 
 Entity_Coord get_cam_coord(const Entity &e) {
   return {
-      e.coord.x + e.camx, // x
-      e.coord.y + e.camy  // y
+      e.coord.x + e.camx,  // x
+      e.coord.y + e.camy   // y
   };
 }
 
@@ -308,8 +308,9 @@ Result init_rendering(App &app) {
 
   Result render_tex_res = init_render_textures(app.render_state, app.config);
   if (render_tex_res != Result::SUCCESS) {
-    LOG_WARN("Something went wrong while generating textures from resources. "
-             "Going to try to continue.");
+    LOG_WARN(
+        "Something went wrong while generating textures from resources. "
+        "Going to try to continue.");
   } else {
     LOG_INFO("Created {} resource texture(s)",
              app.render_state.textures.size());
@@ -369,8 +370,8 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
         std::string filename = entry.path().filename().string();
 
         if (std::regex_match(filename, matches, pattern)) {
-          if (matches.size() == 4) { // matches[0] is the entire string, 1-3 are
-                                     // the capture groups
+          if (matches.size() == 4) {  // matches[0] is the entire string, 1-3
+                                      // are the capture groups
             std::string name = matches[1].str();
             std::string hexStr = matches[2].str();
             std::string extension = matches[3].str();
@@ -390,9 +391,10 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
               SDL_ClearError();
               SDL_Surface *bmp_surface = SDL_LoadBMP(entry.path().c_str());
               if (bmp_surface == nullptr) {
-                LOG_ERROR("Failed to create surface for bitmap texture {}. SDL "
-                          "error: {}",
-                          entry.path().c_str(), SDL_GetError());
+                LOG_ERROR(
+                    "Failed to create surface for bitmap texture {}. SDL "
+                    "error: {}",
+                    entry.path().c_str(), SDL_GetError());
                 break;
               }
 
@@ -404,12 +406,14 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
               SDL_ClearError();
               new_tex.texture = SDL_CreateTextureFromSurface(
                   render_state.renderer, bmp_surface);
-              SDL_FreeSurface(bmp_surface); // Shouldn't overwrite any potential
-                                            // errors from texture creation
+              SDL_FreeSurface(
+                  bmp_surface);  // Shouldn't overwrite any potential
+                                 // errors from texture creation
               if (new_tex.texture == nullptr) {
-                LOG_ERROR("Failed to create texture for bitmap texture {}. SDL "
-                          "error: {}",
-                          entry.path().c_str(), SDL_GetError());
+                LOG_ERROR(
+                    "Failed to create texture for bitmap texture {}. SDL "
+                    "error: {}",
+                    entry.path().c_str(), SDL_GetError());
                 break;
               }
 
@@ -433,17 +437,19 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
             }
           }
         } else {
-          LOG_WARN("File {} in {} doesn't match the texture format. Skipping. "
-                   "Should be "
-                   "name-XX.ext",
-                   filename, config.tex_dir.c_str());
+          LOG_WARN(
+              "File {} in {} doesn't match the texture format. Skipping. "
+              "Should be "
+              "name-XX.ext",
+              filename, config.tex_dir.c_str());
         }
       }
     }
   } catch (const std::filesystem::filesystem_error &e) {
-    LOG_ERROR("Something went wrong on the filesystem side while creating "
-              "textures: {}",
-              e.what());
+    LOG_ERROR(
+        "Something went wrong on the filesystem side while creating "
+        "textures: {}",
+        e.what());
     return Result::FILESYSTEM_ERROR;
   } catch (const std::exception &e) {
     LOG_ERROR("General standard library error while creating textures: {}",
@@ -613,7 +619,7 @@ Result render_cell_texture(Render_State &render_state,
   u16 screen_cell_size = render_state.screen_cell_size;
 
   Entity_Coord tl_chunk = get_world_pos_from_chunk(render_state.tl_tex_chunk);
-  tl_chunk.y--; // This is what makes it TOP left instead of bottom left
+  tl_chunk.y--;  // This is what makes it TOP left instead of bottom left
 
   // This is where the top left of the screen should be in world coordinates
   Entity_Coord good_tl_chunk;
@@ -699,7 +705,6 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
             world_offset.y <= static_cast<s32>(render_state.window_height /
                                                render_state.screen_cell_size) +
                                   texture.height) {
-
           SDL_Rect dest_rect = {
               (int)(world_offset.x * render_state.screen_cell_size),
               (int)(world_offset.y * render_state.screen_cell_size),
@@ -763,7 +768,7 @@ void update_kinetic(Update_State &update_state) {
       if (entity.ax > 0) {
         entity.ax -= KINETIC_FRICTION;
 
-        if (entity.ax <= 0.0f) { // If we flipped signs, set to 0
+        if (entity.ax <= 0.0f) {  // If we flipped signs, set to 0
           entity.ax = 0.0f;
         }
       } else {
@@ -779,7 +784,7 @@ void update_kinetic(Update_State &update_state) {
       if (entity.ay > 0) {
         entity.ay -= KINETIC_FRICTION;
 
-        if (entity.ay <= 0.0f) { // If we flipped signs, set to 0
+        if (entity.ay <= 0.0f) {  // If we flipped signs, set to 0
           entity.ay = 0.0f;
         }
       } else {
@@ -832,7 +837,7 @@ void update_kinetic(Update_State &update_state) {
             u8 x = cell % CHUNK_CELL_WIDTH;
             cell_coord.x += x;
             cell_coord.y += static_cast<s32>(
-                (cell - x) / CHUNK_CELL_WIDTH); // -x is probably unecessary.
+                (cell - x) / CHUNK_CELL_WIDTH);  // -x is probably unecessary.
 
             if (entity.coord.x + entity.boundingw < cell_coord.x ||
                 cell_coord.x + 1 < entity.coord.x) {
@@ -847,9 +852,9 @@ void update_kinetic(Update_State &update_state) {
             // way here for now.
 
             // This will cause it to bounce back the way it came but oh well
-            entity.ax = entity.ax * -0.25; // Decrease and go back
+            entity.ax = entity.ax * -0.25;  // Decrease and go back
             entity.ay = entity.ay * -0.25;
-            entity.vx = entity.vx * -0.25; // Decrease and go back
+            entity.vx = entity.vx * -0.25;  // Decrease and go back
             entity.vy = entity.vy * -0.25;
             entity.coord.x += entity.vx;
             entity.coord.y += entity.vy;
@@ -895,23 +900,23 @@ Result poll_events(App &app) {
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
-    case SDL_WINDOWEVENT: {
-      if (event.window.windowID == SDL_GetWindowID(render_state.window)) {
-        switch (event.window.event) {
-        case SDL_WINDOWEVENT_CLOSE: {
-          return Result::WINDOW_CLOSED;
-        }
-        case SDL_WINDOWEVENT_RESIZED: {
-          handle_window_resize(app.render_state);
-        }
+      case SDL_WINDOWEVENT: {
+        if (event.window.windowID == SDL_GetWindowID(render_state.window)) {
+          switch (event.window.event) {
+            case SDL_WINDOWEVENT_CLOSE: {
+              return Result::WINDOW_CLOSED;
+            }
+            case SDL_WINDOWEVENT_RESIZED: {
+              handle_window_resize(app.render_state);
+            }
+          }
         }
       }
-    }
-    case SDL_QUIT: {
-      // LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
-      // return Result::WINDOW_CLOSED;
-      LOG_DEBUG("Got event SDL_QUIT but don't trust it. Continuing.");
-    }
+      case SDL_QUIT: {
+        // LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
+        // return Result::WINDOW_CLOSED;
+        LOG_DEBUG("Got event SDL_QUIT but don't trust it. Continuing.");
+      }
     }
   }
 
@@ -968,5 +973,7 @@ Result run_app(App &app) {
   return Result::SUCCESS;
 }
 
-void destroy_app(App &app) { destroy_rendering(app.render_state); }
-} // namespace VV
+void destroy_app(App &app) {
+  destroy_rendering(app.render_state);
+}
+}  // namespace VV

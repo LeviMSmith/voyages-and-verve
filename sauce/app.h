@@ -1,16 +1,15 @@
 #pragma once
 
-#include "SDL_events.h"
-#include "SDL_render.h"
-#include "SDL_surface.h"
-#include "SDL_video.h"
-
-#include "spdlog/spdlog.h"
-
 #include <cstdint>
 #include <filesystem>
 #include <map>
 #include <vector>
+
+#include "SDL_events.h"
+#include "SDL_render.h"
+#include "SDL_surface.h"
+#include "SDL_video.h"
+#include "spdlog/spdlog.h"
 
 namespace VV {
 /////////////////////////////
@@ -60,7 +59,7 @@ enum class Result {
 /// Config definitions ///
 
 struct Config {
-  int window_width, window_height; // using int since that's what sdl takes
+  int window_width, window_height;  // using int since that's what sdl takes
   bool window_start_maximized;
 
   std::filesystem::path res_dir;
@@ -115,17 +114,17 @@ enum class Texture_Id : u8 { NONE = 0, PLAYER = 1 };
 
 // If you add something to this, make sure it works with default_entity!
 struct Entity {
-  Entity_Coord coord; // For bounding box and rendering, this is top left
+  Entity_Coord coord;  // For bounding box and rendering, this is top left
   f32 vx, vy;
   f32 ax, ay;
-  f32 camx, camy; // This is relative to coord
+  f32 camx, camy;  // This is relative to coord
 
   // The physics bounding box starting from coord as top left
   f32 boundingw, boundingh;
 
   // These are what will be manipulated by the animation system
-  Texture_Id texture; // a number that is mapped to a file in resources.json
-  u8 texture_index;   // an index into a texture atlas
+  Texture_Id texture;  // a number that is mapped to a file in resources.json
+  u8 texture_index;    // an index into a texture atlas
 };
 
 Entity default_entity();
@@ -143,13 +142,13 @@ enum class Cell_Type : u8 { DIRT, AIR, WATER };
 // info or static.
 struct Cell {
   Cell_Type type;
-  u8 cr, cg, cb, ca; // Color rgba8
+  u8 cr, cg, cb, ca;  // Color rgba8
 };
 
 // All cell interactions are done in chunks. This is how they're simulated,
 // loaded, and generated.
 constexpr u16 CHUNK_CELL_WIDTH = 64;
-constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH; // 4096
+constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH;  // 4096
 
 struct Chunk {
   Chunk_Coord coord;
@@ -186,8 +185,8 @@ struct Update_State {
   std::map<DimensionIndex, Dimension> dimensions;
   std::vector<Entity> entities;
 
-  DimensionIndex active_dimension; // Key of active dimension
-  size_t active_player;            // Index into entities
+  DimensionIndex active_dimension;  // Key of active dimension
+  size_t active_player;             // Index into entities
 };
 
 Result init_updating(Update_State &update_state);
@@ -209,10 +208,10 @@ inline Entity *get_active_player(Update_State &update_state);
 /////////////////////////////
 
 constexpr u8 SCREEN_CHUNK_SIZE =
-    4; // 64 * 4 = 256; 256 * 256 = 65536 pixels in texture
+    4;  // 64 * 4 = 256; 256 * 256 = 65536 pixels in texture
 
 // This is the part of the texture that will not be shown
-constexpr u8 SCREEN_CELL_PADDING = 60; // Makes screen width 196 cells
+constexpr u8 SCREEN_CELL_PADDING = 60;  // Makes screen width 196 cells
 constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
 
 struct Render_State {
@@ -225,7 +224,7 @@ struct Render_State {
   u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
   SDL_Texture *cell_texture;
   std::map<u8, Res_Texture>
-      textures; // This mapping should be the same as in resources.json
+      textures;  // This mapping should be the same as in resources.json
 
   std::vector<SDL_Event> pending_events;
 
@@ -265,4 +264,4 @@ Result poll_events(App &app);
 Result init_app(App &app);
 Result run_app(App &app);
 void destroy_app(App &app);
-} // namespace VV
+}  // namespace VV
