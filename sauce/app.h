@@ -71,6 +71,13 @@ Config default_config();
 
 /// Resource definitions ///
 
+// Resource definitions on the disk
+
+struct Res_Texture {
+  s32 width, height;
+  SDL_Texture *texture;
+};
+
 Result get_resource_dir(std::filesystem::path &res_dir);
 
 ////////////////////////
@@ -217,7 +224,7 @@ struct Render_State {
 
   u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
   SDL_Texture *cell_texture;
-  std::map<u8, SDL_Texture *>
+  std::map<u8, Res_Texture>
       textures; // This mapping should be the same as in resources.json
 
   std::vector<SDL_Event> pending_events;

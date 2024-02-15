@@ -337,8 +337,8 @@ void destroy_rendering(Render_State &render_state) {
     LOG_INFO("Destroyed cell texture");
   }
 
-  for (const std::pair<u8, SDL_Texture *> &pair : render_state.textures) {
-    SDL_DestroyTexture(pair.second);
+  for (const std::pair<u8, Res_Texture> &pair : render_state.textures) {
+    SDL_DestroyTexture(pair.second.texture);
   }
   LOG_INFO("Destroyed {} resource textures", render_state.textures.size());
 
@@ -399,23 +399,35 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
               // Assume no conflicting texture ids, but check after with the
               // emplacement
 
+              Res_Texture new_tex;
+
               SDL_ClearError();
-              SDL_Texture *texture = SDL_CreateTextureFromSurface(
+              new_tex.texture = SDL_CreateTextureFromSurface(
                   render_state.renderer, bmp_surface);
               SDL_FreeSurface(bmp_surface); // Shouldn't overwrite any potential
                                             // errors from texture creation
-              if (texture == nullptr) {
+              if (new_tex.texture == nullptr) {
                 LOG_ERROR("Failed to create texture for bitmap texture {}. SDL "
                           "error: {}",
                           entry.path().c_str(), SDL_GetError());
                 break;
               }
 
-              auto emplace_res = render_state.textures.emplace(id, texture);
+              SDL_ClearError();
+              if (SDL_QueryTexture(new_tex.texture, NULL, NULL, &new_tex.width,
+                                   &new_tex.height) != 0) {
+                LOG_ERROR(
+                    "Failed to get width and height for texture {}. Guessing. "
+                    "SDL error: {}",
+                    id, SDL_GetError());
+                break;
+              }
+
+              auto emplace_res = render_state.textures.emplace(id, new_tex);
               if (!emplace_res.second) {
                 LOG_ERROR("Couldn't create texture of id {}. Already exists",
                           id);
-                SDL_DestroyTexture(texture);
+                SDL_DestroyTexture(new_tex.texture);
                 break;
               }
             }
@@ -668,21 +680,7 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
       } else {
         // Now it's time to render!
 
-        SDL_Texture *actual_texture = sdk_texture->second;
-
-        // TODO: The map that holds the texture should be replaced with a struct
-        // with the texture and it's width and height to avoid this extra SDL
-        // call and the uncertainty that comes with it
-        int width, height;
-        SDL_ClearError();
-        if (SDL_QueryTexture(actual_texture, NULL, NULL, &width, &height) !=
-            0) {
-          LOG_WARN("Failed to get width and height for texture {}. Guessing. "
-                   "SDL error: {}",
-                   (u8)entity.texture, SDL_GetError());
-          width = 32;
-          height = 32;
-        }
+        Res_Texture &texture = sdk_texture->second;
 
         // LOG_DEBUG("entity coord: {} {}", entity.coord.x, entity.coord.y);
         // LOG_DEBUG("tl: {} {}", tl.x, tl.y);
@@ -694,20 +692,21 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
         // LOG_DEBUG("World offset: {} {}", world_offset.x, world_offset.y);
 
         // If visable
-        if (world_offset.x >= -width &&
+        if (world_offset.x >= -texture.width &&
             world_offset.x <=
-                SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING + width &&
-            world_offset.y >= -height &&
-            world_offset.y <=
-                render_state.window_height / render_state.screen_cell_size +
-                    height) {
+                SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING + texture.width &&
+            world_offset.y >= -texture.height &&
+            world_offset.y <= static_cast<s32>(render_state.window_height /
+                                               render_state.screen_cell_size) +
+                                  texture.height) {
 
           SDL_Rect dest_rect = {
               (int)(world_offset.x * render_state.screen_cell_size),
               (int)(world_offset.y * render_state.screen_cell_size),
-              width * screen_cell_size, height * screen_cell_size};
+              texture.width * screen_cell_size,
+              texture.height * screen_cell_size};
 
-          SDL_RenderCopy(render_state.renderer, actual_texture, NULL,
+          SDL_RenderCopy(render_state.renderer, texture.texture, NULL,
                          &dest_rect);
         }
       }
@@ -809,10 +808,6 @@ void update_kinetic(Update_State &update_state) {
     Chunk_Coord cc = get_chunk_coord(entity.coord.x, entity.coord.y);
     static Chunk_Coord last_chunk = cc;
 
-    if (cc != last_chunk) {
-      LOG_DEBUG("New chunk {} {}", cc.x, cc.y);
-    }
-
     // TODO: Should also definitly multithread this
 
     // Right now just checking the chunks below and to the right since that's
@@ -847,8 +842,6 @@ void update_kinetic(Update_State &update_state) {
                 cell_coord.y < entity.coord.y - entity.boundingh) {
               continue;
             }
-
-            LOG_DEBUG("Colision!");
 
             // If neither, we are colliding. Lets resolve it in a really basic
             // way here for now.
