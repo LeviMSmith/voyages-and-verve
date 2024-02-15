@@ -203,7 +203,7 @@ Result update(Update_State &update_state);
 
 Result update_keypresses(Update_State &us);
 
-constexpr f32 KINETIC_FRICTION = 1.0f;
+constexpr f32 KINETIC_FRICTION = 0.9f;
 void update_kinetic(Update_State &update_state);
 
 // Factory functions. These should be used over default_entity.
@@ -227,7 +227,7 @@ constexpr u8 SCREEN_CHUNK_SIZE =
     6;  // 64 * 6 = 384; 384 * 384 = 147456 pixels in texture
 
 // This is the part of the texture that will not be shown
-constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 196 cells
+constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 224 cells
 constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
 
 struct Render_State {

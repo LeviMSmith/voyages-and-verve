@@ -797,17 +797,17 @@ Result update_keypresses(Update_State &us) {
   static constexpr f32 MOVEMENT_CONSTANT = 0.7;
 
   // Movement
-  if (keys[SDL_SCANCODE_W] == 1) {
-    active_player.coord.y += MOVEMENT_CONSTANT;
+  if (keys[SDL_SCANCODE_W] == 1 || keys[SDL_SCANCODE_UP] == 1) {
+    active_player.vy += MOVEMENT_CONSTANT;
   }
-  if (keys[SDL_SCANCODE_A] == 1) {
-    active_player.coord.x -= MOVEMENT_CONSTANT;
+  if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
+    active_player.vx -= MOVEMENT_CONSTANT;
   }
-  if (keys[SDL_SCANCODE_S] == 1) {
-    active_player.coord.y -= MOVEMENT_CONSTANT;
+  if (keys[SDL_SCANCODE_S] == 1 || keys[SDL_SCANCODE_DOWN] == 1) {
+    active_player.vy -= MOVEMENT_CONSTANT;
   }
-  if (keys[SDL_SCANCODE_D] == 1) {
-    active_player.coord.x += MOVEMENT_CONSTANT;
+  if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
+    active_player.vx += MOVEMENT_CONSTANT;
   }
 
   // Quit
@@ -828,43 +828,15 @@ void update_kinetic(Update_State &update_state) {
     // Have to trust that entity_indicies is correct at them moment.
     Entity &entity = update_state.entities[entity_index];
 
-    // If not 0, move toward 0. Only other forces increase acceleration
-    // No epsilon since it will be explicitly set to zero
-    if (entity.ax != 0.0f) {
-      if (entity.ax > 0) {
-        entity.ax -= KINETIC_FRICTION;
+    // If not 0, move toward 0
+    entity.vx *= KINETIC_FRICTION;
+    entity.vy *= KINETIC_FRICTION;
 
-        if (entity.ax <= 0.0f) {  // If we flipped signs, set to 0
-          entity.ax = 0.0f;
-        }
-      } else {
-        entity.ax += KINETIC_FRICTION;
-
-        if (entity.ax > 0.0f) {
-          entity.ax = 0.0f;
-        }
-      }
-    }
-
-    if (entity.ay != 0.0f) {
-      if (entity.ay > 0) {
-        entity.ay -= KINETIC_FRICTION;
-
-        if (entity.ay <= 0.0f) {  // If we flipped signs, set to 0
-          entity.ay = 0.0f;
-        }
-      } else {
-        entity.ay += KINETIC_FRICTION;
-
-        if (entity.ay > 0.0f) {
-          entity.ay = 0.0f;
-        }
-      }
-    }
-
-    // Velocity should also tend toward 0
     entity.vx += entity.ax;
     entity.vy += entity.ay;
+    if (entity.vy > -5.0) {
+      entity.vy -= 0.05f;
+    }
     entity.coord.x += entity.vx;
     entity.coord.y += entity.vy;
   }
@@ -919,8 +891,8 @@ void update_kinetic(Update_State &update_state) {
 
             entity.ax = 0;  // Decrease and go back
             entity.ay = 0;
-            entity.vx = entity.vx * -0.25;  // Decrease and go back
-            entity.vy = entity.vy * -0.25;
+            entity.vx = entity.vx * -1;  // Decrease and go back
+            entity.vy = entity.vy * -1;
             entity.coord.x += entity.vx;
             entity.coord.y += entity.vy;
             entity.vx = 0;
@@ -947,10 +919,10 @@ u32 create_player(Update_State &us, DimensionIndex dim) {
   Entity player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
-  player.coord.y = 65;
+  player.coord.y = 75;
   player.coord.x = 15;
   player.camy -= 20;
-  player.ay = -1.1;
+  player.vy = -1.1;
 
   // TODO: Should be in a resource description file. This will be different than
   // texture width and height. Possibly with offsets. Maybe multiple bounding
