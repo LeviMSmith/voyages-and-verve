@@ -211,8 +211,10 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
 }
 
 Result load_chunk(Dimension &dim, const Chunk_Coord &coord) {
+  if (dim.chunks.find(coord) == dim.chunks.end()) {
+    gen_chunk(dim.chunks[coord], coord);
+  }
   // Eventually we'll also load from disk
-  gen_chunk(dim.chunks[coord], coord);
 
   return Result::SUCCESS;
 }
@@ -332,9 +334,9 @@ Result render(Render_State &render_state, Update_State &update_state,
                  render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
                  NULL);
 
-  // TODO: Might want to only call this when necessary. Maybe have an event for
-  // the player moving chunks
-  gen_world_texture(render_state, update_state, config);
+  if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK)) {
+    gen_world_texture(render_state, update_state, config);
+  }
 
   render_cell_texture(render_state, update_state);
   render_entities(render_state, update_state);
@@ -690,7 +692,7 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
 
       if (sdk_texture == render_state.textures.end()) {
         if (!suppressed_id_warns.contains(entity.texture)) {
-          LOG_WARN("Entity want's texture {} which isn't loaded!",
+          LOG_WARN("Entity wants texture {} which isn't loaded!",
                    (u8)entity.texture);
           suppressed_id_warns.insert(entity.texture);
         }
@@ -755,8 +757,12 @@ Result init_updating(Update_State &update_state) {
 }
 
 Result update(Update_State &update_state) {
+  update_state.events.clear();
+
   Entity &active_player = *get_active_player(update_state);
   Dimension &active_dimension = *get_active_dimension(update_state);
+  static Chunk_Coord last_player_chunk =
+      get_chunk_coord(active_player.coord.x, active_player.coord.y);
 
   Result res = update_keypresses(update_state);
   if (res == Result::WINDOW_CLOSED) {
@@ -764,6 +770,19 @@ Result update(Update_State &update_state) {
     return res;
   }
   update_kinetic(update_state);
+  Chunk_Coord current_player_chunk =
+      get_chunk_coord(active_player.coord.x, active_player.coord.y);
+
+  if (last_player_chunk != current_player_chunk) {
+    /*
+    LOG_DEBUG("Player moved to cell chunk {} {}", current_player_chunk.x,
+              current_player_chunk.y);
+    */
+    update_state.events.insert(Update_Event::PLAYER_MOVED_CHUNK);
+    load_chunks_square(active_dimension, active_player.coord.x,
+                       active_player.coord.y, SCREEN_CHUNK_SIZE + 5);
+    last_player_chunk = current_player_chunk;
+  }
 
   return Result::SUCCESS;
 }

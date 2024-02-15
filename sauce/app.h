@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <set>
 #include <vector>
 
 #include "SDL_events.h"
@@ -181,6 +182,10 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 /// Update definitions ///
 //////////////////////////
 
+enum Update_Event : u8 {
+  PLAYER_MOVED_CHUNK,
+};
+
 struct Update_State {
   std::vector<SDL_Event> pending_events;
 
@@ -189,6 +194,8 @@ struct Update_State {
 
   DimensionIndex active_dimension;  // Key of active dimension
   u32 active_player;                // Index into entities
+
+  std::set<Update_Event> events;
 };
 
 Result init_updating(Update_State &update_state);
@@ -217,10 +224,10 @@ inline Entity *get_active_player(Update_State &update_state);
 /////////////////////////////
 
 constexpr u8 SCREEN_CHUNK_SIZE =
-    4;  // 64 * 4 = 256; 256 * 256 = 65536 pixels in texture
+    6;  // 64 * 6 = 384; 384 * 384 = 147456 pixels in texture
 
 // This is the part of the texture that will not be shown
-constexpr u8 SCREEN_CELL_PADDING = 60;  // Makes screen width 196 cells
+constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 196 cells
 constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
 
 struct Render_State {
