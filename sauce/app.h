@@ -225,7 +225,7 @@ inline Entity *get_active_player(Update_State &update_state);
 /////////////////////////////
 
 constexpr u8 SCREEN_CHUNK_SIZE =
-    6;  // 64 * 6 = 384; 384 * 384 = 147456 pixels in texture
+    8;  // 64 * 6 = 384; 384 * 384 = 147456 pixels in texture
 
 // This is the part of the texture that will not be shown
 constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 224 cells
