@@ -264,8 +264,8 @@ Result render_entities(Render_State &render_state, Update_State &update_state);
 /// State definitions ///
 /////////////////////////
 
-constexpr u32 FPMS = 60000;
-constexpr f32 FRAME_TIME = 1.0f / FPMS;
+constexpr u32 FPS = 60;
+constexpr f32 FRAME_TIME_MILLIS = (1.0f / FPS) * 1000;
 
 struct App {
   Update_State update_state;

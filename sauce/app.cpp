@@ -1041,8 +1041,8 @@ Result run_app(App &app) {
         std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed)
             .count();
 
-    if (milliseconds_elapsed < FRAME_TIME) {
-      auto delay_time = FRAME_TIME - milliseconds_elapsed;
+    if (milliseconds_elapsed < FRAME_TIME_MILLIS) {
+      auto delay_time = FRAME_TIME_MILLIS - milliseconds_elapsed;
       SDL_Delay(static_cast<Uint32>(delay_time));
     }
 
