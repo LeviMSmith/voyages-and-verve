@@ -747,6 +747,14 @@ Result update(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
   Dimension &active_dimension = *get_active_dimension(update_state);
 
+  // Handle keypresses
+  int num_keys;
+  const Uint8 *keys = SDL_GetKeyboardState(&num_keys);
+
+  if (keys[SDL_SCANCODE_W] == 1) {
+    active_player.coord.y += 0.5;
+  }
+
   update_kinetic(update_state);
 
   return Result::SUCCESS;
