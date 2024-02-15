@@ -62,6 +62,8 @@ struct Config {
   int window_width, window_height;  // using int since that's what sdl takes
   bool window_start_maximized;
 
+  bool show_chunk_cornders;
+
   std::filesystem::path res_dir;
   std::filesystem::path tex_dir;
 };
@@ -241,7 +243,8 @@ struct Render_State {
 
 // Uses global config
 Result init_rendering(Render_State &render_state);
-Result render(Render_State &render_state, Update_State &update_state);
+Result render(Render_State &render_state, Update_State &update_state,
+              const Config &config);
 void destroy_rendering(Render_State &render_state);
 
 // No need to stream textures in, so we'll just create them all up front and
@@ -250,8 +253,8 @@ Result init_render_textures(Render_State &render_state, const Config &config);
 
 Result handle_window_resize(Render_State &render_state);
 
-Result gen_world_texture(Render_State &render_state,
-                         Update_State &update_state);
+Result gen_world_texture(Render_State &render_state, Update_State &update_state,
+                         const Config &config);
 
 Result render_cell_texture(Render_State &render_state,
                            Update_State &update_state);

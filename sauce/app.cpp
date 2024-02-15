@@ -43,11 +43,12 @@ Config g_config;
 
 Config default_config() {
   return {
-      600,   // window_width
-      400,   // window_height
-      true,  // window_start_maximized
-      "",    // res_dir: Should be set by caller
-      "",    // tex_dir: set with res_dir
+      600,    // window_width
+      400,    // window_height
+      true,   // window_start_maximized
+      false,  // show_chunk_corners
+      "",     // res_dir: Should be set by caller
+      "",     // tex_dir: set with res_dir
   };
 }
 
@@ -323,7 +324,8 @@ Result init_rendering(App &app) {
   return Result::SUCCESS;
 }
 
-Result render(Render_State &render_state, Update_State &update_state) {
+Result render(Render_State &render_state, Update_State &update_state,
+              const Config &config) {
   SDL_RenderClear(render_state.renderer);
 
   // Sky
@@ -333,7 +335,7 @@ Result render(Render_State &render_state, Update_State &update_state) {
 
   // TODO: Might want to only call this when necessary. Maybe have an event for
   // the player moving chunks
-  gen_world_texture(render_state, update_state);
+  gen_world_texture(render_state, update_state, config);
 
   render_cell_texture(render_state, update_state);
   render_entities(render_state, update_state);
@@ -488,8 +490,8 @@ Result handle_window_resize(Render_State &render_state) {
   return Result::SUCCESS;
 }
 
-Result gen_world_texture(Render_State &render_state,
-                         Update_State &update_state) {
+Result gen_world_texture(Render_State &render_state, Update_State &update_state,
+                         const Config &config) {
   // TODO: Might be good to have this ask the world for chunks it needs if they
   // aren't loaded
 
@@ -579,24 +581,24 @@ Result gen_world_texture(Render_State &render_state,
 
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
 
-#ifndef NDEBUG
-          if (cell_y == 0 && cell_x == 0) {
-            cr = 255;
-            cg = 0;
-            cb = 0;
-            ca = 255;
+          if (config.show_chunk_cornders) {
+            if (cell_y == 0 && cell_x == 0) {
+              cr = 255;
+              cg = 0;
+              cb = 0;
+              ca = 255;
+            } else {
+              cr = chunk.cells[cell_index].cr;
+              cg = chunk.cells[cell_index].cg;
+              cb = chunk.cells[cell_index].cb;
+              ca = chunk.cells[cell_index].ca;
+            }
           } else {
             cr = chunk.cells[cell_index].cr;
             cg = chunk.cells[cell_index].cg;
             cb = chunk.cells[cell_index].cb;
             ca = chunk.cells[cell_index].ca;
           }
-#else
-          cr = chunk.cells[cell_index].cr;
-          cg = chunk.cells[cell_index].cg;
-          cb = chunk.cells[cell_index].cb;
-          ca = chunk.cells[cell_index].ca;
-#endif
           pixels[buffer_index] = (cr << 24) | (cg << 16) | (cb << 8) | ca;
           if (buffer_index >
               SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS - 1) {
@@ -1010,7 +1012,7 @@ Result run_app(App &app) {
     update(app.update_state);
 
     // Render. This just draws, the flip is after the delay
-    render(app.render_state, app.update_state);
+    render(app.render_state, app.update_state, app.config);
     // TODO: This should delay the remaining time to make this frame 1/60 of a
     // second
     SDL_Delay(1);
