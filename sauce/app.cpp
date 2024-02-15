@@ -235,7 +235,7 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
 /////////////////////////////////
 
 // Uses global config
-Result init_rendering(App &app) {
+Result init_rendering(Render_State &render_state, Config &config) {
   // SDL init
 
   // For some reason SDL_QUIT is triggered randomly on my (Levi's) system, so
@@ -255,23 +255,23 @@ Result init_rendering(App &app) {
 
   LOG_INFO("SDL initialized");
 
-  LOG_DEBUG("Config window values: {}, {}", app.config.window_width,
-            app.config.window_height);
+  LOG_DEBUG("Config window values: {}, {}", config.window_width,
+            config.window_height);
 
   // Window
   SDL_ClearError();
   int window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
-  if (app.config.window_start_maximized) {
+  if (config.window_start_maximized) {
     window_flags = window_flags | SDL_WINDOW_MAXIMIZED;
     LOG_DEBUG("Starting window maximized");
   }
 
-  app.render_state.window = SDL_CreateWindow(
+  render_state.window = SDL_CreateWindow(
       "Voyages & Verve", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-      app.config.window_width, app.config.window_height, window_flags);
+      config.window_width, config.window_height, window_flags);
 
   SDL_ClearError();
-  if (app.render_state.window == nullptr) {
+  if (render_state.window == nullptr) {
     LOG_ERROR("Failed to create sdl window: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
@@ -280,16 +280,15 @@ Result init_rendering(App &app) {
 
   // Renderer
   SDL_ClearError();
-  app.render_state.renderer =
-      SDL_CreateRenderer(app.render_state.window, -1, 0);
-  if (app.render_state.renderer == nullptr) {
+  render_state.renderer = SDL_CreateRenderer(render_state.window, -1, 0);
+  if (render_state.renderer == nullptr) {
     LOG_ERROR("Failed to create sdl renderer: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
   // Do an initial resize to get all the base info from the screen loading
   // into the state
-  Result resize_res = handle_window_resize(app.render_state);
+  Result resize_res = handle_window_resize(render_state);
   if (resize_res != Result::SUCCESS) {
     LOG_WARN("Failed to handle window resize! EC: {}",
              static_cast<s32>(resize_res));
@@ -297,29 +296,28 @@ Result init_rendering(App &app) {
 
   // Create the world cell texture
   SDL_ClearError();
-  app.render_state.cell_texture = SDL_CreateTexture(
-      app.render_state.renderer, SDL_PIXELFORMAT_RGBA8888,
+  render_state.cell_texture = SDL_CreateTexture(
+      render_state.renderer, SDL_PIXELFORMAT_RGBA8888,
       SDL_TEXTUREACCESS_STREAMING, SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH,
       SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH);
-  if (app.render_state.cell_texture == nullptr) {
+  if (render_state.cell_texture == nullptr) {
     LOG_ERROR("Failed to create cell texture with SDL: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
-  SDL_SetTextureBlendMode(app.render_state.cell_texture, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureBlendMode(render_state.cell_texture, SDL_BLENDMODE_BLEND);
 
   LOG_INFO("Created cell texture");
 
   // Create the rest of the textures from resources
 
-  Result render_tex_res = init_render_textures(app.render_state, app.config);
+  Result render_tex_res = init_render_textures(render_state, config);
   if (render_tex_res != Result::SUCCESS) {
     LOG_WARN(
         "Something went wrong while generating textures from resources. "
         "Going to try to continue.");
   } else {
-    LOG_INFO("Created {} resource texture(s)",
-             app.render_state.textures.size());
+    LOG_INFO("Created {} resource texture(s)", render_state.textures.size());
   }
 
   return Result::SUCCESS;
@@ -1003,7 +1001,7 @@ Result init_app(App &app) {
   app.config.tex_dir = app.config.res_dir / "textures";
 
   init_updating(app.update_state);
-  Result renderer_res = init_rendering(app);
+  Result renderer_res = init_rendering(app.render_state, app.config);
   if (renderer_res != Result::SUCCESS) {
     LOG_FATAL("Failed to initialize renderer. Exiting.");
     return renderer_res;

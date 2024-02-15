@@ -242,7 +242,7 @@ struct Render_State {
 };
 
 // Uses global config
-Result init_rendering(Render_State &render_state);
+Result init_rendering(Render_State &render_state, Config &config);
 Result render(Render_State &render_state, Update_State &update_state,
               const Config &config);
 void destroy_rendering(Render_State &render_state);
