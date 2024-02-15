@@ -186,7 +186,7 @@ struct Update_State {
   std::vector<Entity> entities;
 
   DimensionIndex active_dimension;  // Key of active dimension
-  size_t active_player;             // Index into entities
+  u32 active_player;                // Index into entities
 };
 
 Result init_updating(Update_State &update_state);
@@ -195,8 +195,13 @@ Result update(Update_State &update_state);
 constexpr f32 KINETIC_FRICTION = 1.0f;
 void update_kinetic(Update_State &update_state);
 
-// Factory functions
-Entity default_player();
+// Factory functions. These should be used over default_entity.
+u32 create_entity(Update_State &us,
+                  DimensionIndex dim);  // Creates default entity and returns
+                                        // index in update_state.entities
+
+u32 create_player(Update_State &us,
+                  DimensionIndex dim);  // Creates a player entity
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them

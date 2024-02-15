@@ -729,8 +729,8 @@ Result init_updating(Update_State &update_state) {
   update_state.dimensions.emplace(DimensionIndex::OVERWORLD, Dimension());
   update_state.active_dimension = DimensionIndex::OVERWORLD;
 
-  update_state.entities.push_back(default_player());
-  update_state.active_player = update_state.entities.size() - 1;
+  update_state.active_player =
+      create_player(update_state, update_state.active_dimension);
 
   Entity &active_player = *get_active_player(update_state);
 
@@ -865,7 +865,18 @@ void update_kinetic(Update_State &update_state) {
   }
 }
 
-Entity default_player() {
+u32 create_entity(Update_State &us, DimensionIndex dim) {
+  Entity e = default_entity();
+
+  us.entities.push_back(e);
+
+  u32 entity_index = us.entities.size() - 1;
+  us.dimensions[dim].entity_indicies.push_back(entity_index);
+
+  return entity_index;
+}
+
+u32 create_player(Update_State &us, DimensionIndex dim) {
   Entity player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
@@ -875,11 +886,16 @@ Entity default_player() {
   player.ay = -1.03;
 
   // TODO: Should be in a resource description file. This will be different than
-  // texture width and height.
+  // texture width and height. Possibly with offsets. Maybe multiple bounding
+  // boxes
   player.boundingw = 11;
   player.boundingh = 29;
 
-  return player;
+  us.entities.push_back(player);
+  u32 entity_index = us.entities.size() - 1;
+  us.dimensions[dim].entity_indicies.push_back(entity_index);
+
+  return entity_index;
 }
 
 Dimension *get_active_dimension(Update_State &update_state) {
