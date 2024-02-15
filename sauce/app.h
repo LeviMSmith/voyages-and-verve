@@ -264,6 +264,9 @@ Result render_entities(Render_State &render_state, Update_State &update_state);
 /// State definitions ///
 /////////////////////////
 
+constexpr u32 FPMS = 60000;
+constexpr f32 FRAME_TIME = 1.0f / FPMS;
+
 struct App {
   Update_State update_state;
   Render_State render_state;

@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -1013,6 +1014,7 @@ Result init_app(App &app) {
 
 Result run_app(App &app) {
   while (true) {
+    auto frame_start = std::chrono::steady_clock::now();
     // Events
     Result poll_result = poll_events(app);
     if (poll_result == Result::WINDOW_CLOSED) {
@@ -1031,7 +1033,18 @@ Result run_app(App &app) {
     render(app.render_state, app.update_state, app.config);
     // TODO: This should delay the remaining time to make this frame 1/60 of a
     // second
-    SDL_Delay(1);
+
+    auto frame_done = std::chrono::steady_clock::now();
+    std::chrono::duration<double, std::milli> time_elapsed =
+        frame_done - frame_start;
+    auto milliseconds_elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed)
+            .count();
+
+    if (milliseconds_elapsed < FRAME_TIME) {
+      auto delay_time = FRAME_TIME - milliseconds_elapsed;
+      SDL_Delay(static_cast<Uint32>(delay_time));
+    }
 
     SDL_RenderPresent(app.render_state.renderer);
   }
