@@ -159,6 +159,15 @@ struct Chunk {
   Cell cells[CHUNK_CELLS];
 };
 
+constexpr s32 SURFACE_Y_MAX = 7;
+constexpr s32 SURFACE_Y_MIN = -5;
+constexpr u16 SURFACE_CELL_RANGE =
+    SURFACE_Y_MAX * CHUNK_CELL_WIDTH - SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+u16 surface_det_rand(u64 seed);
+u16 interpolate_and_randomize(u16 y1, u16 y2, f64 fraction, u64 seed,
+                              f64 randomness_scale, int depth = 0);
+u16 surface_height(f64 x, int depth = 32);
+
 // For finding out where a chunk bottom right corner is
 Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);
 Chunk_Coord get_chunk_coord(f64 x, f64 y);

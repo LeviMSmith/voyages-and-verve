@@ -159,6 +159,85 @@ Entity_Coord get_cam_coord(const Entity &e) {
 /// World implementations ///
 /////////////////////////////
 
+u16 surface_det_rand(u64 seed) {
+  seed += 12930;
+  seed = (~seed) + (seed << 21);  // input = (input << 21) - input - 1;
+  seed = seed ^ (seed >> 24);
+  seed = (seed + (seed << 3)) + (seed << 8);  // seed * 265
+  seed = seed ^ (seed >> 14);
+  seed = (seed + (seed << 2)) + (seed << 4);  // seed * 21
+  seed = seed ^ (seed >> 28);
+  seed = seed + (seed << 31);
+
+  return static_cast<u16>((seed >> 16) ^ (seed & 0xFFFF));
+}
+
+u16 recursive_interpolate(u16 y1, u16 y2, f64 x1, f64 x2, f64 x_target,
+                          u64 seed, f64 randomness_scale, int depth) {
+  if (depth == 0) {
+    // Base case: interpolate without further recursion
+    f64 fraction = (x_target - x1) / (x2 - x1);
+    return interpolate_and_randomize(y1, y2, fraction, seed, randomness_scale,
+                                     depth);
+  } else {
+    // Recursive case: calculate midpoint and its height, then recurse on the
+    // appropriate segment
+    f64 x_mid = (x1 + x2) / 2;
+    u16 y_mid = interpolate_and_randomize(y1, y2, 0.5, seed, randomness_scale,
+                                          depth - 1);
+
+    if (x_target < x_mid) {
+      return recursive_interpolate(y1, y_mid, x1, x_mid, x_target, seed,
+                                   randomness_scale / 2, depth - 1);
+    } else {
+      return recursive_interpolate(y_mid, y2, x_mid, x2, x_target, seed,
+                                   randomness_scale / 2, depth - 1);
+    }
+  }
+}
+
+u16 interpolate_and_randomize(u16 y1, u16 y2, f64 fraction, u64 seed,
+                              f64 randomness_scale, int depth) {
+  u16 height = y1 + static_cast<u16>((y2 - y1) * fraction);
+
+  // Calculate the difference and scale it
+  u32 difference = static_cast<u32>(randomness_scale * (y2 - y1));
+  if (difference > 0) {
+    u32 random_value = surface_det_rand(seed) % difference;
+    height += random_value - difference / 2;
+  }
+
+  return static_cast<u16>(
+      std::min(static_cast<u32>(SURFACE_CELL_RANGE), static_cast<u32>(height)));
+}
+
+u16 surface_height(f64 x, int depth) {
+  static std::map<f64, u16> heights;
+  static const f64 RANDOMNESS_RANGE = static_cast<f64>(CHUNK_CELL_WIDTH * 6);
+
+  auto height_iter = heights.find(x);
+  if (height_iter != heights.end()) {
+    return height_iter->second;
+  } else {
+    if (fmod(x, RANDOMNESS_RANGE) == 0) {
+      u16 height = surface_det_rand(static_cast<u64>(x)) % SURFACE_CELL_RANGE;
+      heights[x] = height;
+      return height;
+    }
+
+    f64 lower_x = x - fmod(x, RANDOMNESS_RANGE);
+    f64 upper_x = lower_x + RANDOMNESS_RANGE;
+    u16 lower_height = surface_height(lower_x, depth);
+    u16 upper_height = surface_height(upper_x, depth);
+
+    u16 height =
+        recursive_interpolate(lower_height, upper_height, lower_x, upper_x, x,
+                              static_cast<u64>(x), 0.5, depth);
+    heights[x] = height;
+    return height;
+  }
+}
+
 Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord) {
   Entity_Coord ret_entity_coord;
 
@@ -171,7 +250,6 @@ Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord) {
 Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   Chunk_Coord return_chunk_coord;
 
-  // floor to ensure it goes toward bottom left
   return_chunk_coord.x = static_cast<s32>(x / CHUNK_CELL_WIDTH);
   return_chunk_coord.y = static_cast<s32>(y / CHUNK_CELL_WIDTH);
 
@@ -187,23 +265,43 @@ Chunk_Coord get_chunk_coord(f64 x, f64 y) {
 }
 
 Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
-  if (chunk_coord.y < 0) {
-    for (Cell &cell : chunk.cells) {
-      cell.type = Cell_Type::DIRT;
+  // This works by zones. Every zone that a chunk is part of generates based on
+  // that chunk and then is overwritten by the next zone a chunk is part of
 
-      cell.cr = 130 + std::rand() % 90;
-      cell.cg = 50 + std::rand() % 56;
-      cell.cb = 40 + std::rand() % 20;
-      cell.ca = 255;
+  // Biomes will be dynamically generated zones. Likely when implemented there
+  // will be a get biome function which will then do the base generation of a
+  // chunk
+
+  // There can also be predefined structures that will be the last zone so that
+  // if the developer say there's a house here, there will be a house there.
+
+  /// Zones ///
+
+  // Surface zone. This is the biome equivilent for now.
+  if (chunk_coord.y >= SURFACE_Y_MIN && chunk_coord.y <= SURFACE_Y_MAX) {
+    LOG_DEBUG("{} {} is a surface chunk", chunk_coord.x, chunk_coord.y);
+    for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+      for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+        u16 height = surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH);
+        u16 cell_index = x + y * CHUNK_CELL_WIDTH;
+        if (y + chunk_coord.y * CHUNK_CELL_WIDTH < height) {
+          chunk.cells[cell_index] = {Cell_Type::DIRT, 255, 255, 0, 255};
+        } else {
+          chunk.cells[cell_index] = {Cell_Type::AIR, 255, 255, 255, 0};
+        }
+      }
+    }
+  } else if (chunk_coord.y < SURFACE_Y_MIN) {
+    for (Cell &cell : chunk.cells) {
+      cell = {Cell_Type::DIRT, 255, 255, 0, 255};
+    }
+  } else if (chunk_coord.y > SURFACE_Y_MAX) {
+    for (Cell &cell : chunk.cells) {
+      cell = {Cell_Type::AIR, 255, 255, 255, 0};
     }
   } else {
-    for (Cell &cell : chunk.cells) {
-      cell.type = Cell_Type::AIR;
-      cell.cr = 255;
-      cell.cg = 255;
-      cell.cb = 255;
-      cell.ca = 0;
-    }
+    LOG_WARN("Chunk {} {} doesn't have a generation case.", chunk_coord.x,
+             chunk_coord.y);
   }
 
   chunk.coord = chunk_coord;
@@ -229,6 +327,8 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
       load_chunk(dim, icc);
     }
   }
+
+  LOG_DEBUG("{} chunks currently loaded", dim.chunks.size());
 
   return Result::SUCCESS;
 }
@@ -925,7 +1025,7 @@ u32 create_player(Update_State &us, DimensionIndex dim) {
   Entity player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
-  player.coord.y = 75;
+  player.coord.y = CHUNK_CELL_WIDTH * SURFACE_Y_MAX + 160;
   player.coord.x = 15;
   player.camy -= 20;
   player.vy = -1.1;
