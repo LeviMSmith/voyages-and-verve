@@ -44,12 +44,12 @@ Config g_config;
 
 Config default_config() {
   return {
-      600,    // window_width
-      400,    // window_height
-      true,   // window_start_maximized
-      false,  // show_chunk_corners
-      "",     // res_dir: Should be set by caller
-      "",     // tex_dir: set with res_dir
+      600,   // window_width
+      400,   // window_height
+      true,  // window_start_maximized
+      true,  // show_chunk_corners
+      "",    // res_dir: Should be set by caller
+      "",    // tex_dir: set with res_dir
   };
 }
 
@@ -278,13 +278,15 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
   /// Zones ///
 
   // Surface zone. This is the biome equivilent for now.
+  u16 height_offset = 0;
   if (chunk_coord.y >= SURFACE_Y_MIN && chunk_coord.y <= SURFACE_Y_MAX) {
-    LOG_DEBUG("{} {} is a surface chunk", chunk_coord.x, chunk_coord.y);
     for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+      height_offset++;
       for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-        u16 height = surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH);
-        u16 cell_index = x + y * CHUNK_CELL_WIDTH;
-        if (y + chunk_coord.y * CHUNK_CELL_WIDTH < height) {
+        s32 height = surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH) +
+                     SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+        u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+        if ((y + (chunk_coord.y * CHUNK_CELL_WIDTH)) < height) {
           chunk.cells[cell_index] = {Cell_Type::DIRT, 255, 255, 0, 255};
         } else {
           chunk.cells[cell_index] = {Cell_Type::AIR, 255, 255, 255, 0};
@@ -676,10 +678,21 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
           // entered normally into this texture, so we swap x and y and subtract
           // x from it's max to mirror
           size_t buffer_index =
-              (cell_x + chunk_y * CHUNK_CELL_WIDTH) +
-              ((CHUNK_CELL_WIDTH - 1) * PITCH - (cell_y * PITCH)) +
-              ((SCREEN_CHUNK_SIZE - 1) * CHUNK_CELL_WIDTH * PITCH -
-               (chunk_x * CHUNK_CELL_WIDTH * PITCH));
+              (SCREEN_CHUNK_SIZE - 1 - chunk_y) * CHUNK_CELL_WIDTH * PITCH +
+              ((CHUNK_CELL_WIDTH - 1 - cell_y) * PITCH) +
+              (chunk_x * CHUNK_CELL_WIDTH) + cell_x;
+
+          // Really need to get some unit tests going lol
+#ifndef NDEBUG
+          if (chunk_y == SCREEN_CHUNK_SIZE - 1 && chunk_x == 0 &&
+              cell_y == CHUNK_CELL_WIDTH - 1 && cell_x == 0) {
+            assert(buffer_index == 0);
+          }
+
+          if (chunk_y == 0 && chunk_x == 0 && cell_y == 0 && cell_x == 0) {
+            assert(buffer_index == PITCH * PITCH - PITCH);
+          }
+#endif
 
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
 
@@ -715,10 +728,10 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
         }
       }
 
-      chunk_y++;
+      chunk_x++;
     }
-    chunk_y = 0;
-    chunk_x++;
+    chunk_x = 0;
+    chunk_y++;
   }
 
   SDL_UnlockTexture(render_state.cell_texture);
