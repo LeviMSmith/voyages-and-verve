@@ -24,7 +24,7 @@
 // Platform specific includes
 #ifdef _WIN32
 #include <windows.h>
-#undef min // SDL has a macro for this on windows for some reason
+#undef min  // SDL has a macro for this on windows for some reason
 #elif defined(__linux__)
 #include <limits.h>
 #include <unistd.h>
@@ -94,30 +94,13 @@ Result get_resource_dir(std::filesystem::path &res_dir) {
 /// Math implementations ///
 ////////////////////////////
 
-u64 mod_cantor(s32 a, s32 b) {
-  u64 ua, ub;
-  if (a < 0) {
-    ua = static_cast<u64>(std::abs(a) * 2);
-  } else {
-    ua = static_cast<u64>(a * 2 - 1);
-  }
-
-  if (b < 0) {
-    ub = static_cast<u64>(std::abs(b) * 2);
-  } else {
-    ub = static_cast<u64>(b * 2 - 1);
-  }
-
-  u64 result = ((ua + ub) * (ua + ub + 1)) / 2 + ub;
-
-  return result;
-}
-
 bool Chunk_Coord::operator<(const Chunk_Coord &b) const {
-  u64 a_cantor = mod_cantor(x, y);
-  u64 b_cantor = mod_cantor(b.x, b.y);
+  u64 a_hash =
+      (static_cast<u64>(static_cast<u32>(y)) << 32) | static_cast<u32>(x);
+  u64 b_hash =
+      (static_cast<u64>(static_cast<u32>(b.y)) << 32) | static_cast<u32>(b.x);
 
-  return a_cantor < b_cantor;
+  return a_hash < b_hash;
 }
 
 bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
@@ -544,11 +527,12 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
 
             if (extension == "bmp") {
               SDL_ClearError();
-             #ifdef __linux__              
+#ifdef __linux__
               SDL_Surface *bmp_surface = SDL_LoadBMP(entry.path().c_str());
-             #elif defined _WIN32
-              SDL_Surface *bmp_surface = SDL_LoadBMP(entry.path().string().c_str());
-             #endif
+#elif defined _WIN32
+              SDL_Surface *bmp_surface =
+                  SDL_LoadBMP(entry.path().string().c_str());
+#endif
               if (bmp_surface == nullptr) {
                 LOG_ERROR(
                     "Failed to create surface for bitmap texture {}. SDL "
