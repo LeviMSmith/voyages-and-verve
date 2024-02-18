@@ -10,6 +10,7 @@
 #include "SDL_render.h"
 #include "SDL_surface.h"
 #include "SDL_video.h"
+#include "SDL_ttf.h"
 #include "spdlog/spdlog.h"
 
 namespace VV {
@@ -254,10 +255,13 @@ struct Render_State {
   SDL_Renderer *renderer;
   SDL_Surface *surface;
 
-  u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
+  TTF_Font* main_font;
+
+    u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
   SDL_Texture *cell_texture;
   std::map<u8, Res_Texture>
       textures;  // This mapping should be the same as in resources.json
+  SDL_Texture* debug_overlay_texture;
 
   std::vector<SDL_Event> pending_events;
 

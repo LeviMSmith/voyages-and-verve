@@ -13,14 +13,12 @@
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_events.h"
-#include "SDL_hints.h"
 #include "SDL_keyboard.h"
 #include "SDL_pixels.h"
 #include "SDL_render.h"
 #include "SDL_surface.h"
 #include "SDL_timer.h"
 #include "SDL_video.h"
-#include "spdlog/spdlog.h"
 
 // Platform specific includes
 #ifdef _WIN32
@@ -450,6 +448,20 @@ Result init_rendering(Render_State &render_state, Config &config) {
     LOG_INFO("Created {} resource texture(s)", render_state.textures.size());
   }
 
+  // Load fonts
+  if (TTF_Init() == -1) {
+    LOG_ERROR("Failed to initialize SDL_ttf: {}", TTF_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  std::filesystem::path main_font_path =
+      config.res_dir / "fonts" / "dotty" / "dotty.ttf";
+  render_state.main_font = TTF_OpenFont(main_font_path.string().c_str(), 13);
+  if (render_state.main_font == nullptr) {
+    LOG_ERROR("Failed to load main font: {}", TTF_GetError());
+    return Result::SDL_ERROR;
+  }
+
   return Result::SUCCESS;
 }
 
@@ -473,6 +485,14 @@ Result render(Render_State &render_state, Update_State &update_state,
 }
 
 void destroy_rendering(Render_State &render_state) {
+  if (render_state.main_font != nullptr) {
+    TTF_CloseFont(render_state.main_font);
+    LOG_INFO("Closed main font");
+  }
+
+  TTF_Quit();
+  LOG_INFO("Quit SDL_ttf");
+
   if (render_state.cell_texture != nullptr) {
     SDL_DestroyTexture(render_state.cell_texture);
     LOG_INFO("Destroyed cell texture");
@@ -482,6 +502,11 @@ void destroy_rendering(Render_State &render_state) {
     SDL_DestroyTexture(pair.second.texture);
   }
   LOG_INFO("Destroyed {} resource textures", render_state.textures.size());
+
+  if (render_state.debug_overlay_texture != nullptr) {
+    SDL_DestroyTexture(render_state.debug_overlay_texture);
+    LOG_INFO("Destroyed debug overlay texture");
+  }
 
   if (render_state.window != nullptr) {
     SDL_DestroyWindow(render_state.window);

@@ -20,6 +20,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL/include)
+target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL_ttf)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/spdlog/include)
 
 set(SDL_STATIC ON)
@@ -27,9 +28,14 @@ set(SDL_SHARED OFF)
 set(SDL_TEST OFF)
 add_subdirectory(vendor/SDL)
 
+set(SDL2TTF_BUILD_SHARED_LIBS OFF)
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(vendor/SDL_ttf)
+
 add_subdirectory(vendor/spdlog)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL2-static)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL2_ttf)
 target_link_libraries(${PROJECT_NAME} PRIVATE spdlog)
 
 # Resource copy
@@ -52,10 +58,12 @@ add_executable(${PROJECT_NAME}_test ${TEST_SOURCES} ${SOURCES})
 target_include_directories(${PROJECT_NAME}_test PRIVATE ${SRC_DIR})
 target_include_directories(${PROJECT_NAME}_test PRIVATE ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/SDL/include)
+target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/SDL_ttf)
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/spdlog/include)
 
 target_link_libraries(${PROJECT_NAME}_test PRIVATE gtest gtest_main)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE SDL2-static)
+target_link_libraries(${PROJECT_NAME}_test PRIVATE SDL2_ttf)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE spdlog)
 
 include(GoogleTest)
