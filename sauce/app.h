@@ -149,6 +149,10 @@ struct Cell {
   u8 cr, cg, cb, ca;  // Color rgba8
 };
 
+// Factory functions
+Cell default_dirt_cell();
+Cell default_air_cell();
+
 // All cell interactions are done in chunks. This is how they're simulated,
 // loaded, and generated.
 constexpr u16 CHUNK_CELL_WIDTH = 64;

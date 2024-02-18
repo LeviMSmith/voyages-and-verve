@@ -159,8 +159,39 @@ Entity_Coord get_cam_coord(const Entity &e) {
 /// World implementations ///
 /////////////////////////////
 
+Cell default_dirt_cell() {
+  Cell cell;
+  cell.type = Cell_Type::DIRT;
+  cell.cr = 87 + std::rand() % 12;
+  cell.cg = 52 + std::rand() % 12;
+  cell.cb = 10 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
+
+Cell default_air_cell() {
+  return {
+      Cell_Type::AIR,  // type
+      255,             // cr
+      255,             // cg
+      255,             // cb
+      0,               // ca
+  };
+}
+
+Cell default_grass_cell() {
+  Cell cell;
+  cell.type = Cell_Type::DIRT;
+  cell.cr = 8 + std::rand() % 12;
+  cell.cg = 94 + std::rand() % 12;
+  cell.cb = 11 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
+
 u16 surface_det_rand(u64 seed) {
-  seed += 12930;
   seed = (~seed) + (seed << 21);  // input = (input << 21) - input - 1;
   seed = seed ^ (seed >> 24);
   seed = (seed + (seed << 3)) + (seed << 8);  // seed * 265
@@ -198,7 +229,6 @@ u16 surface_height(s64 x, u16 max_depth) {
   }
 
   if (x % RANDOMNESS_RANGE == 0) {
-    LOG_DEBUG("{} is considered a surface gen border", x);
     u16 height = surface_det_rand(static_cast<u64>(x)) % SURFACE_CELL_RANGE;
     heights[x] = height;
     return height;
@@ -285,25 +315,30 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
   if (chunk_coord.y >= SURFACE_Y_MIN && chunk_coord.y <= SURFACE_Y_MAX + 2) {
     for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
       height_offset++;
+      u8 grass_depth = 5 + std::rand() % 20;
       for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
         s32 height = static_cast<s32>(surface_height(
                          x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
                      SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
         u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
-        if ((y + (chunk_coord.y * CHUNK_CELL_WIDTH)) < height) {
-          chunk.cells[cell_index] = {Cell_Type::DIRT, 255, 255, 0, 255};
+
+        s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+        if (our_height < height && our_height >= height - grass_depth) {
+          chunk.cells[cell_index] = default_grass_cell();
+        } else if (our_height < height - grass_depth) {
+          chunk.cells[cell_index] = default_dirt_cell();
         } else {
-          chunk.cells[cell_index] = {Cell_Type::AIR, 255, 255, 255, 0};
+          chunk.cells[cell_index] = default_air_cell();
         }
       }
     }
   } else if (chunk_coord.y < SURFACE_Y_MIN) {
     for (Cell &cell : chunk.cells) {
-      cell = {Cell_Type::DIRT, 255, 255, 0, 255};
+      cell = default_dirt_cell();
     }
   } else if (chunk_coord.y > SURFACE_Y_MAX + 2) {
     for (Cell &cell : chunk.cells) {
-      cell = {Cell_Type::AIR, 255, 255, 255, 0};
+      cell = default_air_cell();
     }
   } else {
     LOG_WARN("Chunk {} {} doesn't have a generation case.", chunk_coord.x,
