@@ -32,10 +32,4 @@ TEST(SurfaceGen, ReasonableLessThanZero) {
   EXPECT_NE(x, CHUNK_CELL_WIDTH) << "All heights at chunk_x " << chunk_x
                                  << " were the same height: " << last_height;
 }
-
-TEST(SurfaceGen, FmodAsExpected) {
-  const f64 RANDOMNESS_RANGE = static_cast<f64>(CHUNK_CELL_WIDTH * 6);
-
-  LOG_INFO("{}", fmod(-5.0, RANDOMNESS_RANGE));
-}
 }  // namespace VV
