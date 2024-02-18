@@ -993,7 +993,7 @@ void update_kinetic(Update_State &update_state) {
 
     entity.vx += entity.ax;
     entity.vy += entity.ay;
-    if (entity.vy > -100.0 && !entity.on_ground) {
+    if (entity.vy > -100.0) {
       entity.vy -= 0.2f;
     }
     entity.coord.x += entity.vx;
@@ -1040,6 +1040,7 @@ void update_kinetic(Update_State &update_state) {
                 cell_coord.x + 1 < entity.coord.x) {
               continue;
             }
+
             if (entity.coord.y - entity.boundingh > cell_coord.y ||
                 cell_coord.y > entity.coord.y) {
               continue;
@@ -1047,15 +1048,44 @@ void update_kinetic(Update_State &update_state) {
               entity.on_ground = true;
             }
 
-            // If neither, we are colliding. Lets resolve it in a really basic
-            // way here for now.
+            // First, calculate overlap in both x and y directions.
+            f32 overlap_x, overlap_y;
 
-            entity.ax = 0;  // Decrease and go back
+            // For X axis
+            if (entity.coord.x < cell_coord.x) {
+              overlap_x = (entity.coord.x + entity.boundingw) - cell_coord.x;
+            } else {
+              overlap_x = (cell_coord.x + 1) - entity.coord.x;
+            }
+
+            // For Y axis
+            if (entity.coord.y > cell_coord.y) {
+              overlap_y = cell_coord.y - (entity.coord.y - entity.boundingh);
+            } else {
+              overlap_y = (cell_coord.y + 1) - entity.coord.y;
+            }
+
+            // Determine the smallest overlap to resolve the collision with
+            // minimal movement. You might need to adjust the logic based on
+            // your coordinate system and entity movement direction.
+            if (fabs(overlap_x) < fabs(overlap_y)) {
+              if (entity.coord.x < cell_coord.x) {
+                entity.coord.x -= fabs(overlap_x);  // Move entity left
+              } else {
+                entity.coord.x += fabs(overlap_x);  // Move entity right
+              }
+            } else {
+              if (entity.coord.y > cell_coord.y) {
+                entity.coord.y += fabs(overlap_y);  // Move entity down
+              } else {
+                entity.coord.y -= fabs(overlap_y);  // Move entity up
+              }
+            }
+
+            // After adjusting the position, you might want to reset
+            // acceleration or velocity as you already do.
+            entity.ax = 0;
             entity.ay = 0;
-            entity.vx = entity.vx * -1;  // Decrease and go back
-            entity.vy = entity.vy * -1;
-            entity.coord.x += entity.vx;
-            entity.coord.y += entity.vy;
             entity.vx = 0;
             entity.vy = 0;
           }
