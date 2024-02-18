@@ -635,9 +635,6 @@ Result handle_window_resize(Render_State &render_state) {
 
 Result gen_world_texture(Render_State &render_state, Update_State &update_state,
                          const Config &config) {
-  // TODO: Might be good to have this ask the world for chunks it needs if they
-  // aren't loaded
-
   // How to generate:
   // First need to find which chunks are centered around active_player cam.
   // Then essentially write the colors of each cell to the texture. Should
@@ -1010,7 +1007,7 @@ void update_kinetic(Update_State &update_state) {
   // Now resolve colisions
 
   // TODO: this just does cell collisions. We need some kind of spacial data
-  // sctructure to determine if we're colliding with other entities
+  // structure to determine if we're colliding with other entities
   for (size_t entity_index : active_dimension.entity_indicies) {
     Entity &entity = update_state.entities[entity_index];
 
@@ -1221,8 +1218,6 @@ Result run_app(App &app) {
 
     // Render. This just draws, the flip is after the delay
     render(app.render_state, app.update_state, app.config);
-    // TODO: This should delay the remaining time to make this frame 1/60 of a
-    // second
 
     auto frame_done = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> time_elapsed =
