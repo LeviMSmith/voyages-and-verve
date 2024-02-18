@@ -283,8 +283,9 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
     for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
       height_offset++;
       for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-        s32 height = surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH) +
-                     SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+        s32 height = static_cast<s32>(
+                         surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH)) +
+                     static_cast<s32>(SURFACE_Y_MIN * CHUNK_CELL_WIDTH);
         u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
         if ((y + (chunk_coord.y * CHUNK_CELL_WIDTH)) < height) {
           chunk.cells[cell_index] = {Cell_Type::DIRT, 255, 255, 0, 255};
