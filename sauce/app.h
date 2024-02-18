@@ -86,9 +86,6 @@ Result get_resource_dir(std::filesystem::path &res_dir);
 /// Math definitions ///
 ////////////////////////
 
-// A modified cantor pairing for full 2d
-u64 mod_cantor(s32 a, s32 b);
-
 /// Chunk_Coord ///
 struct Chunk_Coord {
   s32 x, y;

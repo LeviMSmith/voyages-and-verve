@@ -687,7 +687,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 #ifndef NDEBUG
       if (chunk.coord != ic) {
         LOG_WARN(
-            "Cantor mapping of chunks failed! key: {}, {} chunk recieved: {}, "
+            "Mapping of chunks failed! key: {}, {} chunk recieved: {}, "
             "{}",
             ic.x, ic.y, chunk.coord.x, chunk.coord.y);
       }
