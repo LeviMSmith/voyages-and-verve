@@ -20,6 +20,7 @@
 #include "SDL_surface.h"
 #include "SDL_timer.h"
 #include "SDL_video.h"
+#include "spdlog/spdlog.h"
 
 // Platform specific includes
 #ifdef _WIN32
@@ -353,8 +354,6 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
     }
   }
 
-  LOG_DEBUG("{} chunks currently loaded", dim.chunks.size());
-
   return Result::SUCCESS;
 }
 
@@ -366,12 +365,15 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
 Result init_rendering(Render_State &render_state, Config &config) {
   // SDL init
 
+  // I think this was just because I forgot break statements in the switch.
+  /*
   // For some reason SDL_QUIT is triggered randomly on my (Levi's) system, so
   // we're not quiting on that. If SDL holds on to the handlers, we can't exit
   // with a break otherwise.
   if (!SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1")) {
     LOG_WARN("SDL didn't relinquish the signal handlers. Good luck quiting.");
   }
+  */
 
   int sdl_init_flags = SDL_INIT_VIDEO;
 
@@ -724,7 +726,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
 
-          if (config.show_chunk_cornders) {
+          if (config.debug_overlay) {
             if (cell_y == 0 && cell_x == 0) {
               cr = 255;
               cg = 0;
@@ -941,7 +943,7 @@ Result update_keypresses(Update_State &us) {
 
   Entity &active_player = *get_active_player(us);
 
-  static constexpr f32 MOVEMENT_CONSTANT = 0.7;
+  static constexpr f32 MOVEMENT_CONSTANT = 0.7f + KINETIC_GRAVITY * 2;
 
   // Movement
   if (keys[SDL_SCANCODE_W] == 1 || keys[SDL_SCANCODE_UP] == 1) {
@@ -986,8 +988,8 @@ void update_kinetic(Update_State &update_state) {
 
     entity.vx += entity.ax;
     entity.vy += entity.ay;
-    if (entity.vy > -100.0) {
-      entity.vy -= 0.2f;
+    if (entity.vy > KINETIC_TERMINAL_VELOCITY) {
+      entity.vy -= KINETIC_GRAVITY;
     }
     entity.coord.x += entity.vx;
     entity.coord.y += entity.vy;
@@ -1075,8 +1077,6 @@ void update_kinetic(Update_State &update_state) {
               }
             }
 
-            // After adjusting the position, you might want to reset
-            // acceleration or velocity as you already do.
             entity.ax = 0;
             entity.ay = 0;
             entity.vx = 0;
@@ -1136,6 +1136,9 @@ Entity *get_active_player(Update_State &update_state) {
 Result poll_events(App &app) {
   Render_State &render_state = app.render_state;
 
+  static bool debug_key_pressed = false;
+  const auto DEBUG_KEY = SDLK_F3;
+
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
@@ -1150,11 +1153,25 @@ Result poll_events(App &app) {
             }
           }
         }
+        break;
       }
       case SDL_QUIT: {
-        // LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
-        // return Result::WINDOW_CLOSED;
-        LOG_DEBUG("Got event SDL_QUIT but don't trust it. Continuing.");
+        LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
+        return Result::WINDOW_CLOSED;
+        break;
+      }
+      case SDL_KEYDOWN: {
+        if (event.key.keysym.sym == DEBUG_KEY) {
+          debug_key_pressed = true;
+        }
+        break;
+      }
+      case SDL_KEYUP: {
+        if (event.key.keysym.sym == DEBUG_KEY && debug_key_pressed) {
+          app.config.debug_overlay = !app.config.debug_overlay;
+          debug_key_pressed = false;
+        }
+        break;
       }
     }
   }

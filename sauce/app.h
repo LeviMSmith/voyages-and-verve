@@ -63,7 +63,7 @@ struct Config {
   int window_width, window_height;  // using int since that's what sdl takes
   bool window_start_maximized;
 
-  bool show_chunk_cornders;
+  bool debug_overlay;
 
   std::filesystem::path res_dir;
   std::filesystem::path tex_dir;
@@ -198,6 +198,7 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 
 enum Update_Event : u8 {
   PLAYER_MOVED_CHUNK,
+  DEBUG_OVERLAY_TOGGLE,
 };
 
 struct Update_State {
@@ -218,6 +219,8 @@ Result update(Update_State &update_state);
 Result update_keypresses(Update_State &us);
 
 constexpr f32 KINETIC_FRICTION = 0.9f;
+constexpr f32 KINETIC_GRAVITY = 0.7f;
+constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
 
 // Factory functions. These should be used over default_entity.
