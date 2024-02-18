@@ -129,6 +129,7 @@ struct Entity {
   // These are what will be manipulated by the animation system
   Texture_Id texture;  // a number that is mapped to a file in resources.json
   u8 texture_index;    // an index into a texture atlas
+  bool flipped;
 };
 
 Entity default_entity();
@@ -152,6 +153,8 @@ struct Cell {
 // Factory functions
 Cell default_dirt_cell();
 Cell default_air_cell();
+
+Cell default_grass_cell();
 
 // All cell interactions are done in chunks. This is how they're simulated,
 // loaded, and generated.

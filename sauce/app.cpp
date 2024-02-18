@@ -44,12 +44,12 @@ Config g_config;
 
 Config default_config() {
   return {
-      600,   // window_width
-      400,   // window_height
-      true,  // window_start_maximized
-      true,  // show_chunk_corners
-      "",    // res_dir: Should be set by caller
-      "",    // tex_dir: set with res_dir
+      600,    // window_width
+      400,    // window_height
+      true,   // window_start_maximized
+      false,  // show_chunk_corners
+      "",     // res_dir: Should be set by caller
+      "",     // tex_dir: set with res_dir
   };
 }
 
@@ -880,8 +880,13 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
               texture.width * screen_cell_size,
               texture.height * screen_cell_size};
 
-          SDL_RenderCopy(render_state.renderer, texture.texture, NULL,
-                         &dest_rect);
+          if (entity.flipped) {
+            SDL_RenderCopyEx(render_state.renderer, texture.texture, NULL,
+                             &dest_rect, 0, NULL, SDL_FLIP_HORIZONTAL);
+          } else {
+            SDL_RenderCopy(render_state.renderer, texture.texture, NULL,
+                           &dest_rect);
+          }
         }
       }
     }
@@ -959,6 +964,7 @@ Result update_keypresses(Update_State &us) {
   }
   if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
     active_player.vx -= MOVEMENT_CONSTANT;
+    active_player.flipped = true;
   }
   if (keys[SDL_SCANCODE_S] == 1 || keys[SDL_SCANCODE_DOWN] == 1) {
     if (!active_player.on_ground) {
@@ -967,6 +973,7 @@ Result update_keypresses(Update_State &us) {
   }
   if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
     active_player.vx += MOVEMENT_CONSTANT;
+    active_player.flipped = false;
   }
 
   // Quit
