@@ -172,70 +172,73 @@ u16 surface_det_rand(u64 seed) {
   return static_cast<u16>((seed >> 16) ^ (seed & 0xFFFF));
 }
 
-u16 recursive_interpolate(u16 y1, u16 y2, f64 x1, f64 x2, f64 x_target,
-                          u64 seed, f64 randomness_scale, int depth) {
-  if (depth == 0) {
-    // Base case: interpolate without further recursion
-    f64 fraction = (x_target - x1) / (x2 - x1);
-    return interpolate_and_randomize(y1, y2, fraction, seed, randomness_scale,
-                                     depth);
-  } else {
-    // Recursive case: calculate midpoint and its height, then recurse on the
-    // appropriate segment
-    f64 x_mid = (x1 + x2) / 2;
-    u16 y_mid = interpolate_and_randomize(y1, y2, 0.5, seed, randomness_scale,
-                                          depth - 1);
-
-    if (x_target < x_mid) {
-      return recursive_interpolate(y1, y_mid, x1, x_mid, x_target, seed,
-                                   randomness_scale / 2, depth - 1);
-    } else {
-      return recursive_interpolate(y_mid, y2, x_mid, x2, x_target, seed,
-                                   randomness_scale / 2, depth - 1);
-    }
-  }
-}
-
-u16 interpolate_and_randomize(u16 y1, u16 y2, f64 fraction, u64 seed,
-                              f64 randomness_scale, int depth) {
+u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
+                          f64 randomness_scale) {
   u16 height = y1 + static_cast<u16>((y2 - y1) * fraction);
 
-  // Calculate the difference and scale it
-  u32 difference = static_cast<u32>(randomness_scale * (y2 - y1));
-  if (difference > 0) {
-    u32 random_value = surface_det_rand(seed) % difference;
-    height += random_value - difference / 2;
+  f64 divisor = SURFACE_CELL_RANGE * randomness_scale;
+  s16 divisor_as_int = static_cast<s16>(divisor);
+
+  if (divisor_as_int != 0) {
+    u16 rand = surface_det_rand(seed);
+    s16 nudge = static_cast<s16>(rand) % divisor_as_int;
+    height += nudge;
   }
 
-  return static_cast<u16>(
-      std::min(static_cast<u32>(SURFACE_CELL_RANGE), static_cast<u32>(height)));
+  return std::min(SURFACE_CELL_RANGE, height);
 }
 
-u16 surface_height(f64 x, int depth) {
-  static std::map<f64, u16> heights;
-  static const f64 RANDOMNESS_RANGE = static_cast<f64>(CHUNK_CELL_WIDTH * 6);
+u16 surface_height(s64 x, u16 max_depth) {
+  static std::map<s64, u16> heights;
+  static const u64 RANDOMNESS_RANGE = CHUNK_CELL_WIDTH * 16;
 
   auto height_iter = heights.find(x);
   if (height_iter != heights.end()) {
     return height_iter->second;
-  } else {
-    if (fmod(x, RANDOMNESS_RANGE) == 0) {
-      u16 height = surface_det_rand(static_cast<u64>(x)) % SURFACE_CELL_RANGE;
-      heights[x] = height;
-      return height;
-    }
+  }
 
-    f64 lower_x = x - fmod(x, RANDOMNESS_RANGE);
-    f64 upper_x = lower_x + RANDOMNESS_RANGE;
-    u16 lower_height = surface_height(lower_x, depth);
-    u16 upper_height = surface_height(upper_x, depth);
-
-    u16 height =
-        recursive_interpolate(lower_height, upper_height, lower_x, upper_x, x,
-                              static_cast<u64>(x), 0.5, depth);
+  if (x % RANDOMNESS_RANGE == 0) {
+    LOG_DEBUG("{} is considered a surface gen border", x);
+    u16 height = surface_det_rand(static_cast<u64>(x)) % SURFACE_CELL_RANGE;
     heights[x] = height;
     return height;
   }
+
+  s64 lower_x = static_cast<s64>(x / RANDOMNESS_RANGE) * RANDOMNESS_RANGE;
+  s64 upper_x = lower_x + RANDOMNESS_RANGE;
+
+  u16 lower_height = surface_height(lower_x, 1);
+  u16 upper_height = surface_height(upper_x, 1);
+
+  for (u16 depth = 0; depth < max_depth; depth++) {
+    s64 x_mid = static_cast<s64>(lower_x + upper_x) / 2;
+
+    u16 y_mid;
+    auto height_iter = heights.find(x_mid);
+    if (height_iter != heights.end()) {
+      y_mid = height_iter->second;
+    } else {
+      y_mid = interpolate_and_nudge(lower_height, upper_height, 0.5, x,
+                                    0.5 / std::pow(depth, 2.5));
+      heights[x_mid] = y_mid;
+    }
+
+    if (x == x_mid) {
+      return y_mid;
+    } else if (x < x_mid) {
+      upper_x = x_mid;
+      upper_height = y_mid;
+    } else {
+      lower_x = x_mid;
+      lower_height = y_mid;
+    }
+  }
+
+  f64 fraction = static_cast<f64>(x - lower_x) / (upper_x - lower_x);
+  u16 height = interpolate_and_nudge(lower_height, upper_height, fraction, x,
+                                     0.5 / std::pow(max_depth, 2.5));
+  heights[x] = height;
+  return height;
 }
 
 Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord) {
@@ -279,13 +282,13 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
 
   // Surface zone. This is the biome equivilent for now.
   u16 height_offset = 0;
-  if (chunk_coord.y >= SURFACE_Y_MIN && chunk_coord.y <= SURFACE_Y_MAX) {
+  if (chunk_coord.y >= SURFACE_Y_MIN && chunk_coord.y <= SURFACE_Y_MAX + 2) {
     for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
       height_offset++;
       for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-        s32 height = static_cast<s32>(
-                         surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH)) +
-                     static_cast<s32>(SURFACE_Y_MIN * CHUNK_CELL_WIDTH);
+        s32 height = static_cast<s32>(surface_height(
+                         x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
+                     SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
         u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
         if ((y + (chunk_coord.y * CHUNK_CELL_WIDTH)) < height) {
           chunk.cells[cell_index] = {Cell_Type::DIRT, 255, 255, 0, 255};
@@ -298,7 +301,7 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
     for (Cell &cell : chunk.cells) {
       cell = {Cell_Type::DIRT, 255, 255, 0, 255};
     }
-  } else if (chunk_coord.y > SURFACE_Y_MAX) {
+  } else if (chunk_coord.y > SURFACE_Y_MAX + 2) {
     for (Cell &cell : chunk.cells) {
       cell = {Cell_Type::AIR, 255, 255, 255, 0};
     }
@@ -660,11 +663,14 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
   for (ic.y = center.y - radius; ic.y < ic_max.y; ic.y++) {
     for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
       Chunk &chunk = active_dimension.chunks[ic];
-      // if (chunk.coord != ic) {
-      // LOG_WARN("Cantor mapping of chunks failed! %d, %d: %d, %d", ic.x,
-      // ic.y,
-      //          chunk.coord.x, chunk.coord.y);
-      // }
+#ifndef NDEBUG
+      if (chunk.coord != ic) {
+        LOG_WARN(
+            "Cantor mapping of chunks failed! key: {}, {} chunk recieved: {}, "
+            "{}",
+            ic.x, ic.y, chunk.coord.x, chunk.coord.y);
+      }
+#endif
 
       // assert(chunk.coord == ic);
       // if (chunk.cells[0].type == Cell_Type::AIR) {
