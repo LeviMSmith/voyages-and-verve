@@ -24,6 +24,7 @@
 // Platform specific includes
 #ifdef _WIN32
 #include <windows.h>
+#undef min // SDL has a macro for this on windows for some reason
 #elif defined(__linux__)
 #include <limits.h>
 #include <unistd.h>
@@ -510,7 +511,7 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
   try {
     if (!std::filesystem::is_directory(config.tex_dir)) {
       LOG_ERROR("Can't initialize textures. {} is not a directory!",
-                config.tex_dir.c_str());
+                config.tex_dir.string());
       return Result::NONEXIST;
     }
 
@@ -537,18 +538,22 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
             u8 id = static_cast<unsigned char>(hexValue);
 
             if (id == 0) {
-              LOG_ERROR("Texture {} id can't be 0!", entry.path().c_str());
+              LOG_ERROR("Texture {} id can't be 0!", entry.path().string());
               break;
             }
 
             if (extension == "bmp") {
               SDL_ClearError();
+             #ifdef __linux__              
               SDL_Surface *bmp_surface = SDL_LoadBMP(entry.path().c_str());
+             #elif defined _WIN32
+              SDL_Surface *bmp_surface = SDL_LoadBMP(entry.path().string().c_str());
+             #endif
               if (bmp_surface == nullptr) {
                 LOG_ERROR(
                     "Failed to create surface for bitmap texture {}. SDL "
                     "error: {}",
-                    entry.path().c_str(), SDL_GetError());
+                    entry.path().string(), SDL_GetError());
                 break;
               }
 
@@ -567,7 +572,7 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
                 LOG_ERROR(
                     "Failed to create texture for bitmap texture {}. SDL "
                     "error: {}",
-                    entry.path().c_str(), SDL_GetError());
+                    entry.path().string(), SDL_GetError());
                 break;
               }
 
@@ -595,7 +600,7 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
               "File {} in {} doesn't match the texture format. Skipping. "
               "Should be "
               "name-XX.ext",
-              filename, config.tex_dir.c_str());
+              filename, config.tex_dir.string());
         }
       }
     }
@@ -618,7 +623,7 @@ Result handle_window_resize(Render_State &render_state) {
   SDL_ClearError();
   render_state.surface = SDL_GetWindowSurface(render_state.window);
   if (render_state.surface == nullptr) {
-    LOG_ERROR("Failed to get sdl surface: %s", SDL_GetError());
+    LOG_ERROR("Failed to get sdl surface: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
 
@@ -1184,7 +1189,7 @@ Result init_app(App &app) {
     LOG_FATAL("Couldn't find resource dir! Exiting...");
     return res_dir_res;
   } else {
-    LOG_INFO("Resource dir found at {}", app.config.res_dir.c_str());
+    LOG_INFO("Resource dir found at {}", app.config.res_dir.string());
   }
 
   app.config.tex_dir = app.config.res_dir / "textures";
