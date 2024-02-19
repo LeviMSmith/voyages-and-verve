@@ -18,6 +18,11 @@ file(GLOB_RECURSE SOURCES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+target_compile_options(${PROJECT_NAME} PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
+)
+
 target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL_ttf)

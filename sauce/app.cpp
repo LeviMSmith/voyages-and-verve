@@ -484,8 +484,7 @@ Result render(Render_State &render_state, Update_State &update_state,
   // Debug overlay
   static int w = 0, h = 0;
   if (frame % 20 == 0 && config.debug_overlay) {
-    Result refresh_res =
-        refresh_debug_overlay(render_state, update_state, w, h);
+    refresh_debug_overlay(render_state, update_state, w, h);
   }
 
   if (config.debug_overlay && render_state.debug_overlay_texture != nullptr) {
@@ -513,7 +512,7 @@ void destroy_rendering(Render_State &render_state) {
     LOG_INFO("Destroyed cell texture");
   }
 
-  for (const std::pair<u8, Res_Texture> &pair : render_state.textures) {
+  for (const std::pair<const u8, Res_Texture> &pair : render_state.textures) {
     SDL_DestroyTexture(pair.second.texture);
   }
   LOG_INFO("Destroyed {} resource textures", render_state.textures.size());
@@ -1083,7 +1082,6 @@ void update_kinetic(Update_State &update_state) {
     Entity &entity = update_state.entities[entity_index];
 
     Chunk_Coord cc = get_chunk_coord(entity.coord.x, entity.coord.y);
-    static Chunk_Coord last_chunk = cc;
 
     // TODO: Should also definitly multithread this
 

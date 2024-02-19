@@ -1,9 +1,10 @@
-#include "app.h"
 #include <cstdlib>
+
+#include "app.h"
 
 using namespace VV;
 
-int main(int argc, char *argv[]) {
+int main() {
   App *app = new App;
   LOG_INFO("Log initialized");
 

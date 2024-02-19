@@ -205,7 +205,6 @@ Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 
 enum Update_Event : u8 {
   PLAYER_MOVED_CHUNK,
-  DEBUG_OVERLAY_TOGGLE,
 };
 
 struct Update_State {
@@ -267,7 +266,6 @@ struct Render_State {
   std::string debug_info;
   TTF_Font *main_font;
 
-  u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
   SDL_Texture *cell_texture;
   std::map<u8, Res_Texture>
       textures;  // This mapping should be the same as in resources.json
