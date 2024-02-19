@@ -137,6 +137,7 @@ inline Entity_Coord get_cam_coord(const Entity &e);
 /// World definitions ///
 /////////////////////////
 
+/// Cell ///
 enum class Cell_Type : u8 { DIRT, AIR, WATER };
 
 // Monolithic cell struct. Everything the cell does should be put in here.
@@ -155,6 +156,7 @@ Cell default_water_cell();
 
 Cell default_grass_cell();
 
+/// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,
 // loaded, and generated.
 constexpr u16 CHUNK_CELL_WIDTH = 64;
@@ -165,6 +167,7 @@ struct Chunk {
   Cell cells[CHUNK_CELLS];
 };
 
+/// Surface generation ///
 constexpr s32 SURFACE_Y_MAX = 7;
 constexpr s32 SURFACE_Y_MIN = -5;
 constexpr u16 SURFACE_CELL_RANGE =
@@ -180,6 +183,7 @@ Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);
 Chunk_Coord get_chunk_coord(f64 x, f64 y);
 Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord);
 
+/// Dimensions ///
 enum class DimensionIndex : u8 {
   OVERWORLD,
 };
