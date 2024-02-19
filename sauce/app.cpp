@@ -7,6 +7,7 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
+#include <numeric>
 #include <regex>
 #include <set>
 
@@ -456,7 +457,7 @@ Result init_rendering(Render_State &render_state, Config &config) {
 
   std::filesystem::path main_font_path =
       config.res_dir / "fonts" / "dotty" / "dotty.ttf";
-  render_state.main_font = TTF_OpenFont(main_font_path.string().c_str(), 13);
+  render_state.main_font = TTF_OpenFont(main_font_path.string().c_str(), 24);
   if (render_state.main_font == nullptr) {
     LOG_ERROR("Failed to load main font: {}", TTF_GetError());
     return Result::SDL_ERROR;
@@ -467,6 +468,8 @@ Result init_rendering(Render_State &render_state, Config &config) {
 
 Result render(Render_State &render_state, Update_State &update_state,
               const Config &config) {
+  static u64 frame = 0;
+
   SDL_RenderClear(render_state.renderer);
 
   // Sky
@@ -480,6 +483,20 @@ Result render(Render_State &render_state, Update_State &update_state,
 
   render_cell_texture(render_state, update_state);
   render_entities(render_state, update_state);
+
+  int w = 0, h = 0;
+  if (frame % 20 && config.debug_overlay) {
+    Result refresh_res =
+        refresh_debug_overlay(render_state, update_state, w, h);
+  }
+
+  if (config.debug_overlay && render_state.debug_overlay_texture != nullptr) {
+    SDL_Rect dest_rect = {0, 0, w, h};
+    SDL_RenderCopy(render_state.renderer, render_state.debug_overlay_texture,
+                   NULL, &dest_rect);
+  }
+
+  frame++;
 
   return Result::SUCCESS;
 }
@@ -790,6 +807,40 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
   }
 
   SDL_UnlockTexture(render_state.cell_texture);
+
+  return Result::SUCCESS;
+}
+
+Result refresh_debug_overlay(Render_State &render_state,
+                             const Update_State &update_state, int &w, int &h) {
+  render_state.debug_info = std::format("FPS: {}", update_state.average_fps);
+
+  if (render_state.debug_overlay_texture != nullptr) {
+    SDL_DestroyTexture(render_state.debug_overlay_texture);
+  }
+
+  const SDL_Color do_fcolor = {255, 255, 255, 255};
+  SDL_Surface *do_surface = TTF_RenderText_Blended(
+      render_state.main_font, render_state.debug_info.c_str(), do_fcolor);
+  if (do_surface == nullptr) {
+    LOG_WARN("Failed to render debug info to a surface {}", TTF_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  w = do_surface->w;
+  h = do_surface->h;
+
+  SDL_ClearError();
+  render_state.debug_overlay_texture =
+      SDL_CreateTextureFromSurface(render_state.renderer, do_surface);
+  if (render_state.debug_overlay_texture == nullptr) {
+    LOG_WARN("Failed to create texture from debug overlay surface: {}",
+             SDL_GetError());
+    SDL_FreeSurface(do_surface);
+    return Result::SDL_ERROR;
+  }
+
+  SDL_FreeSurface(do_surface);
 
   return Result::SUCCESS;
 }
@@ -1231,6 +1282,9 @@ Result init_app(App &app) {
 }
 
 Result run_app(App &app) {
+  std::deque<double> frame_times;
+  const size_t max_frame_history = 20;
+
   while (true) {
     auto frame_start = std::chrono::steady_clock::now();
     // Events
@@ -1263,6 +1317,22 @@ Result run_app(App &app) {
     }
 
     SDL_RenderPresent(app.render_state.renderer);
+
+    auto all_frame_done = std::chrono::steady_clock::now();
+    std::chrono::duration<double, std::milli> all_time_elapsed =
+        frame_done - frame_start;
+    auto all_milliseconds_elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed)
+            .count();
+
+    frame_times.push_back(all_milliseconds_elapsed);
+    if (frame_times.size() > max_frame_history) {
+      frame_times.pop_front();
+    }
+
+    app.update_state.average_fps =
+        std::accumulate(frame_times.begin(), frame_times.end(), 0.0) /
+        frame_times.size();
   }
 
   return Result::SUCCESS;

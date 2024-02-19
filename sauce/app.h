@@ -212,6 +212,9 @@ struct Update_State {
   u32 active_player;                // Index into entities
 
   std::set<Update_Event> events;
+
+  // Debug
+  f32 average_fps;
 };
 
 Result init_updating(Update_State &update_state);
@@ -255,9 +258,10 @@ struct Render_State {
   SDL_Renderer *renderer;
   SDL_Surface *surface;
 
+  std::string debug_info;
   TTF_Font* main_font;
 
-    u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
+  u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
   SDL_Texture *cell_texture;
   std::map<u8, Res_Texture>
       textures;  // This mapping should be the same as in resources.json
@@ -283,6 +287,7 @@ Result handle_window_resize(Render_State &render_state);
 
 Result gen_world_texture(Render_State &render_state, Update_State &update_state,
                          const Config &config);
+Result refresh_debug_overlay(Render_State& render_state, const Update_State& update_state, int& w, int& h);
 
 Result render_cell_texture(Render_State &render_state,
                            Update_State &update_state);
