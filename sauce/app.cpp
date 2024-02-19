@@ -457,7 +457,7 @@ Result init_rendering(Render_State &render_state, Config &config) {
 
   std::filesystem::path main_font_path =
       config.res_dir / "fonts" / "dotty" / "dotty.ttf";
-  render_state.main_font = TTF_OpenFont(main_font_path.string().c_str(), 24);
+  render_state.main_font = TTF_OpenFont(main_font_path.string().c_str(), 48);
   if (render_state.main_font == nullptr) {
     LOG_ERROR("Failed to load main font: {}", TTF_GetError());
     return Result::SDL_ERROR;
@@ -813,7 +813,13 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 
 Result refresh_debug_overlay(Render_State &render_state,
                              const Update_State &update_state, int &w, int &h) {
-  render_state.debug_info = std::format("FPS: {}", update_state.average_fps);
+  render_state.debug_info = std::format(
+      "FPS: {:.1f} Dimension id: {} Chunks loaded in dim {} Player pos: "
+      "{:.2f}, {:.2f}",
+      update_state.average_fps, (u8)update_state.active_dimension,
+      update_state.dimensions.at(update_state.active_dimension).chunks.size(),
+      update_state.entities[update_state.active_player].coord.x,
+      update_state.entities[update_state.active_player].coord.y);
 
   if (render_state.debug_overlay_texture != nullptr) {
     SDL_DestroyTexture(render_state.debug_overlay_texture);
@@ -1320,9 +1326,9 @@ Result run_app(App &app) {
 
     auto all_frame_done = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> all_time_elapsed =
-        frame_done - frame_start;
+        all_frame_done - frame_start;
     auto all_milliseconds_elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed)
+        std::chrono::duration_cast<std::chrono::milliseconds>(all_time_elapsed)
             .count();
 
     frame_times.push_back(all_milliseconds_elapsed);
@@ -1331,8 +1337,9 @@ Result run_app(App &app) {
     }
 
     app.update_state.average_fps =
-        std::accumulate(frame_times.begin(), frame_times.end(), 0.0) /
-        frame_times.size();
+        1000.0f /
+        (std::accumulate(frame_times.begin(), frame_times.end(), 0.0) /
+         frame_times.size());
   }
 
   return Result::SUCCESS;
