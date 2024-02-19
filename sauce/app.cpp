@@ -164,6 +164,16 @@ Cell default_air_cell() {
   };
 }
 
+Cell default_water_cell() {
+  return {
+      Cell_Type::WATER,  // type
+      0,                 // cr
+      0,                 // cg
+      255,               // cb
+      200,               // ca
+  };
+}
+
 Cell default_grass_cell() {
   Cell cell;
   cell.type = Cell_Type::DIRT;
@@ -294,39 +304,26 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
 
   /// Zones ///
 
-  // Surface zone. This is the biome equivilent for now.
+  // Biomes by explicit positioning
   u16 height_offset = 0;
-  if (chunk_coord.y >= SURFACE_Y_MIN && chunk_coord.y <= SURFACE_Y_MAX + 2) {
-    for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
-      height_offset++;
-      u8 grass_depth = 5 + std::rand() % 20;
-      for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-        s32 height = static_cast<s32>(surface_height(
-                         x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
-                     SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
-        u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+    height_offset++;
+    u8 grass_depth = 5 + std::rand() % 20;
+    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+      s32 height = static_cast<s32>(surface_height(
+                       x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
+                   SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
 
-        s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
-        if (our_height < height && our_height >= height - grass_depth) {
-          chunk.cells[cell_index] = default_grass_cell();
-        } else if (our_height < height - grass_depth) {
-          chunk.cells[cell_index] = default_dirt_cell();
-        } else {
-          chunk.cells[cell_index] = default_air_cell();
-        }
+      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+      if (our_height < height && our_height >= height - grass_depth) {
+        chunk.cells[cell_index] = default_grass_cell();
+      } else if (our_height < height - grass_depth) {
+        chunk.cells[cell_index] = default_dirt_cell();
+      } else {
+        chunk.cells[cell_index] = default_air_cell();
       }
     }
-  } else if (chunk_coord.y < SURFACE_Y_MIN) {
-    for (Cell &cell : chunk.cells) {
-      cell = default_dirt_cell();
-    }
-  } else if (chunk_coord.y > SURFACE_Y_MAX + 2) {
-    for (Cell &cell : chunk.cells) {
-      cell = default_air_cell();
-    }
-  } else {
-    LOG_WARN("Chunk {} {} doesn't have a generation case.", chunk_coord.x,
-             chunk_coord.y);
   }
 
   chunk.coord = chunk_coord;

@@ -9,8 +9,8 @@
 #include "SDL_events.h"
 #include "SDL_render.h"
 #include "SDL_surface.h"
-#include "SDL_video.h"
 #include "SDL_ttf.h"
+#include "SDL_video.h"
 #include "spdlog/spdlog.h"
 
 namespace VV {
@@ -151,6 +151,7 @@ struct Cell {
 // Factory functions
 Cell default_dirt_cell();
 Cell default_air_cell();
+Cell default_water_cell();
 
 Cell default_grass_cell();
 
@@ -168,6 +169,7 @@ constexpr s32 SURFACE_Y_MAX = 7;
 constexpr s32 SURFACE_Y_MIN = -5;
 constexpr u16 SURFACE_CELL_RANGE =
     SURFACE_Y_MAX * CHUNK_CELL_WIDTH - SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+constexpr s32 SEA_LEVEL = 0;
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
                           f64 randomness_scale);
@@ -259,13 +261,13 @@ struct Render_State {
   SDL_Surface *surface;
 
   std::string debug_info;
-  TTF_Font* main_font;
+  TTF_Font *main_font;
 
   u32 cell_texture_buffer[SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS];
   SDL_Texture *cell_texture;
   std::map<u8, Res_Texture>
       textures;  // This mapping should be the same as in resources.json
-  SDL_Texture* debug_overlay_texture;
+  SDL_Texture *debug_overlay_texture;
 
   std::vector<SDL_Event> pending_events;
 
@@ -287,7 +289,8 @@ Result handle_window_resize(Render_State &render_state);
 
 Result gen_world_texture(Render_State &render_state, Update_State &update_state,
                          const Config &config);
-Result refresh_debug_overlay(Render_State& render_state, const Update_State& update_state, int& w, int& h);
+Result refresh_debug_overlay(Render_State &render_state,
+                             const Update_State &update_state, int &w, int &h);
 
 Result render_cell_texture(Render_State &render_state,
                            Update_State &update_state);
