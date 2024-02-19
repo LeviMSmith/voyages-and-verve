@@ -484,8 +484,9 @@ Result render(Render_State &render_state, Update_State &update_state,
   render_cell_texture(render_state, update_state);
   render_entities(render_state, update_state);
 
-  int w = 0, h = 0;
-  if (frame % 20 && config.debug_overlay) {
+  // Debug overlay
+  static int w = 0, h = 0;
+  if (frame % 20 == 0 && config.debug_overlay) {
     Result refresh_res =
         refresh_debug_overlay(render_state, update_state, w, h);
   }
@@ -814,7 +815,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 Result refresh_debug_overlay(Render_State &render_state,
                              const Update_State &update_state, int &w, int &h) {
   render_state.debug_info = std::format(
-      "FPS: {:.1f} Dimension id: {} Chunks loaded in dim {} Player pos: "
+      "FPS: {:.1f} | Dimension id: {} Chunks loaded in dim {} | Player pos: "
       "{:.2f}, {:.2f}",
       update_state.average_fps, (u8)update_state.active_dimension,
       update_state.dimensions.at(update_state.active_dimension).chunks.size(),
