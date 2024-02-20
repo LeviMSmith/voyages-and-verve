@@ -985,6 +985,11 @@ Result init_updating(Update_State &update_state) {
     return ap_res;
   }
 
+  Entity_ID tree_id;
+  create_tree(update_state, update_state.active_dimension, tree_id);
+  Entity &tree = update_state.entities[tree_id];
+  tree.coord.y += 128.0f;
+
   Entity &active_player = *get_active_player(update_state);
 
   Dimension &active_dimension = *get_active_dimension(update_state);
@@ -1088,7 +1093,7 @@ void update_kinetic(Update_State &update_state) {
   // TODO: Multithread
 
   // Start by updating kinetics values: acc, vel, pos
-  for (size_t entity_index : active_dimension.e_kinetic) {
+  for (Entity_ID entity_index : active_dimension.e_kinetic) {
     // Have to trust that entity_indicies is correct at them moment.
     Entity &entity = update_state.entities[entity_index];
 
@@ -1113,7 +1118,7 @@ void update_kinetic(Update_State &update_state) {
 
   // TODO: this just does cell collisions. We need some kind of spacial data
   // structure to determine if we're colliding with other entities
-  for (size_t entity_index : active_dimension.entity_indicies) {
+  for (Entity_ID entity_index : active_dimension.e_kinetic) {
     Entity &entity = update_state.entities[entity_index];
 
     Chunk_Coord cc = get_chunk_coord(entity.coord.x, entity.coord.y);
