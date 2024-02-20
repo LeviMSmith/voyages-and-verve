@@ -133,6 +133,7 @@ struct Entity {
   // These are what will be manipulated by the animation system
   Texture_Id texture;  // a number that is mapped to a file in resources.json
   u8 texture_index;    // an index into a texture atlas
+  s8 zdepth;           // Only applies to entity rendering
   bool flipped;
 };
 
@@ -201,7 +202,7 @@ struct Dimension {
   // processing, we keep an index here
   std::vector<Entity_ID> entity_indicies;
 
-  std::vector<Entity_ID> e_render;  // Entites with a texture
+  std::multimap<s16, Entity_ID> e_render;  // Entites with a texture
   std::vector<Entity_ID>
       e_kinetic;  // Entities that should be updated in the kinetic step
 };

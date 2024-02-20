@@ -114,7 +114,8 @@ bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
 Entity default_entity() {
   Entity return_entity;
 
-  // std::memset(&return_entity, 0, sizeof(Entity));
+  std::memset(&return_entity, 0, sizeof(Entity));
+  /*
   return_entity.coord.x = 0;
   return_entity.coord.y = 0;
   return_entity.vx = 0;
@@ -128,6 +129,7 @@ Entity default_entity() {
   return_entity.boundingh = 0;
   return_entity.texture = Texture_Id::NONE;  // Also 0
   return_entity.texture_index = 0;
+  */
 
   return return_entity;
 }
@@ -913,54 +915,52 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
   tl.y = active_player.camy + active_player.coord.y;
   tl.y += (render_state.window_height / 2.0f) / screen_cell_size;
 
-  for (size_t entity_index : active_dimension.e_render) {
+  for (const auto &[z, entity_index] : active_dimension.e_render) {
     Entity &entity = update_state.entities[entity_index];
 
-    if (entity.texture != Texture_Id::NONE) {
-      auto sdk_texture =
-          render_state.textures.find(static_cast<u8>(entity.texture));
+    auto sdk_texture =
+        render_state.textures.find(static_cast<u8>(entity.texture));
 
-      if (sdk_texture == render_state.textures.end()) {
-        if (!suppressed_id_warns.contains(entity.texture)) {
-          LOG_WARN("Entity wants texture {} which isn't loaded!",
-                   (u8)entity.texture);
-          suppressed_id_warns.insert(entity.texture);
-        }
-      } else {
-        // Now it's time to render!
+    if (sdk_texture == render_state.textures.end()) {
+      if (!suppressed_id_warns.contains(entity.texture)) {
+        LOG_WARN("Entity wants texture {} which isn't loaded!",
+                 (u8)entity.texture);
+        suppressed_id_warns.insert(entity.texture);
+      }
+    } else {
+      // Now it's time to render!
 
-        Res_Texture &texture = sdk_texture->second;
+      Res_Texture &texture = sdk_texture->second;
 
-        // LOG_DEBUG("entity coord: {} {}", entity.coord.x, entity.coord.y);
-        // LOG_DEBUG("tl: {} {}", tl.x, tl.y);
+      // LOG_DEBUG("entity coord: {} {}", entity.coord.x, entity.coord.y);
+      // LOG_DEBUG("tl: {} {}", tl.x, tl.y);
 
-        Entity_Coord world_offset;
-        world_offset.x = entity.coord.x - tl.x;
-        world_offset.y = tl.y - entity.coord.y;
+      Entity_Coord world_offset;
+      world_offset.x = entity.coord.x - tl.x;
+      world_offset.y = tl.y - entity.coord.y;
 
-        // LOG_DEBUG("World offset: {} {}", world_offset.x, world_offset.y);
+      // LOG_DEBUG("World offset: {} {}", world_offset.x, world_offset.y);
 
-        // If visable
-        if (world_offset.x >= -texture.width &&
-            world_offset.x <=
-                SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING + texture.width &&
-            world_offset.y >= -texture.height &&
-            world_offset.y <= static_cast<s32>(render_state.window_height /
-                                               render_state.screen_cell_size) +
-                                  texture.height) {
-          SDL_Rect dest_rect = {
-              (int)(world_offset.x * render_state.screen_cell_size),
-              (int)(world_offset.y * render_state.screen_cell_size),
-              texture.width * screen_cell_size,
-              texture.height * screen_cell_size};
+      // If visable
+      if (world_offset.x >= -texture.width &&
+          world_offset.x <=
+              SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING + texture.width &&
+          world_offset.y >= -texture.height &&
+          world_offset.y <= static_cast<s32>(render_state.window_height /
+                                             render_state.screen_cell_size) +
+                                texture.height) {
+        SDL_Rect dest_rect = {
+            (int)(world_offset.x * render_state.screen_cell_size),
+            (int)(world_offset.y * render_state.screen_cell_size),
+            texture.width * screen_cell_size,
+            texture.height * screen_cell_size};
 
-          if (entity.flipped) {
-            SDL_RenderCopyEx(render_state.renderer, texture.texture, NULL,
-                             &dest_rect, 0, NULL, SDL_FLIP_HORIZONTAL);
-          } else {
-            SDL_RenderCopy(render_state.renderer, texture.texture, NULL,
-                           &dest_rect);
-          }
+        if (entity.flipped) {
+          SDL_RenderCopyEx(render_state.renderer, texture.texture, NULL,
+                           &dest_rect, 0, NULL, SDL_FLIP_HORIZONTAL);
+        } else {
+          SDL_RenderCopy(render_state.renderer, texture.texture, NULL,
+                         &dest_rect);
         }
       }
     }
@@ -1254,6 +1254,8 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
+  player.zdepth = 10;
+
   player.coord.y = CHUNK_CELL_WIDTH * SURFACE_Y_MAX + 160;
   player.coord.x = 15;
   player.camy -= 20;
@@ -1266,7 +1268,7 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player.boundingh = 29;
 
   us.dimensions[dim].entity_indicies.push_back(id);
-  us.dimensions[dim].e_render.push_back(id);
+  us.dimensions[dim].e_render.emplace(player.zdepth, id);
   us.dimensions[dim].e_kinetic.push_back(id);
 
   return Result::SUCCESS;
@@ -1281,9 +1283,10 @@ Result create_tree(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   Entity &tree = us.entities[id];
 
   tree.texture = Texture_Id::TREE;
+  tree.zdepth = -10;
 
   us.dimensions[dim].entity_indicies.push_back(id);
-  us.dimensions[dim].e_render.push_back(id);
+  us.dimensions[dim].e_render.emplace(tree.zdepth, id);
 
   return Result::SUCCESS;
 }
