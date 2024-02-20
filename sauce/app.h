@@ -181,6 +181,8 @@ constexpr s32 SURFACE_Y_MIN = -5;
 constexpr u16 SURFACE_CELL_RANGE =
     SURFACE_Y_MAX * CHUNK_CELL_WIDTH - SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
 constexpr s32 SEA_LEVEL = 0;
+constexpr u32 GEN_TREE_MIN_WIDTH = 1500;
+
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
                           f64 randomness_scale);
@@ -189,7 +191,6 @@ u16 surface_height(s64 x, u16 max_depth);
 // For finding out where a chunk bottom right corner is
 Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);
 Chunk_Coord get_chunk_coord(f64 x, f64 y);
-Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord);
 
 /// Dimensions ///
 enum class DimensionIndex : u8 {
@@ -207,9 +208,6 @@ struct Dimension {
   std::vector<Entity_ID>
       e_kinetic;  // Entities that should be updated in the kinetic step
 };
-
-Result load_chunk(Dimension &dim, const Chunk_Coord &coord);
-Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius);
 
 //////////////////////////
 /// Update definitions ///
@@ -245,6 +243,13 @@ constexpr f32 KINETIC_FRICTION = 0.8f;
 constexpr f32 KINETIC_GRAVITY = 0.43f;
 constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
+
+Result gen_chunk(Update_State &update_state, Chunk &chunk,
+                 const Chunk_Coord &chunk_coord);
+Result load_chunk(Update_State &update_state, DimensionIndex dimid,
+                  const Chunk_Coord &coord);
+Result load_chunks_square(Update_State &update_state, DimensionIndex dimid,
+                          f64 x, f64 y, u8 radius);
 
 // This can fail! Check the result.
 Result get_entity_id(Entity_ID &id);

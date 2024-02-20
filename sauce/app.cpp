@@ -293,66 +293,6 @@ Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   return return_chunk_coord;
 }
 
-Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
-  // This works by zones. Every zone that a chunk is part of generates based on
-  // that chunk and then is overwritten by the next zone a chunk is part of
-
-  // Biomes will be dynamically generated zones. Likely when implemented there
-  // will be a get biome function which will then do the base generation of a
-  // chunk
-
-  // There can also be predefined structures that will be the last zone so that
-  // if the developer say there's a house here, there will be a house there.
-
-  /// Zones ///
-
-  // Biomes by explicit positioning
-  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
-    u8 grass_depth = 40 + std::rand() % 25;
-    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-      s32 height = static_cast<s32>(surface_height(
-                       x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
-                   SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
-      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
-
-      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
-      if (our_height < height && our_height >= height - grass_depth) {
-        chunk.cells[cell_index] = default_grass_cell();
-      } else if (our_height < height - grass_depth) {
-        chunk.cells[cell_index] = default_dirt_cell();
-      } else {
-        chunk.cells[cell_index] = default_air_cell();
-      }
-    }
-  }
-
-  chunk.coord = chunk_coord;
-
-  return Result::SUCCESS;
-}
-
-Result load_chunk(Dimension &dim, const Chunk_Coord &coord) {
-  if (dim.chunks.find(coord) == dim.chunks.end()) {
-    gen_chunk(dim.chunks[coord], coord);
-  }
-  // Eventually we'll also load from disk
-
-  return Result::SUCCESS;
-}
-
-Result load_chunks_square(Dimension &dim, f64 x, f64 y, u8 radius) {
-  Chunk_Coord origin = get_chunk_coord(x, y);
-
-  Chunk_Coord icc;
-  for (icc.x = origin.x - radius; icc.x < origin.x + radius; icc.x++) {
-    for (icc.y = origin.y - radius; icc.y < origin.y + radius; icc.y++) {
-      load_chunk(dim, icc);
-    }
-  }
-
-  return Result::SUCCESS;
-}
-
 /////////////////////////////////
 /// Rendering implementations ///
 /////////////////////////////////
@@ -990,18 +930,14 @@ Result init_updating(Update_State &update_state) {
     return ap_res;
   }
 
-  Entity_ID tree_id;
-  create_tree(update_state, update_state.active_dimension, tree_id);
-  Entity &tree = update_state.entities[tree_id];
-  tree.coord.y += 128.0f;
-
   Entity &active_player = *get_active_player(update_state);
 
   Dimension &active_dimension = *get_active_dimension(update_state);
   active_dimension.entity_indicies.push_back(update_state.active_player);
 
-  load_chunks_square(*get_active_dimension(update_state), active_player.coord.x,
-                     active_player.coord.y, SCREEN_CHUNK_SIZE / 2);
+  load_chunks_square(update_state, update_state.active_dimension,
+                     active_player.coord.x, active_player.coord.y,
+                     SCREEN_CHUNK_SIZE / 2);
 
   return Result::SUCCESS;
 }
@@ -1010,7 +946,6 @@ Result update(Update_State &update_state) {
   update_state.events.clear();
 
   Entity &active_player = *get_active_player(update_state);
-  Dimension &active_dimension = *get_active_dimension(update_state);
   static Chunk_Coord last_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
 
@@ -1029,8 +964,9 @@ Result update(Update_State &update_state) {
               current_player_chunk.y);
     */
     update_state.events.insert(Update_Event::PLAYER_MOVED_CHUNK);
-    load_chunks_square(active_dimension, active_player.coord.x,
-                       active_player.coord.y, SCREEN_CHUNK_SIZE + 5);
+    load_chunks_square(update_state, update_state.active_dimension,
+                       active_player.coord.x, active_player.coord.y,
+                       SCREEN_CHUNK_SIZE + 5);
     last_player_chunk = current_player_chunk;
   }
 
@@ -1212,6 +1148,82 @@ void update_kinetic(Update_State &update_state) {
       }
     }
   }
+}
+
+Result gen_chunk(Update_State &update_state, Chunk &chunk,
+                 const Chunk_Coord &chunk_coord) {
+  // This works by zones. Every zone that a chunk is part of generates based on
+  // that chunk and then is overwritten by the next zone a chunk is part of
+
+  // Biomes will be dynamically generated zones. Likely when implemented there
+  // will be a get biome function which will then do the base generation of a
+  // chunk
+
+  // There can also be predefined structures that will be the last zone so that
+  // if the developer say there's a house here, there will be a house there.
+
+  /// Zones ///
+
+  // Biomes by explicit positioning
+  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+    f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
+    u8 grass_depth = 40 + surface_det_rand(static_cast<u64>(abs_x)) % 25;
+    s32 height = static_cast<s32>(
+                     surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
+                 SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+
+      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+      if (our_height < height && our_height >= height - grass_depth) {
+        chunk.cells[cell_index] = default_grass_cell();
+      } else if (our_height < height - grass_depth) {
+        chunk.cells[cell_index] = default_dirt_cell();
+      } else {
+        chunk.cells[cell_index] = default_air_cell();
+      }
+    }
+
+    if ((x + chunk_coord.x * CHUNK_CELL_WIDTH) % GEN_TREE_MIN_WIDTH == 0 &&
+        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+      Entity_ID id;
+      create_tree(update_state, update_state.active_dimension, id);
+
+      Entity &tree = update_state.entities[id];
+      tree.coord.x = abs_x;
+      tree.coord.y = height + 85.0f;
+    }
+  }
+
+  chunk.coord = chunk_coord;
+
+  return Result::SUCCESS;
+}
+
+Result load_chunk(Update_State &update_state, DimensionIndex dimid,
+                  const Chunk_Coord &coord) {
+  Dimension &dim = update_state.dimensions[dimid];
+  if (dim.chunks.find(coord) == dim.chunks.end()) {
+    gen_chunk(update_state, dim.chunks[coord], coord);
+  }
+  // Eventually we'll also load from disk
+
+  return Result::SUCCESS;
+}
+
+Result load_chunks_square(Update_State &update_state, DimensionIndex dimid,
+                          f64 x, f64 y, u8 radius) {
+  Chunk_Coord origin = get_chunk_coord(x, y);
+
+  Chunk_Coord icc;
+  for (icc.x = origin.x - radius; icc.x < origin.x + radius; icc.x++) {
+    for (icc.y = origin.y - radius; icc.y < origin.y + radius; icc.y++) {
+      load_chunk(update_state, dimid, icc);
+    }
+  }
+
+  return Result::SUCCESS;
 }
 
 Result get_entity_id(std::unordered_set<Entity_ID> &entity_id_pool,
