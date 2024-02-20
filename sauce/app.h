@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <map>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 #include "SDL_events.h"
@@ -44,6 +45,7 @@ enum class Result {
   NONEXIST,
   FILESYSTEM_ERROR,
   GENERAL_ERROR,
+  ENTITY_POOL_FULL,
 };
 
 /// Log definitions ///
@@ -107,11 +109,15 @@ struct Chunk_Coord {
 // AOS, so a little OOP, but I think this is very flexible way
 // to hold all the data. Plus no mapping like a SOA would require.
 
+constexpr u32 MAX_TOTAL_ENTITIES = 100000;
+
 struct Entity_Coord {
   f64 x, y;
 };
 
 enum class Texture_Id : u8 { NONE = 0, PLAYER = 1, SKY = 2 };
+
+typedef u32 Entity_ID;
 
 // If you add something to this, make sure it works with default_entity!
 struct Entity {
@@ -193,7 +199,10 @@ struct Dimension {
 
   // Entities are all stored in Update_State, but for existance based
   // processing, we keep an index here
-  std::vector<size_t> entity_indicies;
+  std::vector<Entity_ID> entity_indicies;
+
+  std::vector<Entity_ID>
+      e_kinetic;  // Entities that should be updated in the kinetic step
 };
 
 Result load_chunk(Dimension &dim, const Chunk_Coord &coord);
@@ -211,10 +220,12 @@ struct Update_State {
   std::vector<SDL_Event> pending_events;
 
   std::map<DimensionIndex, Dimension> dimensions;
-  std::vector<Entity> entities;
+
+  std::unordered_set<Entity_ID> entity_id_pool;
+  Entity entities[MAX_TOTAL_ENTITIES];
 
   DimensionIndex active_dimension;  // Key of active dimension
-  u32 active_player;                // Index into entities
+  Entity_ID active_player;          // Index into entities
 
   std::set<Update_Event> events;
 
@@ -232,13 +243,16 @@ constexpr f32 KINETIC_GRAVITY = 0.43f;
 constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
 
-// Factory functions. These should be used over default_entity.
-u32 create_entity(Update_State &us,
-                  DimensionIndex dim);  // Creates default entity and returns
-                                        // index in update_state.entities
+// This can fail! Check the result.
+Result get_entity_id(Entity_ID &id);
 
-u32 create_player(Update_State &us,
-                  DimensionIndex dim);  // Creates a player entity
+// Factory functions. These should be used over default_entity.
+Result create_entity(Update_State &us, DimensionIndex dim,
+                     Entity_ID &id);  // Creates default entity and returns
+                                      // index in update_state.entities
+
+Result create_player(Update_State &us, DimensionIndex dim,
+                     Entity_ID &id);  // Creates a player entity
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them

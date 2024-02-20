@@ -10,6 +10,7 @@
 #include <numeric>
 #include <regex>
 #include <set>
+#include <unordered_set>
 
 #include "SDL.h"
 #include "SDL_error.h"
@@ -807,13 +808,16 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 
 Result refresh_debug_overlay(Render_State &render_state,
                              const Update_State &update_state, int &w, int &h) {
+  f64 x, y;
+  x = update_state.entities[update_state.active_player].coord.x;
+  y = update_state.entities[update_state.active_player].coord.y;
+
   render_state.debug_info = std::format(
       "FPS: {:.1f} | Dimension id: {} Chunks loaded in dim {} | Player pos: "
       "{:.2f}, {:.2f}",
       update_state.average_fps, (u8)update_state.active_dimension,
       update_state.dimensions.at(update_state.active_dimension).chunks.size(),
-      update_state.entities[update_state.active_player].coord.x,
-      update_state.entities[update_state.active_player].coord.y);
+      x, y);
 
   if (render_state.debug_overlay_texture != nullptr) {
     SDL_DestroyTexture(render_state.debug_overlay_texture);
@@ -973,8 +977,13 @@ Result init_updating(Update_State &update_state) {
   update_state.dimensions.emplace(DimensionIndex::OVERWORLD, Dimension());
   update_state.active_dimension = DimensionIndex::OVERWORLD;
 
-  update_state.active_player =
-      create_player(update_state, update_state.active_dimension);
+  Result ap_res = create_player(update_state, update_state.active_dimension,
+                                update_state.active_player);
+
+  if (ap_res != Result::SUCCESS) {
+    LOG_ERROR("Couldn't create initial player! EC: {}", (u8)ap_res);
+    return ap_res;
+  }
 
   Entity &active_player = *get_active_player(update_state);
 
@@ -1195,19 +1204,49 @@ void update_kinetic(Update_State &update_state) {
   }
 }
 
-u32 create_entity(Update_State &us, DimensionIndex dim) {
-  Entity e = default_entity();
+Result get_entity_id(std::unordered_set<Entity_ID> &entity_id_pool,
+                     Entity_ID &id) {
+  static Entity_ID current_entity = 1;
+  static std::pair<std::unordered_set<Entity_ID>::iterator, bool> result;
 
-  us.entities.push_back(e);
+  Entity_ID start_entity = current_entity;
+  do {
+    result = entity_id_pool.insert(current_entity);
+    if (result.second) {
+      id = current_entity;
+      return Result::SUCCESS;
+    }
 
-  u32 entity_index = us.entities.size() - 1;
-  us.dimensions[dim].entity_indicies.push_back(entity_index);
+    current_entity = (current_entity + 1) % MAX_TOTAL_ENTITIES;
+    if (current_entity == 0) {
+      ++current_entity;
+    }  // Skip 0
+  } while (current_entity != start_entity);
 
-  return entity_index;
+  LOG_WARN("Failed to get entity id. Pool full.");
+  return Result::ENTITY_POOL_FULL;
 }
 
-u32 create_player(Update_State &us, DimensionIndex dim) {
-  Entity player = default_entity();
+Result create_entity(Update_State &us, DimensionIndex dim, Entity_ID &id) {
+  Result id_res = get_entity_id(us.entity_id_pool, id);
+  if (id_res != Result::SUCCESS) {
+    return id_res;
+  }
+
+  us.entities[id] = default_entity();
+  us.dimensions[dim].entity_indicies.push_back(id);
+
+  return Result::SUCCESS;
+}
+
+Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
+  Result id_res = get_entity_id(us.entity_id_pool, id);
+  if (id_res != Result::SUCCESS) {
+    return id_res;
+  }
+
+  Entity &player = us.entities[id];
+  player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
   player.coord.y = CHUNK_CELL_WIDTH * SURFACE_Y_MAX + 160;
@@ -1221,11 +1260,10 @@ u32 create_player(Update_State &us, DimensionIndex dim) {
   player.boundingw = 11;
   player.boundingh = 29;
 
-  us.entities.push_back(player);
-  u32 entity_index = us.entities.size() - 1;
-  us.dimensions[dim].entity_indicies.push_back(entity_index);
+  us.dimensions[dim].entity_indicies.push_back(id);
+  us.dimensions[dim].e_kinetic.push_back(id);
 
-  return entity_index;
+  return Result::SUCCESS;
 }
 
 Dimension *get_active_dimension(Update_State &update_state) {
@@ -1302,7 +1340,12 @@ Result init_app(App &app) {
 
   app.config.tex_dir = app.config.res_dir / "textures";
 
-  init_updating(app.update_state);
+  Result update_res = init_updating(app.update_state);
+  if (update_res != Result::SUCCESS) {
+    LOG_FATAL("Failed to initialize updater. Exiting.");
+    return update_res;
+  }
+
   Result renderer_res = init_rendering(app.render_state, app.config);
   if (renderer_res != Result::SUCCESS) {
     LOG_FATAL("Failed to initialize renderer. Exiting.");
