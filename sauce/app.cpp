@@ -1055,7 +1055,7 @@ Result update_keypresses(Update_State &us) {
     }
     active_player.on_ground = false;
   }
-  if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
+  if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
     if (active_player.ax > MOVEMENT_ACC_LIMIT_NEG) {
       active_player.ax -= MOVEMENT_CONSTANT;
       // if (active_player.on_ground) {
@@ -1069,7 +1069,7 @@ Result update_keypresses(Update_State &us) {
       active_player.ay -= MOVEMENT_CONSTANT - KINETIC_GRAVITY;
     }
   }
-  if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
+  if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
     if (active_player.ax < MOVEMENT_ACC_LIMIT) {
       active_player.ax += MOVEMENT_CONSTANT;
       // if (active_player.on_ground) {
