@@ -26,7 +26,6 @@
 #include <windows.h>
 #undef min  // SDL has a macro for this on windows for some reason
 #elif defined(__linux__)
-#include <limits.h>
 #include <unistd.h>
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -215,7 +214,7 @@ u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
 
 u16 surface_height(s64 x, u16 max_depth) {
   static std::map<s64, u16> heights;
-  static const u64 RANDOMNESS_RANGE = CHUNK_CELL_WIDTH * 16;
+  static const u64 RANDOMNESS_RANGE = CHUNK_CELL_WIDTH * 64;
 
   auto height_iter = heights.find(x);
   if (height_iter != heights.end()) {
@@ -305,10 +304,8 @@ Result gen_chunk(Chunk &chunk, const Chunk_Coord &chunk_coord) {
   /// Zones ///
 
   // Biomes by explicit positioning
-  u16 height_offset = 0;
   for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
-    height_offset++;
-    u8 grass_depth = 5 + std::rand() % 20;
+    u8 grass_depth = 40 + std::rand() % 25;
     for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
       s32 height = static_cast<s32>(surface_height(
                        x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
@@ -1022,24 +1019,43 @@ Result update_keypresses(Update_State &us) {
 
   Entity &active_player = *get_active_player(us);
 
-  static constexpr f32 MOVEMENT_CONSTANT = 0.7f + KINETIC_GRAVITY * 2;
+  static constexpr f32 MOVEMENT_CONSTANT = 0.4f;
+  static constexpr f32 MOVEMENT_JUMP_ACC = 4.5f;
+  static constexpr f32 MOVEMENT_JUMP_VEL = -1.0f * (KINETIC_GRAVITY + 1.0f);
+  static constexpr f32 MOVEMENT_ACC_LIMIT = 1.0f;
+  static constexpr f32 MOVEMENT_ACC_LIMIT_NEG = MOVEMENT_ACC_LIMIT * -1.0;
+  static constexpr f32 MOVEMENT_ON_GROUND_MULT = 4.0f;
 
   // Movement
   if (keys[SDL_SCANCODE_W] == 1 || keys[SDL_SCANCODE_UP] == 1) {
-    active_player.vy += MOVEMENT_CONSTANT;
+    if (active_player.ay < MOVEMENT_ACC_LIMIT + KINETIC_GRAVITY &&
+        active_player.on_ground) {
+      active_player.ay += MOVEMENT_JUMP_ACC;
+      active_player.vy += MOVEMENT_JUMP_VEL;
+    }
     active_player.on_ground = false;
   }
-  if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
-    active_player.vx -= MOVEMENT_CONSTANT;
+  if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
+    if (active_player.ax > MOVEMENT_ACC_LIMIT_NEG) {
+      active_player.ax -= MOVEMENT_CONSTANT;
+      if (active_player.on_ground) {
+        active_player.ax *= MOVEMENT_ON_GROUND_MULT;
+      }
+    }
     active_player.flipped = true;
   }
   if (keys[SDL_SCANCODE_S] == 1 || keys[SDL_SCANCODE_DOWN] == 1) {
-    if (!active_player.on_ground) {
-      active_player.vy -= MOVEMENT_CONSTANT;
+    if (active_player.ay > MOVEMENT_ACC_LIMIT_NEG - KINETIC_GRAVITY) {
+      active_player.ay -= MOVEMENT_CONSTANT - KINETIC_GRAVITY;
     }
   }
-  if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
-    active_player.vx += MOVEMENT_CONSTANT;
+  if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
+    if (active_player.ax < MOVEMENT_ACC_LIMIT) {
+      active_player.ax += MOVEMENT_CONSTANT;
+      if (active_player.on_ground) {
+        active_player.ax *= MOVEMENT_ON_GROUND_MULT;
+      }
+    }
     active_player.flipped = false;
   }
 
@@ -1062,6 +1078,8 @@ void update_kinetic(Update_State &update_state) {
     Entity &entity = update_state.entities[entity_index];
 
     // If not 0, move toward 0
+    entity.ax *= KINETIC_FRICTION;
+    entity.ay *= KINETIC_FRICTION;
     entity.vx *= KINETIC_FRICTION;
     entity.vy *= KINETIC_FRICTION;
 
