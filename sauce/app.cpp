@@ -1024,7 +1024,7 @@ Result update_keypresses(Update_State &us) {
   static constexpr f32 MOVEMENT_JUMP_VEL = -1.0f * (KINETIC_GRAVITY + 1.0f);
   static constexpr f32 MOVEMENT_ACC_LIMIT = 1.0f;
   static constexpr f32 MOVEMENT_ACC_LIMIT_NEG = MOVEMENT_ACC_LIMIT * -1.0;
-  static constexpr f32 MOVEMENT_ON_GROUND_MULT = 4.0f;
+  // static constexpr f32 MOVEMENT_ON_GROUND_MULT = 4.0f;
 
   // Movement
   if (keys[SDL_SCANCODE_W] == 1 || keys[SDL_SCANCODE_UP] == 1) {
@@ -1038,9 +1038,9 @@ Result update_keypresses(Update_State &us) {
   if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
     if (active_player.ax > MOVEMENT_ACC_LIMIT_NEG) {
       active_player.ax -= MOVEMENT_CONSTANT;
-      if (active_player.on_ground) {
-        active_player.ax *= MOVEMENT_ON_GROUND_MULT;
-      }
+      // if (active_player.on_ground) {
+      //   active_player.ax *= MOVEMENT_ON_GROUND_MULT;
+      // }
     }
     active_player.flipped = true;
   }
@@ -1052,9 +1052,9 @@ Result update_keypresses(Update_State &us) {
   if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
     if (active_player.ax < MOVEMENT_ACC_LIMIT) {
       active_player.ax += MOVEMENT_CONSTANT;
-      if (active_player.on_ground) {
-        active_player.ax *= MOVEMENT_ON_GROUND_MULT;
-      }
+      // if (active_player.on_ground) {
+      //   active_player.ax *= MOVEMENT_ON_GROUND_MULT;
+      // }
     }
     active_player.flipped = false;
   }
@@ -1078,6 +1078,8 @@ void update_kinetic(Update_State &update_state) {
     Entity &entity = update_state.entities[entity_index];
 
     // If not 0, move toward 0
+    // These should change dependant on where the player is. (in air, on ground,
+    // in water)
     entity.ax *= KINETIC_FRICTION;
     entity.ay *= KINETIC_FRICTION;
     entity.vx *= KINETIC_FRICTION;
@@ -1157,26 +1159,29 @@ void update_kinetic(Update_State &update_state) {
             }
 
             // Determine the smallest overlap to resolve the collision with
-            // minimal movement. You might need to adjust the logic based on
-            // your coordinate system and entity movement direction.
+            static constexpr f64 MOV_LIM = 0.95;
             if (fabs(overlap_x) < fabs(overlap_y)) {
               if (entity.coord.x < cell_coord.x) {
-                entity.coord.x -= fabs(overlap_x);  // Move entity left
+                entity.coord.x -=
+                    std::min(fabs(overlap_x), MOV_LIM);  // Move entity left
               } else {
-                entity.coord.x += fabs(overlap_x);  // Move entity right
+                entity.coord.x +=
+                    std::min(fabs(overlap_x), MOV_LIM);  // Move entity right
               }
             } else {
               if (entity.coord.y > cell_coord.y) {
-                entity.coord.y += fabs(overlap_y);  // Move entity down
+                entity.coord.y +=
+                    std::min(fabs(overlap_y), MOV_LIM);  // Move entity down
               } else {
-                entity.coord.y -= fabs(overlap_y);  // Move entity up
+                entity.coord.y -=
+                    std::min(fabs(overlap_y), MOV_LIM);  // Move entity up
               }
             }
 
-            entity.ax = 0;
-            entity.ay = 0;
-            entity.vx = 0;
-            entity.vy = 0;
+            // entity.ax *= 0.1f;
+            // entity.ay *= 0.1f;
+            // entity.vx *= 0.5f;
+            // entity.vy *= 0.5f;
           }
         }
       }
