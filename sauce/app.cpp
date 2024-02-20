@@ -145,9 +145,9 @@ Entity_Coord get_cam_coord(const Entity &e) {
 Cell default_dirt_cell() {
   Cell cell;
   cell.type = Cell_Type::DIRT;
-  cell.cr = 87 + std::rand() % 12;
-  cell.cg = 52 + std::rand() % 12;
-  cell.cb = 10 + std::rand() % 12;
+  cell.cr = 99 + std::rand() % 12;
+  cell.cg = 80 + std::rand() % 12;
+  cell.cb = 79 + std::rand() % 12;
   cell.ca = 255;
 
   return cell;
@@ -844,6 +844,12 @@ Result refresh_debug_overlay(Render_State &render_state,
 
   return Result::SUCCESS;
 }
+
+/*
+Result render_trees(Render_State &rs, Update_State &us) {
+  return Result::SUCCESS;
+}
+*/
 
 Result render_cell_texture(Render_State &render_state,
                            Update_State &update_state) {
