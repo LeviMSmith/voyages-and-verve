@@ -478,6 +478,7 @@ Result render(Render_State &render_state, Update_State &update_state,
     gen_world_texture(render_state, update_state, config);
   }
 
+  render_entities(render_state, update_state, INT8_MIN, 0);
   render_cell_texture(render_state, update_state);
   render_entities(render_state, update_state);
 
@@ -901,7 +902,8 @@ Result render_cell_texture(Render_State &render_state,
   return Result::SUCCESS;
 }
 
-Result render_entities(Render_State &render_state, Update_State &update_state) {
+Result render_entities(Render_State &render_state, Update_State &update_state,
+                       Entity_Z z_min, Entity_Z z_thresh) {
   Dimension &active_dimension = *get_active_dimension(update_state);
   static std::set<Texture_Id> suppressed_id_warns;
 
@@ -916,6 +918,9 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
   tl.y += (render_state.window_height / 2.0f) / screen_cell_size;
 
   for (const auto &[z, entity_index] : active_dimension.e_render) {
+    if (z > z_thresh || z < z_min) {
+      continue;
+    }
     Entity &entity = update_state.entities[entity_index];
 
     auto sdk_texture =

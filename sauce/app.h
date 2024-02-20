@@ -118,6 +118,7 @@ struct Entity_Coord {
 enum class Texture_Id : u8 { NONE = 0, PLAYER = 1, SKY = 2, TREE = 3 };
 
 typedef u32 Entity_ID;
+typedef s8 Entity_Z;
 
 // If you add something to this, make sure it works with default_entity!
 struct Entity {
@@ -133,7 +134,7 @@ struct Entity {
   // These are what will be manipulated by the animation system
   Texture_Id texture;  // a number that is mapped to a file in resources.json
   u8 texture_index;    // an index into a texture atlas
-  s8 zdepth;           // Only applies to entity rendering
+  Entity_Z zdepth;     // Only applies to entity rendering
   bool flipped;
 };
 
@@ -202,7 +203,7 @@ struct Dimension {
   // processing, we keep an index here
   std::vector<Entity_ID> entity_indicies;
 
-  std::multimap<s16, Entity_ID> e_render;  // Entites with a texture
+  std::multimap<Entity_Z, Entity_ID> e_render;  // Entites with a texture
   std::vector<Entity_ID>
       e_kinetic;  // Entities that should be updated in the kinetic step
 };
@@ -317,7 +318,8 @@ Result refresh_debug_overlay(Render_State &render_state,
 Result render_trees(Render_State &rs, Update_State &us);
 Result render_cell_texture(Render_State &render_state,
                            Update_State &update_state);
-Result render_entities(Render_State &render_state, Update_State &update_state);
+Result render_entities(Render_State &render_state, Update_State &update_state,
+                       Entity_Z z_min = 1, Entity_Z z_thresh = INT8_MAX);
 
 /////////////////////////
 /// State definitions ///
