@@ -115,7 +115,7 @@ struct Entity_Coord {
   f64 x, y;
 };
 
-enum class Texture_Id : u8 { NONE = 0, PLAYER = 1, SKY = 2 };
+enum class Texture_Id : u8 { NONE = 0, PLAYER = 1, SKY = 2, TREE = 3 };
 
 typedef u32 Entity_ID;
 
@@ -201,6 +201,7 @@ struct Dimension {
   // processing, we keep an index here
   std::vector<Entity_ID> entity_indicies;
 
+  std::vector<Entity_ID> e_render;  // Entites with a texture
   std::vector<Entity_ID>
       e_kinetic;  // Entities that should be updated in the kinetic step
 };
@@ -253,6 +254,10 @@ Result create_entity(Update_State &us, DimensionIndex dim,
 
 Result create_player(Update_State &us, DimensionIndex dim,
                      Entity_ID &id);  // Creates a player entity
+
+Result create_tree(Update_State &us, DimensionIndex dim,
+                   Entity_ID &id);  // This is background tree that just is
+                                    // there for a position an sprite
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them

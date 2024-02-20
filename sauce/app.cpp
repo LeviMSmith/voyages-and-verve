@@ -913,7 +913,7 @@ Result render_entities(Render_State &render_state, Update_State &update_state) {
   tl.y = active_player.camy + active_player.coord.y;
   tl.y += (render_state.window_height / 2.0f) / screen_cell_size;
 
-  for (size_t entity_index : active_dimension.entity_indicies) {
+  for (size_t entity_index : active_dimension.e_render) {
     Entity &entity = update_state.entities[entity_index];
 
     if (entity.texture != Texture_Id::NONE) {
@@ -1088,7 +1088,7 @@ void update_kinetic(Update_State &update_state) {
   // TODO: Multithread
 
   // Start by updating kinetics values: acc, vel, pos
-  for (size_t entity_index : active_dimension.entity_indicies) {
+  for (size_t entity_index : active_dimension.e_kinetic) {
     // Have to trust that entity_indicies is correct at them moment.
     Entity &entity = update_state.entities[entity_index];
 
@@ -1261,7 +1261,24 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player.boundingh = 29;
 
   us.dimensions[dim].entity_indicies.push_back(id);
+  us.dimensions[dim].e_render.push_back(id);
   us.dimensions[dim].e_kinetic.push_back(id);
+
+  return Result::SUCCESS;
+}
+
+Result create_tree(Update_State &us, DimensionIndex dim, Entity_ID &id) {
+  Result id_res = get_entity_id(us.entity_id_pool, id);
+  if (id_res != Result::SUCCESS) {
+    return id_res;
+  }
+
+  Entity &tree = us.entities[id];
+
+  tree.texture = Texture_Id::TREE;
+
+  us.dimensions[dim].entity_indicies.push_back(id);
+  us.dimensions[dim].e_render.push_back(id);
 
   return Result::SUCCESS;
 }
