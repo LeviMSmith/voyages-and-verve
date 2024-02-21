@@ -115,7 +115,13 @@ struct Entity_Coord {
   f64 x, y;
 };
 
-enum class Texture_Id : u8 { NONE = 0, PLAYER = 1, SKY = 2, TREE = 3 };
+enum class Texture_Id : u8 {
+  NONE = 0,
+  PLAYER = 1,
+  SKY = 2,
+  TREE = 3,
+  MOUNTAINS = 4
+};
 
 typedef u32 Entity_ID;
 typedef s8 Entity_Z;

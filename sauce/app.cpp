@@ -406,6 +406,7 @@ Result init_rendering(Render_State &render_state, Config &config) {
 Result render(Render_State &render_state, Update_State &update_state,
               const Config &config) {
   static u64 frame = 0;
+  Entity &active_player = *get_active_player(update_state);
 
   SDL_RenderClear(render_state.renderer);
 
@@ -414,6 +415,24 @@ Result render(Render_State &render_state, Update_State &update_state,
                  render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
                  NULL);
 
+  // Mountains
+  Res_Texture &mountain_tex = render_state.textures[(u8)Texture_Id::MOUNTAINS];
+  SDL_Rect dest_rect = {
+      static_cast<int>(active_player.coord.x * -0.1) -
+          static_cast<int>(
+              ((mountain_tex.width * render_state.screen_cell_size) -
+               render_state.window_width) *
+              0.5),
+      (render_state.window_height -
+       (mountain_tex.height * render_state.screen_cell_size) + 32),
+      mountain_tex.width * render_state.screen_cell_size,
+      mountain_tex.height * render_state.screen_cell_size};
+
+  SDL_RenderCopy(render_state.renderer,
+                 render_state.textures[(u8)Texture_Id::MOUNTAINS].texture, NULL,
+                 &dest_rect);
+
+  // Cells and entities
   if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK)) {
     gen_world_texture(render_state, update_state, config);
   }
