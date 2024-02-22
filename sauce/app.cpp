@@ -122,7 +122,7 @@ Entity default_entity() {
   return_entity.vy = 0;
   return_entity.ax = 0;
   return_entity.ay = 0;
-  return_entity.on_ground = false;
+  return_entity.status = 0;
   return_entity.camx = 0;
   return_entity.camy = 0;
   return_entity.boundingw = 0;
@@ -145,19 +145,20 @@ Entity_Coord get_cam_coord(const Entity &e) {
 /// World implementations ///
 /////////////////////////////
 
-/*
 const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
     {
-        255,  // solidity
-    },        // DIRT
+        255,    // solidity
+        0.70f,  // friction
+    },          // DIRT
     {
-        0,  // solidity
-    },      // AIR
+        0,     // solidity
+        0.8f,  // friction
+    },         // AIR
     {
-        50,  // solidity
-    },       // WATER
+        50,    // solidity
+        0.6f,  // friction
+    },         // WATER
 };
-*/
 
 Cell default_dirt_cell() {
   Cell cell;
@@ -430,21 +431,24 @@ Result render(Render_State &render_state, Update_State &update_state,
                  NULL);
 
   // Mountains
-  Res_Texture &mountain_tex = render_state.textures[(u8)Texture_Id::MOUNTAINS];
-  SDL_Rect dest_rect = {
-      static_cast<int>(active_player.coord.x * -0.1) -
-          static_cast<int>(
-              ((mountain_tex.width * render_state.screen_cell_size) -
-               render_state.window_width) *
-              0.5),
-      (render_state.window_height -
-       (mountain_tex.height * render_state.screen_cell_size) + 128),
-      mountain_tex.width * render_state.screen_cell_size,
-      mountain_tex.height * render_state.screen_cell_size};
+  if (update_state.active_dimension == DimensionIndex::OVERWORLD) {
+    Res_Texture &mountain_tex =
+        render_state.textures[(u8)Texture_Id::MOUNTAINS];
+    SDL_Rect dest_rect = {
+        static_cast<int>(active_player.coord.x * -0.1) -
+            static_cast<int>(
+                ((mountain_tex.width * render_state.screen_cell_size) -
+                 render_state.window_width) *
+                0.5),
+        (render_state.window_height -
+         (mountain_tex.height * render_state.screen_cell_size) + 128),
+        mountain_tex.width * render_state.screen_cell_size,
+        mountain_tex.height * render_state.screen_cell_size};
 
-  SDL_RenderCopy(render_state.renderer,
-                 render_state.textures[(u8)Texture_Id::MOUNTAINS].texture, NULL,
-                 &dest_rect);
+    SDL_RenderCopy(render_state.renderer,
+                   render_state.textures[(u8)Texture_Id::MOUNTAINS].texture,
+                   NULL, &dest_rect);
+  }
 
   // Cells and entities
   if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK)) {
@@ -787,13 +791,14 @@ Result refresh_debug_overlay(Render_State &render_state,
   f64 x, y;
   x = update_state.entities[update_state.active_player].coord.x;
   y = update_state.entities[update_state.active_player].coord.y;
+  u8 status = update_state.entities[update_state.active_player].status;
 
   render_state.debug_info = std::format(
       "FPS: {:.1f} | Dimension id: {} Chunks loaded in dim {} | Player pos: "
-      "{:.2f}, {:.2f}",
+      "{:.2f}, {:.2f} Status: {}",
       update_state.average_fps, (u8)update_state.active_dimension,
       update_state.dimensions.at(update_state.active_dimension).chunks.size(),
-      x, y);
+      x, y, status);
 
   if (render_state.debug_overlay_texture != nullptr) {
     SDL_DestroyTexture(render_state.debug_overlay_texture);
@@ -952,8 +957,10 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
 //////////////////////////////
 
 Result init_updating(Update_State &update_state) {
-  update_state.dimensions.emplace(DimensionIndex::OVERWORLD, Dimension());
-  update_state.active_dimension = DimensionIndex::OVERWORLD;
+  const DimensionIndex starting_dim = DimensionIndex::OVERWORLD;
+  // const DimensionIndex starting_dim = DimensionIndex::WATERWORLD;
+  update_state.dimensions.emplace(starting_dim, Dimension());
+  update_state.active_dimension = starting_dim;
 
   Result ap_res = create_player(update_state, update_state.active_dimension,
                                 update_state.active_player);
@@ -1014,6 +1021,7 @@ Result update_keypresses(Update_State &us) {
   Entity &active_player = *get_active_player(us);
 
   static constexpr f32 MOVEMENT_CONSTANT = 0.4f;
+  // static constexpr f32 SWIM_CONSTANT = 0.4f;
   static constexpr f32 MOVEMENT_JUMP_ACC = 4.5f;
   static constexpr f32 MOVEMENT_JUMP_VEL = -1.0f * (KINETIC_GRAVITY + 1.0f);
   static constexpr f32 MOVEMENT_ACC_LIMIT = 1.0f;
@@ -1023,11 +1031,16 @@ Result update_keypresses(Update_State &us) {
   // Movement
   if (keys[SDL_SCANCODE_W] == 1 || keys[SDL_SCANCODE_UP] == 1) {
     if (active_player.ay < MOVEMENT_ACC_LIMIT + KINETIC_GRAVITY &&
-        active_player.on_ground) {
+        active_player.status & (u8)Entity_Status::ON_GROUND) {
       active_player.ay += MOVEMENT_JUMP_ACC;
       active_player.vy += MOVEMENT_JUMP_VEL;
     }
-    active_player.on_ground = false;
+    if (active_player.ay < MOVEMENT_ACC_LIMIT &&
+        active_player.status & (u8)Entity_Status::IN_WATER) {
+      active_player.ay += MOVEMENT_CONSTANT;
+    }
+    // active_player.status = active_player.status &
+    // ~(u8)Entity_Status::ON_GROUND;
   }
   if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
     if (active_player.ax > MOVEMENT_ACC_LIMIT_NEG) {
@@ -1040,7 +1053,7 @@ Result update_keypresses(Update_State &us) {
   }
   if (keys[SDL_SCANCODE_S] == 1 || keys[SDL_SCANCODE_DOWN] == 1) {
     if (active_player.ay > MOVEMENT_ACC_LIMIT_NEG - KINETIC_GRAVITY) {
-      active_player.ay -= MOVEMENT_CONSTANT - KINETIC_GRAVITY;
+      active_player.ay -= MOVEMENT_CONSTANT;
     }
   }
   if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
@@ -1071,13 +1084,24 @@ void update_kinetic(Update_State &update_state) {
     // Have to trust that entity_indicies is correct at them moment.
     Entity &entity = update_state.entities[entity_index];
 
-    // If not 0, move toward 0
-    // These should change dependant on where the player is. (in air, on ground,
-    // in water)
-    entity.ax *= KINETIC_FRICTION;
-    entity.ay *= KINETIC_FRICTION;
-    entity.vx *= KINETIC_FRICTION;
-    entity.vy *= KINETIC_FRICTION;
+    if (entity.status & (u8)Entity_Status::IN_WATER) {
+      entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
+      entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
+      entity.vx *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
+      entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
+
+      entity.vy += entity.bouyancy;
+    } else if (entity.status & (u8)Entity_Status::ON_GROUND) {
+      entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+      entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+      entity.vx *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+      entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+    } else {
+      entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
+      entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
+      entity.vx *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
+      entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
+    }
 
     entity.vx += entity.ax;
     entity.vy += entity.ay;
@@ -1094,6 +1118,7 @@ void update_kinetic(Update_State &update_state) {
   // structure to determine if we're colliding with other entities
   for (Entity_ID entity_index : active_dimension.e_kinetic) {
     Entity &entity = update_state.entities[entity_index];
+    entity.status = 0;
 
     Chunk_Coord cc = get_chunk_coord(entity.coord.x, entity.coord.y);
 
@@ -1111,79 +1136,93 @@ void update_kinetic(Update_State &update_state) {
         Chunk &chunk = active_dimension.chunks[ic];
 
         for (u32 cell = 0; cell < CHUNK_CELLS; cell++) {
-          if (chunk.cells[cell].type == Cell_Type::DIRT) {
-            // Bounding box colision between the entity and the cell
+          // Bounding box colision between the entity and the cell
 
-            Entity_Coord cell_coord;
-            cell_coord.x = ic.x * CHUNK_CELL_WIDTH;
-            cell_coord.y = ic.y * CHUNK_CELL_WIDTH;
+          Entity_Coord cell_coord;
+          cell_coord.x = ic.x * CHUNK_CELL_WIDTH;
+          cell_coord.y = ic.y * CHUNK_CELL_WIDTH;
 
-            u8 x = cell % CHUNK_CELL_WIDTH;
-            cell_coord.x += x;
-            cell_coord.y += static_cast<s32>(
-                (cell - x) / CHUNK_CELL_WIDTH);  // -x is probably unecessary.
+          u8 x = cell % CHUNK_CELL_WIDTH;
+          cell_coord.x += x;
+          cell_coord.y += static_cast<s32>(
+              (cell - x) / CHUNK_CELL_WIDTH);  // -x is probably unecessary.
 
-            if (entity.coord.x + entity.boundingw < cell_coord.x ||
-                cell_coord.x + 1 < entity.coord.x) {
-              continue;
-            }
-
-            if (entity.coord.y - entity.boundingh > cell_coord.y ||
-                cell_coord.y > entity.coord.y) {
-              continue;
-            } else {
-              entity.on_ground = true;
-            }
-
-            // First, calculate overlap in both x and y directions.
-            f32 overlap_x, overlap_y;
-
-            // For X axis
-            if (entity.coord.x < cell_coord.x) {
-              overlap_x = (entity.coord.x + entity.boundingw) - cell_coord.x;
-            } else {
-              overlap_x = (cell_coord.x + 1) - entity.coord.x;
-            }
-
-            // For Y axis
-            if (entity.coord.y > cell_coord.y) {
-              overlap_y = cell_coord.y - (entity.coord.y - entity.boundingh);
-            } else {
-              overlap_y = (cell_coord.y + 1) - entity.coord.y;
-            }
-
-            // Determine the smallest overlap to resolve the collision with
-            static constexpr f64 MOV_LIM = 0.95;
-            if (fabs(overlap_x) < fabs(overlap_y)) {
-              if (entity.coord.x < cell_coord.x) {
-                entity.coord.x -=
-                    std::min(fabs(overlap_x), MOV_LIM);  // Move entity left
-              } else {
-                entity.coord.x +=
-                    std::min(fabs(overlap_x), MOV_LIM);  // Move entity right
-              }
-            } else {
-              if (entity.coord.y > cell_coord.y) {
-                entity.coord.y +=
-                    std::min(fabs(overlap_y), MOV_LIM);  // Move entity down
-              } else {
-                entity.coord.y -=
-                    std::min(fabs(overlap_y), MOV_LIM);  // Move entity up
-              }
-            }
-
-            // entity.ax *= 0.1f;
-            // entity.ay *= 0.1f;
-            // entity.vx *= 0.5f;
-            // entity.vy *= 0.5f;
+          if (entity.coord.x + entity.boundingw < cell_coord.x ||
+              cell_coord.x + 1 < entity.coord.x) {
+            continue;
           }
+
+          if (entity.coord.y - entity.boundingh > cell_coord.y ||
+              cell_coord.y > entity.coord.y) {
+            continue;
+          }
+
+          // If neither, we are coliding, and resolve based on cell
+          switch (chunk.cells[cell].type) {
+            case Cell_Type::DIRT: {
+              if (entity.coord.y - entity.boundingh <= cell_coord.y) {
+                entity.status = entity.status | (u8)Entity_Status::ON_GROUND;
+              }
+
+              // With solid cells, we also don't allow the entity to intersect
+              // the cell
+              f32 overlap_x, overlap_y;
+
+              // For X axis
+              if (entity.coord.x < cell_coord.x) {
+                overlap_x = (entity.coord.x + entity.boundingw) - cell_coord.x;
+              } else {
+                overlap_x = (cell_coord.x + 1) - entity.coord.x;
+              }
+
+              // For Y axis
+              if (entity.coord.y > cell_coord.y) {
+                overlap_y = cell_coord.y - (entity.coord.y - entity.boundingh);
+              } else {
+                overlap_y = (cell_coord.y + 1) - entity.coord.y;
+              }
+
+              // Determine the smallest overlap to resolve the collision with
+              static constexpr f64 MOV_LIM = 0.95;
+              if (fabs(overlap_x) < fabs(overlap_y)) {
+                if (entity.coord.x < cell_coord.x) {
+                  entity.coord.x -=
+                      std::min(fabs(overlap_x), MOV_LIM);  // Move entity left
+                } else {
+                  entity.coord.x +=
+                      std::min(fabs(overlap_x), MOV_LIM);  // Move entity right
+                }
+              } else {
+                if (entity.coord.y > cell_coord.y) {
+                  entity.coord.y +=
+                      std::min(fabs(overlap_y), MOV_LIM);  // Move entity down
+                } else {
+                  entity.coord.y -=
+                      std::min(fabs(overlap_y), MOV_LIM);  // Move entity up
+                }
+              }
+              break;
+            }
+            case Cell_Type::AIR: {
+              break;
+            }
+            case Cell_Type::WATER: {
+              entity.status = entity.status | (u8)Entity_Status::IN_WATER;
+              break;
+            }
+          }
+
+          // entity.ax *= 0.1f;
+          // entity.ay *= 0.1f;
+          // entity.vx *= 0.5f;
+          // entity.vy *= 0.5f;
         }
       }
     }
   }
 }
 
-Result gen_chunk(Update_State &update_state, Chunk &chunk,
+Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
                  const Chunk_Coord &chunk_coord) {
   // This works by zones. Every zone that a chunk is part of generates based on
   // that chunk and then is overwritten by the next zone a chunk is part of
@@ -1198,34 +1237,57 @@ Result gen_chunk(Update_State &update_state, Chunk &chunk,
   /// Zones ///
 
   // Biomes by explicit positioning
-  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
-    f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
-    u8 grass_depth = 40 + surface_det_rand(static_cast<u64>(abs_x)) % 25;
-    s32 height = static_cast<s32>(
-                     surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
-                 SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
-    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+  switch (dim) {
+    case DimensionIndex::OVERWORLD: {
+      for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+        f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
+        u8 grass_depth = 40 + surface_det_rand(static_cast<u64>(abs_x)) % 25;
+        s32 height = static_cast<s32>(surface_height(
+                         x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
+                     SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+        for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+          u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
 
-      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
-      if (our_height < height && our_height >= height - grass_depth) {
-        chunk.cells[cell_index] = default_grass_cell();
-      } else if (our_height < height - grass_depth) {
-        chunk.cells[cell_index] = default_dirt_cell();
-      } else {
-        chunk.cells[cell_index] = default_air_cell();
+          s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+          if (our_height < height && our_height >= height - grass_depth) {
+            chunk.cells[cell_index] = default_grass_cell();
+          } else if (our_height < height - grass_depth) {
+            chunk.cells[cell_index] = default_dirt_cell();
+          } else {
+            chunk.cells[cell_index] = default_air_cell();
+          }
+        }
+
+        if (surface_det_rand(abs_x) % GEN_TREE_MAX_WIDTH < 15 &&
+            height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+            height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+          Entity_ID id;
+          create_tree(update_state, update_state.active_dimension, id);
+
+          Entity &tree = update_state.entities[id];
+          tree.coord.x = abs_x;
+          tree.coord.y = height + 85.0f;
+        }
       }
+
+      break;
     }
-
-    if (surface_det_rand(abs_x) % GEN_TREE_MAX_WIDTH < 15 &&
-        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
-        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
-      Entity_ID id;
-      create_tree(update_state, update_state.active_dimension, id);
-
-      Entity &tree = update_state.entities[id];
-      tree.coord.x = abs_x;
-      tree.coord.y = height + 85.0f;
+    case DimensionIndex::WATERWORLD: {
+      const Cell base_air = default_air_cell();
+      if (chunk_coord.y > SEA_LEVEL) {
+        for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+          for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+            chunk.cells[x + y * CHUNK_CELL_WIDTH] = base_air;
+          }
+        }
+      } else {
+        for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+          for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+            chunk.cells[x + y * CHUNK_CELL_WIDTH] = default_water_cell();
+          }
+        }
+      }
+      break;
     }
   }
 
@@ -1238,7 +1300,7 @@ Result load_chunk(Update_State &update_state, DimensionIndex dimid,
                   const Chunk_Coord &coord) {
   Dimension &dim = update_state.dimensions[dimid];
   if (dim.chunks.find(coord) == dim.chunks.end()) {
-    gen_chunk(update_state, dim.chunks[coord], coord);
+    gen_chunk(update_state, dimid, dim.chunks[coord], coord);
   }
   // Eventually we'll also load from disk
 
@@ -1305,6 +1367,7 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
 
   player.texture = Texture_Id::PLAYER;
   player.zdepth = 10;
+  player.bouyancy = KINETIC_GRAVITY;
 
   player.coord.y = CHUNK_CELL_WIDTH * SURFACE_Y_MAX + 160;
   player.coord.x = 15;
@@ -1342,7 +1405,13 @@ Result create_tree(Update_State &us, DimensionIndex dim, Entity_ID &id) {
 }
 
 Dimension *get_active_dimension(Update_State &update_state) {
+#ifndef NDEBUG
+  auto dim_iter = update_state.dimensions.find(update_state.active_dimension);
+  assert(dim_iter != update_state.dimensions.end());
+  return &dim_iter->second;
+#else
   return &update_state.dimensions.at(update_state.active_dimension);
+#endif
 }
 
 Entity *get_active_player(Update_State &update_state) {
@@ -1376,7 +1445,9 @@ Result poll_events(App &app) {
         break;
       }
       case SDL_QUIT: {
-        LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
+        LOG_DEBUG(
+            "Got event SDL_QUIT. Returning "
+            "Result::WINDOW_CLOSED");
         return Result::WINDOW_CLOSED;
         break;
       }
@@ -1397,7 +1468,7 @@ Result poll_events(App &app) {
   }
 
   return Result::SUCCESS;
-}
+}  // namespace VV
 
 Result init_app(App &app) {
   spdlog::set_level(spdlog::level::debug);
