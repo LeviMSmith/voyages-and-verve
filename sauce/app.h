@@ -126,13 +126,22 @@ enum class Texture_Id : u8 {
 typedef u32 Entity_ID;
 typedef s8 Entity_Z;
 
+// bool flags
+enum class Entity_Status : u8 {
+  ON_GROUND = 1,
+  IN_WATER = 2,
+};
+
 // If you add something to this, make sure it works with default_entity!
 struct Entity {
   Entity_Coord coord;  // For bounding box and rendering, this is top left
   f32 vx, vy;
   f32 ax, ay;
-  bool on_ground;
+
   f32 camx, camy;  // This is relative to coord
+
+  u8 status;
+  f32 bouyancy;
 
   // The physics bounding box starting from coord as top left
   f32 boundingw, boundingh;
@@ -156,7 +165,9 @@ enum class Cell_Type : u8 { DIRT, AIR, WATER };
 #define CELL_TYPE_NUM 3
 
 struct Cell_Type_Info {
-  u8 solidity;  // Used for collisions and cellular automata
+  u8 solidity;   // Used for collisions and cellular automata
+  f32 friction;  // Used for slowing down an entity as it moves through or on
+                 // that cell
 };
 
 // extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
@@ -171,11 +182,11 @@ struct Cell {
 };
 
 // Factory functions
-Cell default_dirt_cell();
-Cell default_air_cell();
-Cell default_water_cell();
+inline Cell default_dirt_cell();
+inline Cell default_air_cell();
+inline Cell default_water_cell();
 
-Cell default_grass_cell();
+inline Cell default_grass_cell();
 
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,
