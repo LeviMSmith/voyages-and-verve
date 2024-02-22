@@ -145,6 +145,20 @@ Entity_Coord get_cam_coord(const Entity &e) {
 /// World implementations ///
 /////////////////////////////
 
+/*
+const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
+    {
+        255,  // solidity
+    },        // DIRT
+    {
+        0,  // solidity
+    },      // AIR
+    {
+        50,  // solidity
+    },       // WATER
+};
+*/
+
 Cell default_dirt_cell() {
   Cell cell;
   cell.type = Cell_Type::DIRT;
@@ -424,7 +438,7 @@ Result render(Render_State &render_state, Update_State &update_state,
                render_state.window_width) *
               0.5),
       (render_state.window_height -
-       (mountain_tex.height * render_state.screen_cell_size) + 32),
+       (mountain_tex.height * render_state.screen_cell_size) + 128),
       mountain_tex.width * render_state.screen_cell_size,
       mountain_tex.height * render_state.screen_cell_size};
 
@@ -1203,7 +1217,7 @@ Result gen_chunk(Update_State &update_state, Chunk &chunk,
       }
     }
 
-    if ((x + chunk_coord.x * CHUNK_CELL_WIDTH) % GEN_TREE_MIN_WIDTH == 0 &&
+    if (surface_det_rand(abs_x) % GEN_TREE_MAX_WIDTH < 15 &&
         height > chunk_coord.y * CHUNK_CELL_WIDTH &&
         height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
       Entity_ID id;

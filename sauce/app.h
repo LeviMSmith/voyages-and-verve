@@ -153,6 +153,13 @@ inline Entity_Coord get_cam_coord(const Entity &e);
 
 /// Cell ///
 enum class Cell_Type : u8 { DIRT, AIR, WATER };
+#define CELL_TYPE_NUM 3
+
+struct Cell_Type_Info {
+  u8 solidity;  // Used for collisions and cellular automata
+};
+
+// extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
 
 // Monolithic cell struct. Everything the cell does should be put in here.
 // There should be support for millions of cells, so avoid putting too much here
@@ -187,7 +194,7 @@ constexpr s32 SURFACE_Y_MIN = -5;
 constexpr u16 SURFACE_CELL_RANGE =
     SURFACE_Y_MAX * CHUNK_CELL_WIDTH - SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
 constexpr s32 SEA_LEVEL = 0;
-constexpr u32 GEN_TREE_MIN_WIDTH = 1500;
+constexpr u32 GEN_TREE_MAX_WIDTH = 1500;
 
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
