@@ -186,7 +186,9 @@ inline Cell default_dirt_cell();
 inline Cell default_air_cell();
 inline Cell default_water_cell();
 
+// Reskined dirt cells
 inline Cell default_grass_cell();
+inline Cell default_sand_cell();
 
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,
@@ -204,7 +206,11 @@ constexpr s32 SURFACE_Y_MAX = 7;
 constexpr s32 SURFACE_Y_MIN = -5;
 constexpr u16 SURFACE_CELL_RANGE =
     SURFACE_Y_MAX * CHUNK_CELL_WIDTH - SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+
+constexpr s32 SEA_WEST = -16;
 constexpr s32 SEA_LEVEL = 0;
+constexpr f64 SEA_LEVEL_CELL = SEA_LEVEL * CHUNK_CELL_WIDTH;
+
 constexpr u32 GEN_TREE_MAX_WIDTH = 1500;
 
 u16 surface_det_rand(u64 seed);

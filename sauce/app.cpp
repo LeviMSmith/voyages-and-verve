@@ -155,9 +155,9 @@ const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
         0.8f,  // friction
     },         // AIR
     {
-        50,    // solidity
-        0.6f,  // friction
-    },         // WATER
+        50,     // solidity
+        0.90f,  // friction
+    },          // WATER
 };
 
 Cell default_dirt_cell() {
@@ -197,6 +197,17 @@ Cell default_grass_cell() {
   cell.cr = 8 + std::rand() % 12;
   cell.cg = 94 + std::rand() % 12;
   cell.cb = 11 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
+
+Cell default_sand_cell() {
+  Cell cell;
+  cell.type = Cell_Type::DIRT;
+  cell.cr = 214 + std::rand() % 12;
+  cell.cg = 185 + std::rand() % 12;
+  cell.cb = 105 + std::rand() % 12;
   cell.ca = 255;
 
   return cell;
@@ -456,8 +467,8 @@ Result render(Render_State &render_state, Update_State &update_state,
   }
 
   render_entities(render_state, update_state, INT8_MIN, 0);
-  render_cell_texture(render_state, update_state);
   render_entities(render_state, update_state);
+  render_cell_texture(render_state, update_state);
 
   // Debug overlay
   static int w = 0, h = 0;
@@ -1021,7 +1032,7 @@ Result update_keypresses(Update_State &us) {
   Entity &active_player = *get_active_player(us);
 
   static constexpr f32 MOVEMENT_CONSTANT = 0.4f;
-  // static constexpr f32 SWIM_CONSTANT = 0.4f;
+  static constexpr f32 SWIM_CONSTANT = 0.025f;
   static constexpr f32 MOVEMENT_JUMP_ACC = 4.5f;
   static constexpr f32 MOVEMENT_JUMP_VEL = -1.0f * (KINETIC_GRAVITY + 1.0f);
   static constexpr f32 MOVEMENT_ACC_LIMIT = 1.0f;
@@ -1031,20 +1042,25 @@ Result update_keypresses(Update_State &us) {
   // Movement
   if (keys[SDL_SCANCODE_W] == 1 || keys[SDL_SCANCODE_UP] == 1) {
     if (active_player.ay < MOVEMENT_ACC_LIMIT + KINETIC_GRAVITY &&
-        active_player.status & (u8)Entity_Status::ON_GROUND) {
+        active_player.status & (u8)Entity_Status::ON_GROUND &&
+        !(active_player.status & (u8)Entity_Status::IN_WATER)) {
       active_player.ay += MOVEMENT_JUMP_ACC;
       active_player.vy += MOVEMENT_JUMP_VEL;
     }
     if (active_player.ay < MOVEMENT_ACC_LIMIT &&
         active_player.status & (u8)Entity_Status::IN_WATER) {
-      active_player.ay += MOVEMENT_CONSTANT;
+      active_player.ay += SWIM_CONSTANT;
     }
     // active_player.status = active_player.status &
     // ~(u8)Entity_Status::ON_GROUND;
   }
   if (keys[SDL_SCANCODE_A] == 1 || keys[SDL_SCANCODE_LEFT] == 1) {
     if (active_player.ax > MOVEMENT_ACC_LIMIT_NEG) {
-      active_player.ax -= MOVEMENT_CONSTANT;
+      if (active_player.status & (u8)Entity_Status::IN_WATER) {
+        active_player.ax -= SWIM_CONSTANT;
+      } else {
+        active_player.ax -= MOVEMENT_CONSTANT;
+      }
       // if (active_player.on_ground) {
       //   active_player.ax *= MOVEMENT_ON_GROUND_MULT;
       // }
@@ -1053,12 +1069,20 @@ Result update_keypresses(Update_State &us) {
   }
   if (keys[SDL_SCANCODE_S] == 1 || keys[SDL_SCANCODE_DOWN] == 1) {
     if (active_player.ay > MOVEMENT_ACC_LIMIT_NEG - KINETIC_GRAVITY) {
-      active_player.ay -= MOVEMENT_CONSTANT;
+      if (active_player.status & (u8)Entity_Status::IN_WATER) {
+        active_player.ay -= SWIM_CONSTANT;
+      } else {
+        active_player.ay -= MOVEMENT_CONSTANT;
+      }
     }
   }
   if (keys[SDL_SCANCODE_D] == 1 || keys[SDL_SCANCODE_RIGHT] == 1) {
     if (active_player.ax < MOVEMENT_ACC_LIMIT) {
-      active_player.ax += MOVEMENT_CONSTANT;
+      if (active_player.status & (u8)Entity_Status::IN_WATER) {
+        active_player.ax += SWIM_CONSTANT;
+      } else {
+        active_player.ax += MOVEMENT_CONSTANT;
+      }
       // if (active_player.on_ground) {
       //   active_player.ax *= MOVEMENT_ON_GROUND_MULT;
       // }
@@ -1249,7 +1273,13 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
           u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
 
           s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
-          if (our_height < height && our_height >= height - grass_depth) {
+          if (height < SEA_LEVEL_CELL && our_height <= height) {
+            chunk.cells[cell_index] = default_sand_cell();
+          } else if (height < SEA_LEVEL_CELL && our_height > height &&
+                     our_height < SEA_LEVEL_CELL) {
+            chunk.cells[cell_index] = default_water_cell();
+          } else if (our_height < height &&
+                     our_height >= height - grass_depth) {
             chunk.cells[cell_index] = default_grass_cell();
           } else if (our_height < height - grass_depth) {
             chunk.cells[cell_index] = default_dirt_cell();
@@ -1260,7 +1290,8 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
 
         if (surface_det_rand(abs_x) % GEN_TREE_MAX_WIDTH < 15 &&
             height > chunk_coord.y * CHUNK_CELL_WIDTH &&
-            height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+            height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
+            height >= SEA_LEVEL_CELL) {
           Entity_ID id;
           create_tree(update_state, update_state.active_dimension, id);
 
