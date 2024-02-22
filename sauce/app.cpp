@@ -148,7 +148,7 @@ Entity_Coord get_cam_coord(const Entity &e) {
 const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
     {
         255,    // solidity
-        0.01f,  // friction
+        0.70f,  // friction
     },          // DIRT
     {
         0,     // solidity
@@ -957,8 +957,8 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
 //////////////////////////////
 
 Result init_updating(Update_State &update_state) {
-  // const DimensionIndex starting_dim = DimensionIndex::OVERWORLD;
-  const DimensionIndex starting_dim = DimensionIndex::WATERWORLD;
+  const DimensionIndex starting_dim = DimensionIndex::OVERWORLD;
+  // const DimensionIndex starting_dim = DimensionIndex::WATERWORLD;
   update_state.dimensions.emplace(starting_dim, Dimension());
   update_state.active_dimension = starting_dim;
 
@@ -1091,6 +1091,11 @@ void update_kinetic(Update_State &update_state) {
       entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
 
       entity.vy += entity.bouyancy;
+    } else if (entity.status & (u8)Entity_Status::ON_GROUND) {
+      entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+      entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+      entity.vx *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+      entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
     } else {
       entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
       entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
