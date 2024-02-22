@@ -208,6 +208,7 @@ Chunk_Coord get_chunk_coord(f64 x, f64 y);
 /// Dimensions ///
 enum class DimensionIndex : u8 {
   OVERWORLD,
+  WATERWORLD,
 };
 
 struct Dimension {
@@ -257,7 +258,7 @@ constexpr f32 KINETIC_GRAVITY = 0.43f;
 constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
 
-Result gen_chunk(Update_State &update_state, Chunk &chunk,
+Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
                  const Chunk_Coord &chunk_coord);
 Result load_chunk(Update_State &update_state, DimensionIndex dimid,
                   const Chunk_Coord &coord);

@@ -430,21 +430,24 @@ Result render(Render_State &render_state, Update_State &update_state,
                  NULL);
 
   // Mountains
-  Res_Texture &mountain_tex = render_state.textures[(u8)Texture_Id::MOUNTAINS];
-  SDL_Rect dest_rect = {
-      static_cast<int>(active_player.coord.x * -0.1) -
-          static_cast<int>(
-              ((mountain_tex.width * render_state.screen_cell_size) -
-               render_state.window_width) *
-              0.5),
-      (render_state.window_height -
-       (mountain_tex.height * render_state.screen_cell_size) + 128),
-      mountain_tex.width * render_state.screen_cell_size,
-      mountain_tex.height * render_state.screen_cell_size};
+  if (update_state.active_dimension == DimensionIndex::OVERWORLD) {
+    Res_Texture &mountain_tex =
+        render_state.textures[(u8)Texture_Id::MOUNTAINS];
+    SDL_Rect dest_rect = {
+        static_cast<int>(active_player.coord.x * -0.1) -
+            static_cast<int>(
+                ((mountain_tex.width * render_state.screen_cell_size) -
+                 render_state.window_width) *
+                0.5),
+        (render_state.window_height -
+         (mountain_tex.height * render_state.screen_cell_size) + 128),
+        mountain_tex.width * render_state.screen_cell_size,
+        mountain_tex.height * render_state.screen_cell_size};
 
-  SDL_RenderCopy(render_state.renderer,
-                 render_state.textures[(u8)Texture_Id::MOUNTAINS].texture, NULL,
-                 &dest_rect);
+    SDL_RenderCopy(render_state.renderer,
+                   render_state.textures[(u8)Texture_Id::MOUNTAINS].texture,
+                   NULL, &dest_rect);
+  }
 
   // Cells and entities
   if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK)) {
@@ -952,8 +955,8 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
 //////////////////////////////
 
 Result init_updating(Update_State &update_state) {
-  update_state.dimensions.emplace(DimensionIndex::OVERWORLD, Dimension());
-  update_state.active_dimension = DimensionIndex::OVERWORLD;
+  update_state.dimensions.emplace(DimensionIndex::WATERWORLD, Dimension());
+  update_state.active_dimension = DimensionIndex::WATERWORLD;
 
   Result ap_res = create_player(update_state, update_state.active_dimension,
                                 update_state.active_player);
@@ -1183,7 +1186,7 @@ void update_kinetic(Update_State &update_state) {
   }
 }
 
-Result gen_chunk(Update_State &update_state, Chunk &chunk,
+Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
                  const Chunk_Coord &chunk_coord) {
   // This works by zones. Every zone that a chunk is part of generates based on
   // that chunk and then is overwritten by the next zone a chunk is part of
@@ -1198,34 +1201,57 @@ Result gen_chunk(Update_State &update_state, Chunk &chunk,
   /// Zones ///
 
   // Biomes by explicit positioning
-  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
-    f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
-    u8 grass_depth = 40 + surface_det_rand(static_cast<u64>(abs_x)) % 25;
-    s32 height = static_cast<s32>(
-                     surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
-                 SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
-    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+  switch (dim) {
+    case DimensionIndex::OVERWORLD: {
+      for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+        f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
+        u8 grass_depth = 40 + surface_det_rand(static_cast<u64>(abs_x)) % 25;
+        s32 height = static_cast<s32>(surface_height(
+                         x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
+                     SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+        for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+          u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
 
-      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
-      if (our_height < height && our_height >= height - grass_depth) {
-        chunk.cells[cell_index] = default_grass_cell();
-      } else if (our_height < height - grass_depth) {
-        chunk.cells[cell_index] = default_dirt_cell();
-      } else {
-        chunk.cells[cell_index] = default_air_cell();
+          s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+          if (our_height < height && our_height >= height - grass_depth) {
+            chunk.cells[cell_index] = default_grass_cell();
+          } else if (our_height < height - grass_depth) {
+            chunk.cells[cell_index] = default_dirt_cell();
+          } else {
+            chunk.cells[cell_index] = default_air_cell();
+          }
+        }
+
+        if (surface_det_rand(abs_x) % GEN_TREE_MAX_WIDTH < 15 &&
+            height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+            height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+          Entity_ID id;
+          create_tree(update_state, update_state.active_dimension, id);
+
+          Entity &tree = update_state.entities[id];
+          tree.coord.x = abs_x;
+          tree.coord.y = height + 85.0f;
+        }
       }
+
+      break;
     }
-
-    if (surface_det_rand(abs_x) % GEN_TREE_MAX_WIDTH < 15 &&
-        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
-        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
-      Entity_ID id;
-      create_tree(update_state, update_state.active_dimension, id);
-
-      Entity &tree = update_state.entities[id];
-      tree.coord.x = abs_x;
-      tree.coord.y = height + 85.0f;
+    case DimensionIndex::WATERWORLD: {
+      const Cell base_air = default_air_cell();
+      if (chunk_coord.y > SEA_LEVEL) {
+        for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+          for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+            chunk.cells[x + y * CHUNK_CELL_WIDTH] = base_air;
+          }
+        }
+      } else {
+        for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+          for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+            chunk.cells[x + y * CHUNK_CELL_WIDTH] = default_water_cell();
+          }
+        }
+      }
+      break;
     }
   }
 
@@ -1238,7 +1264,7 @@ Result load_chunk(Update_State &update_state, DimensionIndex dimid,
                   const Chunk_Coord &coord) {
   Dimension &dim = update_state.dimensions[dimid];
   if (dim.chunks.find(coord) == dim.chunks.end()) {
-    gen_chunk(update_state, dim.chunks[coord], coord);
+    gen_chunk(update_state, dimid, dim.chunks[coord], coord);
   }
   // Eventually we'll also load from disk
 
@@ -1342,7 +1368,13 @@ Result create_tree(Update_State &us, DimensionIndex dim, Entity_ID &id) {
 }
 
 Dimension *get_active_dimension(Update_State &update_state) {
+#ifndef NDEBUG
+  auto dim_iter = update_state.dimensions.find(update_state.active_dimension);
+  assert(dim_iter != update_state.dimensions.end());
+  return &dim_iter->second;
+#else
   return &update_state.dimensions.at(update_state.active_dimension);
+#endif
 }
 
 Entity *get_active_player(Update_State &update_state) {
@@ -1376,7 +1408,9 @@ Result poll_events(App &app) {
         break;
       }
       case SDL_QUIT: {
-        LOG_DEBUG("Got event SDL_QUIT. Returning Result::WINDOW_CLOSED");
+        LOG_DEBUG(
+            "Got event SDL_QUIT. Returning "
+            "Result::WINDOW_CLOSED");
         return Result::WINDOW_CLOSED;
         break;
       }
@@ -1397,7 +1431,7 @@ Result poll_events(App &app) {
   }
 
   return Result::SUCCESS;
-}
+}  // namespace VV
 
 Result init_app(App &app) {
   spdlog::set_level(spdlog::level::debug);
