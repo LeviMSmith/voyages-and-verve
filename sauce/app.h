@@ -147,8 +147,7 @@ struct Entity {
   // The physics bounding box starting from coord as top left
   f32 boundingw, boundingh;
 
-  // These are what will be manipulated by the animation system
-  Texture_Id texture;  // a number that is mapped to a file in resources.json
+  Texture_Id texture;  // a number that is mapped to a file in res/textures
   u8 texture_index;    // an index into a texture atlas
   Entity_Z zdepth;     // Only applies to entity rendering
   bool flipped;
@@ -316,10 +315,10 @@ inline Entity *get_active_player(Update_State &update_state);
 /////////////////////////////
 
 constexpr u8 SCREEN_CHUNK_SIZE =
-    8;  // 64 * 6 = 384; 384 * 384 = 147456 pixels in texture
+    8;  // 64 * 8 = 512; 512 * 512 = 262144 pixels in texture
 
 // This is the part of the texture that will not be shown
-constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 224 cells
+constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 352 cells
 constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
 
 struct Render_State {

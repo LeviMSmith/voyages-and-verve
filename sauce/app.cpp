@@ -1445,10 +1445,10 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player = default_entity();
 
   player.texture = Texture_Id::PLAYER;
-  player.zdepth = 10;
-  player.bouyancy = KINETIC_GRAVITY;
+  player.zdepth = 9;
+  player.bouyancy = KINETIC_GRAVITY - 0.01f;
 
-  player.coord.y = CHUNK_CELL_WIDTH * SURFACE_Y_MAX + 160;
+  player.coord.y = CHUNK_CELL_WIDTH * SURFACE_Y_MAX;
   player.coord.x = 15;
   player.camy -= 20;
   player.vy = -1.1;
