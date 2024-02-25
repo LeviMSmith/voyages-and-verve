@@ -935,26 +935,62 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
 
       // LOG_DEBUG("World offset: {} {}", world_offset.x, world_offset.y);
 
-      // If visable
-      if (world_offset.x >= -texture.width &&
-          world_offset.x <=
-              SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING + texture.width &&
-          world_offset.y >= -texture.height &&
-          world_offset.y <= static_cast<s32>(render_state.window_height /
-                                             render_state.screen_cell_size) +
-                                texture.height) {
-        SDL_Rect dest_rect = {
-            (int)(world_offset.x * render_state.screen_cell_size),
-            (int)(world_offset.y * render_state.screen_cell_size),
-            texture.width * screen_cell_size,
-            texture.height * screen_cell_size};
+      if (entity.status & (u8)Entity_Status::ANIMATED) {
+        if (world_offset.x >= -entity.anim_width &&
+            world_offset.x <= SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING +
+                                  entity.anim_width &&
+            world_offset.y >= -texture.height &&
+            world_offset.y <= static_cast<s32>(render_state.window_height /
+                                               render_state.screen_cell_size) +
+                                  texture.height) {
+          SDL_Rect src_rect = {
+              entity.anim_width * entity.anim_current_frame, 0,
+              entity.anim_width * (entity.anim_current_frame + 1),
+              texture.height};
 
-        if (entity.flipped) {
-          SDL_RenderCopyEx(render_state.renderer, texture.texture, NULL,
-                           &dest_rect, 0, NULL, SDL_FLIP_HORIZONTAL);
-        } else {
-          SDL_RenderCopy(render_state.renderer, texture.texture, NULL,
-                         &dest_rect);
+          SDL_Rect dest_rect = {
+              (int)(world_offset.x * render_state.screen_cell_size),
+              (int)(world_offset.y * render_state.screen_cell_size),
+              entity.anim_width * screen_cell_size,
+              texture.height * screen_cell_size};
+
+          if (entity.flipped) {
+            SDL_RenderCopyEx(render_state.renderer, texture.texture, &src_rect,
+                             &dest_rect, 0, NULL, SDL_FLIP_HORIZONTAL);
+          } else {
+            SDL_RenderCopy(render_state.renderer, texture.texture, &src_rect,
+                           &dest_rect);
+          }
+        }
+
+        if (entity.anim_timer > entity.anim_delay) {
+          entity.anim_current_frame = (entity.anim_current_frame + 1) %
+                                      (texture.width / entity.anim_width);
+          entity.anim_timer = 0;
+        }
+        entity.anim_timer++;
+      } else {
+        // If visable
+        if (world_offset.x >= -texture.width &&
+            world_offset.x <=
+                SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING + texture.width &&
+            world_offset.y >= -texture.height &&
+            world_offset.y <= static_cast<s32>(render_state.window_height /
+                                               render_state.screen_cell_size) +
+                                  texture.height) {
+          SDL_Rect dest_rect = {
+              (int)(world_offset.x * render_state.screen_cell_size),
+              (int)(world_offset.y * render_state.screen_cell_size),
+              texture.width * screen_cell_size,
+              texture.height * screen_cell_size};
+
+          if (entity.flipped) {
+            SDL_RenderCopyEx(render_state.renderer, texture.texture, NULL,
+                             &dest_rect, 0, NULL, SDL_FLIP_HORIZONTAL);
+          } else {
+            SDL_RenderCopy(render_state.renderer, texture.texture, NULL,
+                           &dest_rect);
+          }
         }
       }
     }
@@ -1213,8 +1249,8 @@ void update_kinetic(Update_State &update_state) {
                   entity.coord.x -=
                       std::min(fabs(overlap_x), MOV_LIM);  // Move entity left
                 } else {
-                  entity.coord.x +=
-                      std::min(fabs(overlap_x), MOV_LIM);  // Move entity right
+                  entity.coord.x += std::min(fabs(overlap_x),
+                                             MOV_LIM);  // Move entity right
                 }
               } else {
                 if (entity.coord.y > cell_coord.y) {
@@ -1248,15 +1284,16 @@ void update_kinetic(Update_State &update_state) {
 
 Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
                  const Chunk_Coord &chunk_coord) {
-  // This works by zones. Every zone that a chunk is part of generates based on
-  // that chunk and then is overwritten by the next zone a chunk is part of
+  // This works by zones. Every zone that a chunk is part of generates based
+  // on that chunk and then is overwritten by the next zone a chunk is part of
 
   // Biomes will be dynamically generated zones. Likely when implemented there
   // will be a get biome function which will then do the base generation of a
   // chunk
 
-  // There can also be predefined structures that will be the last zone so that
-  // if the developer say there's a house here, there will be a house there.
+  // There can also be predefined structures that will be the last zone so
+  // that if the developer say there's a house here, there will be a house
+  // there.
 
   /// Zones ///
 
@@ -1298,6 +1335,17 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
           Entity &tree = update_state.entities[id];
           tree.coord.x = abs_x;
           tree.coord.y = height + 85.0f;
+        }
+
+        if (abs_x == 250 && height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+            height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
+            height >= SEA_LEVEL_CELL) {
+          Entity_ID id;
+          create_neitzsche(update_state, update_state.active_dimension, id);
+
+          Entity &neitzsche = update_state.entities[id];
+          neitzsche.coord.x = abs_x;
+          neitzsche.coord.y = height + 85.0f;
         }
       }
 
@@ -1405,9 +1453,9 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player.camy -= 20;
   player.vy = -1.1;
 
-  // TODO: Should be in a resource description file. This will be different than
-  // texture width and height. Possibly with offsets. Maybe multiple bounding
-  // boxes
+  // TODO: Should be in a resource description file. This will be different
+  // than texture width and height. Possibly with offsets. Maybe multiple
+  // bounding boxes
   player.boundingw = 11;
   player.boundingh = 29;
 
@@ -1431,6 +1479,29 @@ Result create_tree(Update_State &us, DimensionIndex dim, Entity_ID &id) {
 
   us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(tree.zdepth, id);
+
+  return Result::SUCCESS;
+}
+
+Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id) {
+  Result id_res = get_entity_id(us.entity_id_pool, id);
+  if (id_res != Result::SUCCESS) {
+    return id_res;
+  }
+
+  Entity &entity = us.entities[id];
+
+  entity.texture = Texture_Id::NEITZSCHE;
+  entity.flipped = true;
+  entity.zdepth = 10;
+
+  entity.anim_width = 25;
+  entity.anim_frames = 2;
+  entity.anim_delay = 20;  // 20 frames
+  entity.status = entity.status | (u8)Entity_Status::ANIMATED;
+
+  us.dimensions[dim].entity_indicies.push_back(id);
+  us.dimensions[dim].e_render.emplace(entity.zdepth, id);
 
   return Result::SUCCESS;
 }

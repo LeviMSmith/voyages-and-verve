@@ -120,7 +120,8 @@ enum class Texture_Id : u8 {
   PLAYER = 1,
   SKY = 2,
   TREE = 3,
-  MOUNTAINS = 4
+  MOUNTAINS = 4,
+  NEITZSCHE = 5
 };
 
 typedef u32 Entity_ID;
@@ -130,9 +131,9 @@ typedef s8 Entity_Z;
 enum class Entity_Status : u8 {
   ON_GROUND = 1,
   IN_WATER = 2,
+  ANIMATED = 4,
 };
 
-// If you add something to this, make sure it works with default_entity!
 struct Entity {
   Entity_Coord coord;  // For bounding box and rendering, this is top left
   f32 vx, vy;
@@ -151,6 +152,12 @@ struct Entity {
   u8 texture_index;    // an index into a texture atlas
   Entity_Z zdepth;     // Only applies to entity rendering
   bool flipped;
+
+  u8 anim_width;
+  u8 anim_frames;
+  u8 anim_current_frame;
+  u16 anim_delay;
+  u16 anim_timer;
 };
 
 Entity default_entity();
@@ -296,6 +303,8 @@ Result create_player(Update_State &us, DimensionIndex dim,
 Result create_tree(Update_State &us, DimensionIndex dim,
                    Entity_ID &id);  // This is background tree that just is
                                     // there for a position an sprite
+
+Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id);
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them
