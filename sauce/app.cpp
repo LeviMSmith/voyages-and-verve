@@ -376,7 +376,9 @@ Result init_rendering(Render_State &render_state, Config &config) {
 
   // Renderer
   SDL_ClearError();
-  render_state.renderer = SDL_CreateRenderer(render_state.window, -1, 0);
+  int renderer_flags = SDL_RENDERER_ACCELERATED;
+  render_state.renderer =
+      SDL_CreateRenderer(render_state.window, -1, renderer_flags);
   if (render_state.renderer == nullptr) {
     LOG_ERROR("Failed to create sdl renderer: {}", SDL_GetError());
     return Result::SDL_ERROR;
@@ -641,8 +643,9 @@ Result handle_window_resize(Render_State &render_state) {
   SDL_ClearError();
   render_state.surface = SDL_GetWindowSurface(render_state.window);
   if (render_state.surface == nullptr) {
+    // We never actually use this surface so if it doesn't work keep going
     LOG_ERROR("Failed to get sdl surface: {}", SDL_GetError());
-    return Result::SDL_ERROR;
+    // return Result::SDL_ERROR;
   }
 
   SDL_GetWindowSize(render_state.window, &render_state.window_width,

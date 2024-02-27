@@ -5,7 +5,13 @@ Fully simulated pixel world
 ## Building and running
 
 Should build and run anywhere SDL2 will compile for, no extra configuration
-required.
+required. Except:
+
+### Wayland
+
+xwayland for some reason has troubles with this. Run with
+
+`export SDL_VIDEODRIVER=wayland`
 
 ### Build dependancies
 
