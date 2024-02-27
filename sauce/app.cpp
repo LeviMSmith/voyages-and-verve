@@ -252,7 +252,8 @@ u16 surface_height(s64 x, u16 max_depth, u32 world_seed) {
   }
 
   if (x % RANDOMNESS_RANGE == 0) {
-    u16 height = surface_det_rand(static_cast<u64>(x)) % SURFACE_CELL_RANGE;
+    u16 height =
+        surface_det_rand(static_cast<u64>(x ^ world_seed)) % SURFACE_CELL_RANGE;
     heights[x] = height;
     return height;
   }
