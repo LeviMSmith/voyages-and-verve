@@ -4,13 +4,14 @@
 
 using namespace VV;
 
-int main() {
-  App *app = new App;
+int main(int argv, const char** argc) {
+  App* app = new App;
   LOG_INFO("Log initialized");
 
   LOG_INFO("The App state struct is {} bytes", sizeof(App));
 
-  if (init_app(*app) != Result::SUCCESS) {
+  if (init_app(*app, argv, argc) != Result::SUCCESS) {
+    destroy_app(*app);
     return EXIT_FAILURE;
   }
   run_app(*app);
