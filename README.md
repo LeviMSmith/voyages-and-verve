@@ -15,7 +15,7 @@ freetype library installed on your system.
 
 Make sure to also clone the submodules to actually get that code into vendor:
 
-`git submodule update --init --recursive`
+`git submodule update --init --recursive --depth 1`
 
 - [cmake](https://cmake.org/download/)
 
