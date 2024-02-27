@@ -38,7 +38,7 @@ typedef bool b8;
 
 /// Result definitions ///
 
-enum class Result {
+enum class Result : s32 {
   SUCCESS,
   SDL_ERROR,
   WINDOW_CLOSED,

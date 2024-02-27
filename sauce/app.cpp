@@ -552,7 +552,7 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
             std::stringstream ss;
             ss << std::hex << hexStr;
             ss >> hexValue;
-            u8 id = static_cast<unsigned char>(hexValue);
+            u8 id = static_cast<u8>(hexValue);
 
             if (id == 0) {
               LOG_ERROR("Texture {} id can't be 0!", entry.path().string());
@@ -1026,7 +1026,7 @@ Result init_updating(Update_State &update_state,
                                 update_state.active_player);
 
   if (ap_res != Result::SUCCESS) {
-    LOG_ERROR("Couldn't create initial player! EC: {}", (u8)ap_res);
+    LOG_ERROR("Couldn't create initial player! EC: {:x}", (s32)ap_res);
     return ap_res;
   }
 
