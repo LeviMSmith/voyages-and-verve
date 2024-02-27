@@ -10,6 +10,7 @@
 #include <numeric>
 #include <regex>
 #include <set>
+#include <stdexcept>
 #include <unordered_set>
 
 #include "SDL.h"
@@ -241,7 +242,7 @@ u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
   return std::min(SURFACE_CELL_RANGE, height);
 }
 
-u16 surface_height(s64 x, u16 max_depth) {
+u16 surface_height(s64 x, u16 max_depth, u32 world_seed) {
   static std::map<s64, u16> heights;
   static const u64 RANDOMNESS_RANGE = CHUNK_CELL_WIDTH * 64;
 
@@ -251,7 +252,8 @@ u16 surface_height(s64 x, u16 max_depth) {
   }
 
   if (x % RANDOMNESS_RANGE == 0) {
-    u16 height = surface_det_rand(static_cast<u64>(x)) % SURFACE_CELL_RANGE;
+    u16 height =
+        surface_det_rand(static_cast<u64>(x ^ world_seed)) % SURFACE_CELL_RANGE;
     heights[x] = height;
     return height;
   }
@@ -259,8 +261,8 @@ u16 surface_height(s64 x, u16 max_depth) {
   s64 lower_x = static_cast<s64>(x / RANDOMNESS_RANGE) * RANDOMNESS_RANGE;
   s64 upper_x = lower_x + RANDOMNESS_RANGE;
 
-  u16 lower_height = surface_height(lower_x, 1);
-  u16 upper_height = surface_height(upper_x, 1);
+  u16 lower_height = surface_height(lower_x, 1, world_seed);
+  u16 upper_height = surface_height(upper_x, 1, world_seed);
 
   for (u16 depth = 0; depth < max_depth; depth++) {
     s64 x_mid = static_cast<s64>(lower_x + upper_x) / 2;
@@ -270,7 +272,8 @@ u16 surface_height(s64 x, u16 max_depth) {
     if (height_iter != heights.end()) {
       y_mid = height_iter->second;
     } else {
-      y_mid = interpolate_and_nudge(lower_height, upper_height, 0.5, x,
+      y_mid = interpolate_and_nudge(lower_height, upper_height, 0.5,
+                                    static_cast<u64>(x ^ world_seed),
                                     0.5 / std::pow(depth, 2.5));
       heights[x_mid] = y_mid;
     }
@@ -287,7 +290,8 @@ u16 surface_height(s64 x, u16 max_depth) {
   }
 
   f64 fraction = static_cast<f64>(x - lower_x) / (upper_x - lower_x);
-  u16 height = interpolate_and_nudge(lower_height, upper_height, fraction, x,
+  u16 height = interpolate_and_nudge(lower_height, upper_height, fraction,
+                                     static_cast<u64>(x ^ world_seed),
                                      0.5 / std::pow(max_depth, 2.5));
   heights[x] = height;
   return height;
@@ -806,10 +810,10 @@ Result refresh_debug_overlay(Render_State &render_state,
 
   render_state.debug_info = std::format(
       "FPS: {:.1f} | Dimension id: {} Chunks loaded in dim {} | Player pos: "
-      "{:.2f}, {:.2f} Status: {}",
+      "{:.2f}, {:.2f} Status: {} | World seed {:x}",
       update_state.average_fps, (u8)update_state.active_dimension,
       update_state.dimensions.at(update_state.active_dimension).chunks.size(),
-      x, y, status);
+      x, y, status, update_state.world_seed);
 
   if (render_state.debug_overlay_texture != nullptr) {
     SDL_DestroyTexture(render_state.debug_overlay_texture);
@@ -1003,11 +1007,20 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
 /// Update implementations ///
 //////////////////////////////
 
-Result init_updating(Update_State &update_state) {
+Result init_updating(Update_State &update_state,
+                     const std::optional<u32> &seed) {
   const DimensionIndex starting_dim = DimensionIndex::OVERWORLD;
   // const DimensionIndex starting_dim = DimensionIndex::WATERWORLD;
   update_state.dimensions.emplace(starting_dim, Dimension());
   update_state.active_dimension = starting_dim;
+
+  if (!seed.has_value()) {
+    std::srand(std::time(NULL));
+
+    update_state.world_seed = std::rand();
+  } else {
+    update_state.world_seed = seed.value();
+  }
 
   Result ap_res = create_player(update_state, update_state.active_dimension,
                                 update_state.active_player);
@@ -1302,9 +1315,12 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
     case DimensionIndex::OVERWORLD: {
       for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
         f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
-        u8 grass_depth = 40 + surface_det_rand(static_cast<u64>(abs_x)) % 25;
-        s32 height = static_cast<s32>(surface_height(
-                         x + chunk_coord.x * CHUNK_CELL_WIDTH, 64)) +
+        u8 grass_depth = 40 + surface_det_rand(static_cast<u64>(abs_x) ^
+                                               update_state.world_seed) %
+                                  25;
+        s32 height = static_cast<s32>(
+                         surface_height(x + chunk_coord.x * CHUNK_CELL_WIDTH,
+                                        64, update_state.world_seed)) +
                      SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
         for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
           u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
@@ -1325,7 +1341,10 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
           }
         }
 
-        if (surface_det_rand(abs_x) % GEN_TREE_MAX_WIDTH < 15 &&
+        if (surface_det_rand(static_cast<u64>(abs_x) ^
+                             update_state.world_seed) %
+                    GEN_TREE_MAX_WIDTH <
+                15 &&
             height > chunk_coord.y * CHUNK_CELL_WIDTH &&
             height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
             height >= SEA_LEVEL_CELL) {
@@ -1524,6 +1543,34 @@ Entity *get_active_player(Update_State &update_state) {
 /// State implementations ///
 /////////////////////////////
 
+Result handle_args(int argv, const char **argc,
+                   std::optional<u32> &world_seed) {
+  if (argv < 1 || argv > 2) {
+    LOG_WARN("Bad number of args {}", argv);
+    return Result::BAD_ARGS_ERROR;
+  }
+
+  if (argv == 2) {
+    try {
+      size_t num_chars = 0;
+      u32 stoul_res = std::stoul(argc[1], &num_chars, 16);
+      LOG_INFO("Using argument \"{}\" as seed with {} characters. Hex: {:x}",
+               argc[1], num_chars, stoul_res);
+      world_seed.emplace(stoul_res);
+    } catch (const std::invalid_argument &e) {
+      LOG_WARN("Couldn't convert argument {} to an unsigned long: {}", argc[1],
+               e.what());
+      return Result::BAD_ARGS_ERROR;
+    } catch (const std::out_of_range &e) {
+      LOG_WARN("Couldn't convert argument {} to an unsigned long: {}", argc[1],
+               e.what());
+      return Result::BAD_ARGS_ERROR;
+    }
+  }
+
+  return Result::SUCCESS;
+}
+
 Result poll_events(App &app) {
   Render_State &render_state = app.render_state;
 
@@ -1572,7 +1619,7 @@ Result poll_events(App &app) {
   return Result::SUCCESS;
 }  // namespace VV
 
-Result init_app(App &app) {
+Result init_app(App &app, int argv, const char **argc) {
   spdlog::set_level(spdlog::level::debug);
 
   app.config = default_config();
@@ -1588,7 +1635,14 @@ Result init_app(App &app) {
 
   app.config.tex_dir = app.config.res_dir / "textures";
 
-  Result update_res = init_updating(app.update_state);
+  std::optional<u32> world_seed;
+  Result args_res = handle_args(argv, argc, world_seed);
+  if (args_res == Result::BAD_ARGS_ERROR) {
+    LOG_FATAL("Argument handling failed. Exiting.");
+    return args_res;
+  }
+
+  Result update_res = init_updating(app.update_state, world_seed);
   if (update_res != Result::SUCCESS) {
     LOG_FATAL("Failed to initialize updater. Exiting.");
     return update_res;
@@ -1599,6 +1653,8 @@ Result init_app(App &app) {
     LOG_FATAL("Failed to initialize renderer. Exiting.");
     return renderer_res;
   }
+
+  LOG_INFO("Using world seed {:8x} (hex)", app.update_state.world_seed);
 
   return Result::SUCCESS;
 }

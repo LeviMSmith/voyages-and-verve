@@ -19,7 +19,7 @@ TEST(SurfaceGen, ReasonableLessThanZero) {
   u16 last_height;
   u16 x = 0;
   for (; x < CHUNK_CELL_WIDTH; x++) {
-    u16 height = surface_height(x + CHUNK_CELL_WIDTH * chunk_x, 32);
+    u16 height = surface_height(x + CHUNK_CELL_WIDTH * chunk_x, 32, 0);
     if (x > 0 && last_height != height) {
       break;
     }

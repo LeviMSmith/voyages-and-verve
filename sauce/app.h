@@ -46,6 +46,7 @@ enum class Result {
   FILESYSTEM_ERROR,
   GENERAL_ERROR,
   ENTITY_POOL_FULL,
+  BAD_ARGS_ERROR,
 };
 
 /// Log definitions ///
@@ -222,7 +223,7 @@ constexpr u32 GEN_TREE_MAX_WIDTH = 1500;
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
                           f64 randomness_scale);
-u16 surface_height(s64 x, u16 max_depth);
+u16 surface_height(s64 x, u16 max_depth, u32 world_seed);
 
 // For finding out where a chunk bottom right corner is
 Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);
@@ -267,11 +268,14 @@ struct Update_State {
 
   std::set<Update_Event> events;
 
+  u32 world_seed;
+
   // Debug
   f32 average_fps;
 };
 
-Result init_updating(Update_State &update_state);
+Result init_updating(Update_State &update_state,
+                     const std::optional<u32> &seed);
 Result update(Update_State &update_state);
 
 Result update_keypresses(Update_State &us);
@@ -378,8 +382,10 @@ struct App {
   Config config;
 };
 
+Result handle_args(int argv, const char **argc, std::optional<u32> &world_seed);
+
 Result poll_events(App &app);
-Result init_app(App &app);
+Result init_app(App &app, int argv, const char **argc);
 Result run_app(App &app);
 void destroy_app(App &app);
 }  // namespace VV
