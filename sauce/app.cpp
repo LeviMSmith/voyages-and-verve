@@ -273,7 +273,8 @@ u16 surface_height(s64 x, u16 max_depth, u32 world_seed) {
       y_mid = height_iter->second;
     } else {
       y_mid = interpolate_and_nudge(lower_height, upper_height, 0.5,
-                                    x ^ world_seed, 0.5 / std::pow(depth, 2.5));
+                                    static_cast<u64>(x ^ world_seed),
+                                    0.5 / std::pow(depth, 2.5));
       heights[x_mid] = y_mid;
     }
 
@@ -289,9 +290,9 @@ u16 surface_height(s64 x, u16 max_depth, u32 world_seed) {
   }
 
   f64 fraction = static_cast<f64>(x - lower_x) / (upper_x - lower_x);
-  u16 height =
-      interpolate_and_nudge(lower_height, upper_height, fraction,
-                            x ^ world_seed, 0.5 / std::pow(max_depth, 2.5));
+  u16 height = interpolate_and_nudge(lower_height, upper_height, fraction,
+                                     static_cast<u64>(x ^ world_seed),
+                                     0.5 / std::pow(max_depth, 2.5));
   heights[x] = height;
   return height;
 }
@@ -1006,15 +1007,20 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
 /// Update implementations ///
 //////////////////////////////
 
-Result init_updating(Update_State &update_state) {
+Result init_updating(Update_State &update_state,
+                     const std::optional<u32> &seed) {
   const DimensionIndex starting_dim = DimensionIndex::OVERWORLD;
   // const DimensionIndex starting_dim = DimensionIndex::WATERWORLD;
   update_state.dimensions.emplace(starting_dim, Dimension());
   update_state.active_dimension = starting_dim;
 
-  std::srand(std::time(NULL));
+  if (!seed.has_value()) {
+    std::srand(std::time(NULL));
 
-  update_state.world_seed = std::rand();
+    update_state.world_seed = std::rand();
+  } else {
+    update_state.world_seed = seed.value();
+  }
 
   Result ap_res = create_player(update_state, update_state.active_dimension,
                                 update_state.active_player);
@@ -1537,7 +1543,8 @@ Entity *get_active_player(Update_State &update_state) {
 /// State implementations ///
 /////////////////////////////
 
-Result handle_args(App &app, int argv, const char **argc) {
+Result handle_args(int argv, const char **argc,
+                   std::optional<u32> &world_seed) {
   if (argv < 1 || argv > 2) {
     LOG_WARN("Bad number of args {}", argv);
     return Result::BAD_ARGS_ERROR;
@@ -1549,7 +1556,7 @@ Result handle_args(App &app, int argv, const char **argc) {
       u32 stoul_res = std::stoul(argc[1], &num_chars, 16);
       LOG_INFO("Using argument \"{}\" as seed with {} characters. Hex: {:x}",
                argc[1], num_chars, stoul_res);
-      app.update_state.world_seed = stoul_res;
+      world_seed.emplace(stoul_res);
     } catch (const std::invalid_argument &e) {
       LOG_WARN("Couldn't convert argument {} to an unsigned long: {}", argc[1],
                e.what());
@@ -1628,16 +1635,17 @@ Result init_app(App &app, int argv, const char **argc) {
 
   app.config.tex_dir = app.config.res_dir / "textures";
 
-  Result update_res = init_updating(app.update_state);
-  if (update_res != Result::SUCCESS) {
-    LOG_FATAL("Failed to initialize updater. Exiting.");
-    return update_res;
-  }
-
-  Result args_res = handle_args(app, argv, argc);
+  std::optional<u32> world_seed;
+  Result args_res = handle_args(argv, argc, world_seed);
   if (args_res == Result::BAD_ARGS_ERROR) {
     LOG_FATAL("Argument handling failed. Exiting.");
     return args_res;
+  }
+
+  Result update_res = init_updating(app.update_state, world_seed);
+  if (update_res != Result::SUCCESS) {
+    LOG_FATAL("Failed to initialize updater. Exiting.");
+    return update_res;
   }
 
   Result renderer_res = init_rendering(app.render_state, app.config);

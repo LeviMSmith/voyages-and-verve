@@ -274,7 +274,8 @@ struct Update_State {
   f32 average_fps;
 };
 
-Result init_updating(Update_State &update_state);
+Result init_updating(Update_State &update_state,
+                     const std::optional<u32> &seed);
 Result update(Update_State &update_state);
 
 Result update_keypresses(Update_State &us);
@@ -381,7 +382,7 @@ struct App {
   Config config;
 };
 
-Result handle_args(App &app, int argv, const char **argc);
+Result handle_args(int argv, const char **argc, std::optional<u32> &world_seed);
 
 Result poll_events(App &app);
 Result init_app(App &app, int argv, const char **argc);
