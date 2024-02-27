@@ -9,8 +9,9 @@ required.
 
 ### Build dependancies
 
-All code dependancies should be in vendor and built automatically by cmake,
-so you'll just need that and a compiler.
+Most code dependancies should be in vendor and built automatically by cmake,
+so you'll just need that and a compiler. Potentially SDL_ttf might require the
+freetype library installed on your system.
 
 Make sure to also clone the submodules to actually get that code into vendor:
 

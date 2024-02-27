@@ -1,4 +1,5 @@
 #include <cstdlib>
+#define SDL_MAIN_HANDLED
 
 #include "app.h"
 
