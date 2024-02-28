@@ -813,7 +813,7 @@ Result refresh_debug_overlay(Render_State &render_state,
 
   render_state.debug_info = std::format(
       "FPS: {:.1f} | Dimension id: {} Chunks loaded in dim {} | Player pos: "
-      "{:.2f}, {:.2f} Status: {} | World seed {:x}",
+      "{:.2f}, {:.2f} Status: {} | World seed {:08x}",
       update_state.average_fps, (u8)update_state.active_dimension,
       update_state.dimensions.at(update_state.active_dimension).chunks.size(),
       x, y, status, update_state.world_seed);
@@ -1557,8 +1557,8 @@ Result handle_args(int argv, const char **argc,
     try {
       size_t num_chars = 0;
       u32 stoul_res = std::stoul(argc[1], &num_chars, 16);
-      LOG_INFO("Using argument \"{}\" as seed with {} characters. Hex: {:x}",
-               argc[1], num_chars, stoul_res);
+      LOG_DEBUG("Using argument \"{}\" as seed with {} characters. Hex: {:x}",
+                argc[1], num_chars, stoul_res);
       world_seed.emplace(stoul_res);
     } catch (const std::invalid_argument &e) {
       LOG_WARN("Couldn't convert argument {} to an unsigned long: {}", argc[1],
@@ -1657,7 +1657,7 @@ Result init_app(App &app, int argv, const char **argc) {
     return renderer_res;
   }
 
-  LOG_INFO("Using world seed {:8x} (hex)", app.update_state.world_seed);
+  LOG_INFO("Using world seed {:08x} (hex)", app.update_state.world_seed);
 
   return Result::SUCCESS;
 }

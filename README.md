@@ -7,7 +7,7 @@ Fully simulated pixel world
 Should build and run anywhere SDL2 will compile for, no extra configuration
 required. Except:
 
-### Wayland
+#### Wayland
 
 xwayland for some reason has troubles with this. Run with
 
