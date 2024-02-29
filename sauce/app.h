@@ -168,8 +168,8 @@ inline Entity_Coord get_cam_coord(const Entity &e);
 /////////////////////////
 
 /// Cell ///
-enum class Cell_Type : u8 { DIRT, AIR, WATER };
-#define CELL_TYPE_NUM 3
+enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD };
+#define CELL_TYPE_NUM 4
 
 struct Cell_Type_Info {
   u8 solidity;   // Used for collisions and cellular automata
@@ -192,6 +192,7 @@ struct Cell {
 inline Cell default_dirt_cell();
 inline Cell default_air_cell();
 inline Cell default_water_cell();
+inline Cell default_gold_cell();
 
 // Reskined dirt cells
 inline Cell default_grass_cell();
@@ -253,6 +254,7 @@ struct Dimension {
 
 enum Update_Event : u8 {
   PLAYER_MOVED_CHUNK,
+  CELL_CHANGE,
 };
 
 struct Update_State {

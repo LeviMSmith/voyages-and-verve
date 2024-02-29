@@ -159,6 +159,10 @@ const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
         50,     // solidity
         0.90f,  // friction
     },          // WATER
+    {
+        255,    // solidity
+        0.70f,  // friction
+    },          // GOLD
 };
 
 Cell default_dirt_cell() {
@@ -190,6 +194,17 @@ Cell default_water_cell() {
       255,               // cb
       200,               // ca
   };
+}
+
+Cell default_gold_cell() {
+  Cell cell;
+  cell.type = Cell_Type::GOLD;
+  cell.cr = 237 + std::rand() % 12;
+  cell.cg = 196 + std::rand() % 12;
+  cell.cb = 83 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
 }
 
 Cell default_grass_cell() {
@@ -468,7 +483,8 @@ Result render(Render_State &render_state, Update_State &update_state,
   }
 
   // Cells and entities
-  if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK)) {
+  if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK) ||
+      update_state.events.contains(Update_Event::CELL_CHANGE)) {
     gen_world_texture(render_state, update_state, config);
   }
 
@@ -1046,8 +1062,6 @@ Result init_updating(Update_State &update_state,
 }
 
 Result update(Update_State &update_state) {
-  update_state.events.clear();
-
   Entity &active_player = *get_active_player(update_state);
   static Chunk_Coord last_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
@@ -1235,6 +1249,7 @@ void update_kinetic(Update_State &update_state) {
 
           // If neither, we are coliding, and resolve based on cell
           switch (chunk.cells[cell].type) {
+            case Cell_Type::GOLD:
             case Cell_Type::DIRT: {
               if (entity.coord.y - entity.boundingh <= cell_coord.y) {
                 entity.status = entity.status | (u8)Entity_Status::ON_GROUND;
@@ -1577,6 +1592,18 @@ Result handle_args(int argv, const char **argc,
 Result poll_events(App &app) {
   Render_State &render_state = app.render_state;
 
+  Dimension &active_dimension = *get_active_dimension(app.update_state);
+
+  u16 screen_cell_size = render_state.screen_cell_size;
+  Entity &active_player = *get_active_player(app.update_state);
+
+  Entity_Coord tl;
+  tl.x = active_player.camx + active_player.coord.x;
+  tl.x -= (render_state.window_width / 2.0f) / screen_cell_size;
+
+  tl.y = active_player.camy + active_player.coord.y;
+  tl.y += (render_state.window_height / 2.0f) / screen_cell_size;
+
   static bool debug_key_pressed = false;
   const auto DEBUG_KEY = SDLK_F3;
 
@@ -1615,6 +1642,31 @@ Result poll_events(App &app) {
           debug_key_pressed = false;
         }
         break;
+      }
+      case SDL_MOUSEBUTTONUP: {
+        if (event.button.button == SDL_BUTTON_LEFT) {
+          // Place a gold cell in the world where the button was pressed.
+
+          Entity_Coord c;
+          c.x =
+              static_cast<s32>(event.button.x / render_state.screen_cell_size) +
+              tl.x;
+          c.y = tl.y - static_cast<s32>(event.button.y /
+                                        render_state.screen_cell_size);
+
+          Chunk_Coord cc = get_chunk_coord(c.x, c.y);
+
+          Chunk &chunk = active_dimension.chunks[cc];
+          u16 cx = std::abs((cc.x * CHUNK_CELL_WIDTH) - c.x);
+          u16 cy = c.y - (cc.y * CHUNK_CELL_WIDTH);
+          u32 cell_index = cx + cy * CHUNK_CELL_WIDTH;
+
+          assert(cell_index < CHUNK_CELLS);
+
+          chunk.cells[cell_index] = default_gold_cell();
+
+          app.update_state.events.emplace(Update_Event::CELL_CHANGE);
+        }
       }
     }
   }
@@ -1668,6 +1720,7 @@ Result run_app(App &app) {
 
   while (true) {
     auto frame_start = std::chrono::steady_clock::now();
+    app.update_state.events.clear();
     // Events
     Result poll_result = poll_events(app);
     if (poll_result == Result::WINDOW_CLOSED) {
