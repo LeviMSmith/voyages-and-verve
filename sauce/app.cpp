@@ -483,10 +483,13 @@ Result render(Render_State &render_state, Update_State &update_state,
   }
 
   // Cells and entities
+  /*
   if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK) ||
       update_state.events.contains(Update_Event::CELL_CHANGE)) {
     gen_world_texture(render_state, update_state, config);
   }
+  */
+  gen_world_texture(render_state, update_state, config);
 
   render_entities(render_state, update_state, INT8_MIN, 0);
   render_entities(render_state, update_state);
@@ -1022,6 +1025,34 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
   return Result::SUCCESS;
 }
 
+Cell *get_cell_at_world_pos(Dimension &dim, s64 x, s64 y) {
+  Chunk_Coord cc = get_chunk_coord(x, y);
+
+  // if (cc.x < 0) {
+  //   cc.x++;
+  // }
+  //
+  // if (cc.y < 0) {
+  //   cc.y++;
+  // }
+
+  // if (cc.x < 0) {
+  //   y--;
+  // }
+
+  u32 cell_x = ((x % CHUNK_CELL_WIDTH) + CHUNK_CELL_WIDTH) % CHUNK_CELL_WIDTH;
+  u32 cell_y = ((y % CHUNK_CELL_WIDTH) + CHUNK_CELL_WIDTH) % CHUNK_CELL_WIDTH;
+
+  u32 cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
+
+  if (cell_index >= CHUNK_CELLS) {
+    LOG_DEBUG("{} {} {} {} {}", x, y, cell_index, cell_x, cell_y);
+    assert(cell_index >= CHUNK_CELLS);
+  }
+
+  return &(dim.chunks[cc].cells[cell_index]);
+}
+
 //////////////////////////////
 /// Update implementations ///
 //////////////////////////////
@@ -1086,6 +1117,8 @@ Result update(Update_State &update_state) {
                        SCREEN_CHUNK_SIZE + 5);
     last_player_chunk = current_player_chunk;
   }
+
+  update_cells(update_state);
 
   return Result::SUCCESS;
 }
@@ -1307,6 +1340,48 @@ void update_kinetic(Update_State &update_state) {
           // entity.ay *= 0.1f;
           // entity.vx *= 0.5f;
           // entity.vy *= 0.5f;
+        }
+      }
+    }
+  }
+}
+
+void update_cells(Update_State &update_state) {
+  Entity &active_player = *get_active_player(update_state);
+  Dimension &dim = *get_active_dimension(update_state);
+
+  Chunk_Coord player_chunkc =
+      get_chunk_coord(active_player.coord.x, active_player.coord.y);
+
+  Chunk_Coord bl;
+  bl.x = player_chunkc.x - CHUNK_CELL_SIM_RADIUS;
+  bl.y = player_chunkc.y - CHUNK_CELL_SIM_RADIUS;
+
+  Chunk_Coord ic;
+
+  // Not existance based processing. Probably won't ever be.
+  for (ic.x = bl.x; ic.x < bl.x + CHUNK_CELL_SIM_RADIUS * 2; ic.x++) {
+    for (ic.y = bl.y; ic.y < bl.y + CHUNK_CELL_SIM_RADIUS * 2; ic.y++) {
+      Chunk &chunk = dim.chunks[ic];
+
+      for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
+        switch (chunk.cells[cell_index].type) {
+          case Cell_Type::GOLD: {
+            s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
+                     static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
+            s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
+                     static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
+
+            Cell *below = get_cell_at_world_pos(dim, cx, cy - 1);
+
+            if (CELL_TYPE_INFOS[(u8)below->type].solidity < 200) {
+              std::swap(chunk.cells[cell_index], *below);
+            }
+
+            break;
+          }
+          default:
+            break;
         }
       }
     }

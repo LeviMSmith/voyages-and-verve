@@ -248,6 +248,8 @@ struct Dimension {
       e_kinetic;  // Entities that should be updated in the kinetic step
 };
 
+Cell *get_cell_at_world_pos(Dimension &dim, s64 x, s64 y);
+
 //////////////////////////
 /// Update definitions ///
 //////////////////////////
@@ -286,6 +288,8 @@ constexpr f32 KINETIC_FRICTION = 0.8f;
 constexpr f32 KINETIC_GRAVITY = 0.43f;
 constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
+
+void update_cells(Update_State &update_state);
 
 Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
                  const Chunk_Coord &chunk_coord);
@@ -326,6 +330,8 @@ constexpr u8 SCREEN_CHUNK_SIZE =
 // This is the part of the texture that will not be shown
 constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 352 cells
 constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
+
+constexpr u8 CHUNK_CELL_SIM_RADIUS = (SCREEN_CHUNK_SIZE / 2) + 2;
 
 struct Render_State {
   int window_width, window_height;
