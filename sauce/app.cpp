@@ -22,6 +22,8 @@
 #include "SDL_surface.h"
 #include "SDL_timer.h"
 #include "SDL_video.h"
+#include "core.h"
+#include "render/texture.h"
 
 // Platform specific includes
 #ifdef _WIN32
