@@ -15,8 +15,6 @@ struct App {
   Config config;
 };
 
-Result handle_args(int argv, const char **argc, std::optional<u32> &world_seed);
-
 Result poll_events(App &app);
 Result init_app(App &app, int argv, const char **argc);
 Result run_app(App &app);

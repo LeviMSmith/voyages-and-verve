@@ -9,7 +9,7 @@ required. Except:
 
 #### Wayland
 
-xwayland for some reason has troubles with this. Run with
+xwayland for some reason has troubles with this, so if you're using wayland, run with
 
 `export SDL_VIDEODRIVER=wayland`
 
