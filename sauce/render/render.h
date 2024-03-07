@@ -15,8 +15,6 @@ constexpr u8 SCREEN_CHUNK_SIZE =
 constexpr u8 SCREEN_CELL_PADDING = 160;  // Makes screen width 352 cells
 constexpr u16 SCREEN_CELL_SIZE_FULL = SCREEN_CHUNK_SIZE * CHUNK_CELL_WIDTH;
 
-constexpr u8 CHUNK_CELL_SIM_RADIUS = (SCREEN_CHUNK_SIZE / 2) + 2;
-
 struct Render_State {
   int window_width, window_height;
 

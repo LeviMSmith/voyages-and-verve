@@ -2,6 +2,8 @@
 
 #include <filesystem>
 
+#include "core.h"
+
 namespace VV {
 struct Config {
   int window_width, window_height;  // using int since that's what sdl takes
@@ -14,4 +16,6 @@ struct Config {
 };
 
 Config default_config();
+
+Result get_resource_dir(std::filesystem::path &res_dir);
 }  // namespace VV

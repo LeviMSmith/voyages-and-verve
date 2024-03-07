@@ -44,6 +44,7 @@ constexpr f32 KINETIC_GRAVITY = 0.43f;
 constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
 
+constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
 void update_cells(Update_State &update_state);
 
 Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
@@ -72,7 +73,7 @@ Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id);
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them
-inline Dimension *get_active_dimension(Update_State &update_state);
-inline Entity *get_active_player(Update_State &update_state);
+Dimension *get_active_dimension(Update_State &update_state);
+Entity *get_active_player(Update_State &update_state);
 
 }  // namespace VV

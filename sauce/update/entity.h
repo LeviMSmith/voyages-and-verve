@@ -55,4 +55,6 @@ struct Entity {
 
 Entity default_entity();
 
+inline Entity_Coord get_cam_coord(const Entity &e);
+
 }  // namespace VV

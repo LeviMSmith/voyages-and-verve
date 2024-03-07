@@ -6,7 +6,6 @@
 #include "update/entity.h"
 
 namespace VV {
-
 /// Chunk_Coord ///
 struct Chunk_Coord {
   s32 x, y;
@@ -25,7 +24,7 @@ struct Cell_Type_Info {
                  // that cell
 };
 
-// extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
+extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
 
 // Monolithic cell struct. Everything the cell does should be put in here.
 // There should be support for millions of cells, so avoid putting too much here
@@ -36,15 +35,70 @@ struct Cell {
   u8 cr, cg, cb, ca;  // Color rgba8
 };
 
-// Factory functions
-inline Cell default_dirt_cell();
-inline Cell default_air_cell();
-inline Cell default_water_cell();
-inline Cell default_gold_cell();
+// Factory cell functions
+inline Cell default_dirt_cell() {
+  Cell cell;
+  cell.type = Cell_Type::DIRT;
+  cell.cr = 99 + std::rand() % 12;
+  cell.cg = 80 + std::rand() % 12;
+  cell.cb = 79 + std::rand() % 12;
+  cell.ca = 255;
 
-// Reskined dirt cells
-inline Cell default_grass_cell();
-inline Cell default_sand_cell();
+  return cell;
+}
+
+inline Cell default_air_cell() {
+  return {
+      Cell_Type::AIR,  // type
+      255,             // cr
+      255,             // cg
+      255,             // cb
+      0,               // ca
+  };
+}
+
+inline Cell default_water_cell() {
+  return {
+      Cell_Type::WATER,  // type
+      0,                 // cr
+      0,                 // cg
+      255,               // cb
+      200,               // ca
+  };
+}
+
+inline Cell default_gold_cell() {
+  Cell cell;
+  cell.type = Cell_Type::GOLD;
+  cell.cr = 237 + std::rand() % 12;
+  cell.cg = 196 + std::rand() % 12;
+  cell.cb = 83 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
+
+inline Cell default_grass_cell() {
+  Cell cell;
+  cell.type = Cell_Type::DIRT;
+  cell.cr = 8 + std::rand() % 12;
+  cell.cg = 94 + std::rand() % 12;
+  cell.cb = 11 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
+
+inline Cell default_sand_cell() {
+  Cell cell;
+  cell.type = Cell_Type::DIRT;
+  cell.cr = 214 + std::rand() % 12;
+  cell.cg = 185 + std::rand() % 12;
+  cell.cb = 105 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
 
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,

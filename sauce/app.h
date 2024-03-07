@@ -1,19 +1,11 @@
 #pragma once
 
-#include <filesystem>
-
 #include "core.h"
 #include "render/render.h"
-#include "update/entity.h"
 #include "update/update.h"
 #include "utils/config.h"
 
 namespace VV {
-
-Result get_resource_dir(std::filesystem::path &res_dir);
-
-inline Entity_Coord get_cam_coord(const Entity &e);
-
 constexpr u32 FPS = 60;
 constexpr f32 FRAME_TIME_MILLIS = (1.0f / FPS) * 1000;
 
