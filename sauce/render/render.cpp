@@ -1,6 +1,8 @@
 #include "render/render.h"
 
 #include <regex>
+#include <format>
+#include <sstream>
 
 #include "update/update.h"
 
@@ -249,6 +251,8 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
 #elif defined _WIN32
               SDL_Surface *bmp_surface =
                   SDL_LoadBMP(entry.path().string().c_str());
+#elif defined __APPLE__
+              SDL_Surface *bmp_surface = SDL_LoadBMP(entry.path().c_str());
 #endif
               if (bmp_surface == nullptr) {
                 LOG_ERROR(

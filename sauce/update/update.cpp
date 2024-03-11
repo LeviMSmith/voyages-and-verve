@@ -255,18 +255,19 @@ void update_kinetic(Update_State &update_state) {
               if (fabs(overlap_x) < fabs(overlap_y)) {
                 if (entity.coord.x < cell_coord.x) {
                   entity.coord.x -=
-                      std::min(fabs(overlap_x), MOV_LIM);  // Move entity left
+                      std::min(static_cast<double>(fabs(overlap_x)), MOV_LIM);
+  // Move entity left
                 } else {
-                  entity.coord.x += std::min(fabs(overlap_x),
+                  entity.coord.x += std::min(static_cast<double>(fabs(overlap_x)),
                                              MOV_LIM);  // Move entity right
                 }
               } else {
                 if (entity.coord.y > cell_coord.y) {
                   entity.coord.y +=
-                      std::min(fabs(overlap_y), MOV_LIM);  // Move entity down
+                      std::min(static_cast<double>(fabs(overlap_y)), MOV_LIM);  // Move entity down
                 } else {
                   entity.coord.y -=
-                      std::min(fabs(overlap_y), MOV_LIM);  // Move entity up
+                      std::min(static_cast<double>(fabs(overlap_y)), MOV_LIM);  // Move entity up
                 }
               }
               break;
