@@ -6,6 +6,8 @@
 #include "update/world.h"
 #include "utils/config.h"
 
+#include <format>
+
 namespace VV {
 
 constexpr u8 SCREEN_CHUNK_SIZE =
