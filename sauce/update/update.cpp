@@ -320,6 +320,32 @@ void update_cells(Update_State &update_state) {
 
             if (CELL_TYPE_INFOS[(u8)below->type].solidity < 200) {
               std::swap(chunk.cells[cell_index], *below);
+              break;
+            }
+
+            // Which side to try first
+            s8 dir = std::rand() % 2;
+            if (dir == 0) {
+              dir = -1;
+            }
+
+            Cell *side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
+            if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
+              std::swap(chunk.cells[cell_index], *side_cell);
+              break;
+            }
+
+            if (dir == 1) {
+              dir = -1;
+            }
+            if (dir == -1) {
+              dir = 1;
+            }
+
+            side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
+            if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
+              std::swap(chunk.cells[cell_index], *side_cell);
+              break;
             }
 
             break;
