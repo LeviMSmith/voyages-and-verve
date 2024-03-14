@@ -1,13 +1,14 @@
 #include "render/render.h"
 
-#include <regex>
 #include <format>
+#include <regex>
 #include <sstream>
 
 #include "update/update.h"
 
 namespace VV {
-Result init_rendering(Render_State &render_state, Config &config) {
+Result init_rendering(Render_State &render_state, Update_State &us,
+                      Config &config) {
   // SDL init
 
   // I think this was just because I forgot break statements in the switch.
@@ -65,7 +66,7 @@ Result init_rendering(Render_State &render_state, Config &config) {
 
   // Do an initial resize to get all the base info from the screen loading
   // into the state
-  Result resize_res = handle_window_resize(render_state);
+  Result resize_res = handle_window_resize(render_state, us);
   if (resize_res != Result::SUCCESS) {
     LOG_WARN("Failed to handle window resize! EC: {}",
              static_cast<s32>(resize_res));
@@ -324,7 +325,7 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
   return Result::SUCCESS;
 }
 
-Result handle_window_resize(Render_State &render_state) {
+Result handle_window_resize(Render_State &render_state, Update_State &us) {
   SDL_ClearError();
   render_state.surface = SDL_GetWindowSurface(render_state.window);
   if (render_state.surface == nullptr) {
@@ -337,9 +338,12 @@ Result handle_window_resize(Render_State &render_state) {
                     &render_state.window_height);
   LOG_INFO("SDL window resized to {}, {}", render_state.window_width,
            render_state.window_height);
+  us.window_width = render_state.window_width;
+  us.window_height = render_state.window_height;
 
   render_state.screen_cell_size =
       render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
+  us.screen_cell_size = render_state.screen_cell_size;
 
   return Result::SUCCESS;
 }

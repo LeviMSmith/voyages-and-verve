@@ -29,6 +29,11 @@ struct Update_State {
 
   u32 world_seed;
 
+  // Render. These are duplicates so that we can do update things based on
+  // render without including render headers here
+  u16 screen_cell_size;
+  int window_width, window_height;
+
   // Debug
   f32 average_fps;
 };
@@ -37,6 +42,7 @@ Result init_updating(Update_State &update_state,
                      const std::optional<u32> &seed);
 Result update(Update_State &update_state);
 
+Result update_mouse(Update_State &us);
 Result update_keypresses(Update_State &us);
 
 constexpr f32 KINETIC_FRICTION = 0.8f;

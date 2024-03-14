@@ -53,18 +53,6 @@ Result handle_args(int argv, const char **argc,
 Result poll_events(App &app) {
   Render_State &render_state = app.render_state;
 
-  Dimension &active_dimension = *get_active_dimension(app.update_state);
-
-  u16 screen_cell_size = render_state.screen_cell_size;
-  Entity &active_player = *get_active_player(app.update_state);
-
-  Entity_Coord tl;
-  tl.x = active_player.camx + active_player.coord.x;
-  tl.x -= (render_state.window_width / 2.0f) / screen_cell_size;
-
-  tl.y = active_player.camy + active_player.coord.y;
-  tl.y += (render_state.window_height / 2.0f) / screen_cell_size;
-
   static bool debug_key_pressed = false;
   const auto DEBUG_KEY = SDLK_F3;
 
@@ -78,7 +66,7 @@ Result poll_events(App &app) {
               return Result::WINDOW_CLOSED;
             }
             case SDL_WINDOWEVENT_RESIZED: {
-              handle_window_resize(app.render_state);
+              handle_window_resize(app.render_state, app.update_state);
             }
           }
         }
@@ -103,31 +91,6 @@ Result poll_events(App &app) {
           debug_key_pressed = false;
         }
         break;
-      }
-      case SDL_MOUSEBUTTONUP: {
-        if (event.button.button == SDL_BUTTON_LEFT) {
-          // Place a gold cell in the world where the button was pressed.
-
-          Entity_Coord c;
-          c.x =
-              static_cast<s32>(event.button.x / render_state.screen_cell_size) +
-              tl.x;
-          c.y = tl.y - static_cast<s32>(event.button.y /
-                                        render_state.screen_cell_size);
-
-          Chunk_Coord cc = get_chunk_coord(c.x, c.y);
-
-          Chunk &chunk = active_dimension.chunks[cc];
-          u16 cx = std::abs((cc.x * CHUNK_CELL_WIDTH) - c.x);
-          u16 cy = c.y - (cc.y * CHUNK_CELL_WIDTH);
-          u32 cell_index = cx + cy * CHUNK_CELL_WIDTH;
-
-          assert(cell_index < CHUNK_CELLS);
-
-          chunk.cells[cell_index] = default_gold_cell();
-
-          app.update_state.events.emplace(Update_Event::CELL_CHANGE);
-        }
       }
     }
   }
@@ -164,7 +127,8 @@ Result init_app(App &app, int argv, const char **argc) {
     return update_res;
   }
 
-  Result renderer_res = init_rendering(app.render_state, app.config);
+  Result renderer_res =
+      init_rendering(app.render_state, app.update_state, app.config);
   if (renderer_res != Result::SUCCESS) {
     LOG_FATAL("Failed to initialize renderer. Exiting.");
     return renderer_res;

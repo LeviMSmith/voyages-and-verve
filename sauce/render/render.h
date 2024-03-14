@@ -1,12 +1,12 @@
 #pragma once
 
+#include <format>
+
 #include "SDL_ttf.h"
 #include "core.h"
 #include "update/update.h"
 #include "update/world.h"
 #include "utils/config.h"
-
-#include <format>
 
 namespace VV {
 
@@ -39,7 +39,8 @@ struct Render_State {
 };
 
 // Uses global config
-Result init_rendering(Render_State &render_state, Config &config);
+Result init_rendering(Render_State &render_state, Update_State &us,
+                      Config &config);
 Result render(Render_State &render_state, Update_State &update_state,
               const Config &config);
 void destroy_rendering(Render_State &render_state);
@@ -48,7 +49,7 @@ void destroy_rendering(Render_State &render_state);
 // then use them as needed.
 Result init_render_textures(Render_State &render_state, const Config &config);
 
-Result handle_window_resize(Render_State &render_state);
+Result handle_window_resize(Render_State &render_state, Update_State &us);
 
 Result gen_world_texture(Render_State &render_state, Update_State &update_state,
                          const Config &config);

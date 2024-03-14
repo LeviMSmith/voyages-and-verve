@@ -1,5 +1,6 @@
 #include "update/update.h"
 
+#include "SDL_mouse.h"
 #include "update/world.h"
 
 namespace VV {
@@ -42,6 +43,7 @@ Result update(Update_State &update_state) {
   static Chunk_Coord last_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
 
+  update_mouse(update_state);
   Result res = update_keypresses(update_state);
   if (res == Result::WINDOW_CLOSED) {
     LOG_INFO("Got close from keyboard");
@@ -63,6 +65,43 @@ Result update(Update_State &update_state) {
   }
 
   update_cells(update_state);
+
+  return Result::SUCCESS;
+}
+
+Result update_mouse(Update_State &us) {
+  int mouse_x, mouse_y;
+  Uint32 button_state = SDL_GetMouseState(&mouse_x, &mouse_y);
+
+  u16 screen_cell_size = us.screen_cell_size;
+  Entity &active_player = *get_active_player(us);
+  Dimension &active_dimension = *get_active_dimension(us);
+
+  Entity_Coord tl;
+  tl.x = active_player.camx + active_player.coord.x;
+  tl.x -= (us.window_width / 2.0f) / screen_cell_size;
+
+  tl.y = active_player.camy + active_player.coord.y;
+  tl.y += (us.window_height / 2.0f) / screen_cell_size;
+
+  if (SDL_BUTTON(button_state) == SDL_BUTTON_LEFT) {
+    Entity_Coord c;
+    c.x = static_cast<s32>(mouse_x / us.screen_cell_size) + tl.x;
+    c.y = tl.y - static_cast<s32>(mouse_y / us.screen_cell_size);
+
+    Chunk_Coord cc = get_chunk_coord(c.x, c.y);
+
+    Chunk &chunk = active_dimension.chunks[cc];
+    u16 cx = std::abs((cc.x * CHUNK_CELL_WIDTH) - c.x);
+    u16 cy = c.y - (cc.y * CHUNK_CELL_WIDTH);
+    u32 cell_index = cx + cy * CHUNK_CELL_WIDTH;
+
+    assert(cell_index < CHUNK_CELLS);
+
+    chunk.cells[cell_index] = default_gold_cell();
+
+    us.events.emplace(Update_Event::CELL_CHANGE);
+  }
 
   return Result::SUCCESS;
 }
@@ -256,18 +295,21 @@ void update_kinetic(Update_State &update_state) {
                 if (entity.coord.x < cell_coord.x) {
                   entity.coord.x -=
                       std::min(static_cast<double>(fabs(overlap_x)), MOV_LIM);
-  // Move entity left
+                  // Move entity left
                 } else {
-                  entity.coord.x += std::min(static_cast<double>(fabs(overlap_x)),
-                                             MOV_LIM);  // Move entity right
+                  entity.coord.x +=
+                      std::min(static_cast<double>(fabs(overlap_x)),
+                               MOV_LIM);  // Move entity right
                 }
               } else {
                 if (entity.coord.y > cell_coord.y) {
                   entity.coord.y +=
-                      std::min(static_cast<double>(fabs(overlap_y)), MOV_LIM);  // Move entity down
+                      std::min(static_cast<double>(fabs(overlap_y)),
+                               MOV_LIM);  // Move entity down
                 } else {
                   entity.coord.y -=
-                      std::min(static_cast<double>(fabs(overlap_y)), MOV_LIM);  // Move entity up
+                      std::min(static_cast<double>(fabs(overlap_y)),
+                               MOV_LIM);  // Move entity up
                 }
               }
               break;
