@@ -33,7 +33,7 @@ Result handle_args(int argv, const char **argc,
     try {
       size_t num_chars = 0;
       u32 stoul_res = std::stoul(argc[1], &num_chars, 16);
-      LOG_DEBUG("Using argument \"{}\" as seed with {} characters. Hex: {:x}",
+      LOG_DEBUG("Using argument \"{}\" as seed with {} characters. 0x{:08x}",
                 argc[1], num_chars, stoul_res);
       world_seed.emplace(stoul_res);
     } catch (const std::invalid_argument &e) {
@@ -134,7 +134,7 @@ Result init_app(App &app, int argv, const char **argc) {
     return renderer_res;
   }
 
-  LOG_INFO("Using world seed {:08x} (hex)", app.update_state.world_seed);
+  LOG_INFO("Using world seed 0x{:08x}", app.update_state.world_seed);
 
   return Result::SUCCESS;
 }
