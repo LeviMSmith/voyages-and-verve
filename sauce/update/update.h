@@ -75,6 +75,14 @@ Result create_tree(Update_State &us, DimensionIndex dim,
                    Entity_ID &id);  // This is background tree that just is
                                     // there for a position an sprite
 
+Result create_bush(Update_State &us, DimensionIndex dim,
+                   Entity_ID &id);  // This is background grass_tall that just is
+                                    // there for a position an sprite
+
+Result create_grass(Update_State &us, DimensionIndex dim,
+                   Entity_ID &id);  // This is background grass_short that just is
+                                    // there for a position an sprite
+
 Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id);
 
 // Don't hold on to these pointers too long. Additions to the vectors could
