@@ -447,20 +447,34 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
           }
         }
 
-        if (surface_det_rand(static_cast<u64>(abs_x) ^
-                             update_state.world_seed) %
-                    GEN_TREE_MAX_WIDTH <
-                15 &&
+
+        //added distance between tree's to prevent overlap
+        if (surface_det_rand(static_cast<u64>(abs_x) ^ update_state.world_seed) % GEN_TREE_MAX_WIDTH < 15 &&
             height > chunk_coord.y * CHUNK_CELL_WIDTH &&
             height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
             height >= SEA_LEVEL_CELL) {
-          Entity_ID id;
-          create_tree(update_state, update_state.active_dimension, id);
+            // Check if a tree already exists at this location
+            bool locationFree = true;
+            for (const auto& entity_id : update_state.dimensions[update_state.active_dimension].entity_indicies) {
+                const Entity& existingEntity = update_state.entities[entity_id];
 
-          Entity &tree = update_state.entities[id];
-          tree.coord.x = abs_x;
-          tree.coord.y = height + 85.0f;
+                if (existingEntity.texture == Texture_Id::TREE &&
+                    std::abs(existingEntity.coord.x - abs_x) <100) {  // 100 distance between tree's
+                    locationFree = false;
+                    break;
+                }
+            }
+
+            if (locationFree) {
+                Entity_ID id;
+                create_tree(update_state, update_state.active_dimension, id);
+
+                Entity &tree = update_state.entities[id];
+                tree.coord.x = abs_x;
+                tree.coord.y = height + 85.0f;  // This assumes tree base height doesn't affect spawn logic
+            }
         }
+
 
         if (abs_x == 250 && height > chunk_coord.y * CHUNK_CELL_WIDTH &&
             height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
