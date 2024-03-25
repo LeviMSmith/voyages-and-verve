@@ -475,59 +475,78 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
             }
         }
 
-        //bush spawner
+        // Unified spawner for bush and grass
         if (surface_det_rand(static_cast<u64>(abs_x) ^ update_state.world_seed) % GEN_TREE_MAX_WIDTH < 15 &&
             height > chunk_coord.y * CHUNK_CELL_WIDTH &&
             height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
             height >= SEA_LEVEL_CELL) {
-            // Check if a grass already exists at this location
-            bool locationFree = true;
+            
+            bool locationFreeForBush = true;
+            bool locationFreeForGrass = true;
+
+            bool tryBushFirst = (std::rand() % 2) == 0;
+
             for (const auto& entity_id : update_state.dimensions[update_state.active_dimension].entity_indicies) {
                 const Entity& existingEntity = update_state.entities[entity_id];
 
                 if (existingEntity.texture == Texture_Id::BUSH &&
-                    std::abs(existingEntity.coord.x - abs_x) <10) {  // 10 distance between big grass
-                    locationFree = false;
+                    std::abs(existingEntity.coord.x - abs_x) < 15) {  // Check for existing bush
+                    locationFreeForBush = false;
+                }
+
+                if (existingEntity.texture == Texture_Id::GRASS &&
+                    std::abs(existingEntity.coord.x - abs_x) < 10) {  // Check for existing grass
+                    locationFreeForGrass = false;
+                }
+
+                // If location is not free for either, stop checking
+                if (!locationFreeForBush && !locationFreeForGrass) {
                     break;
                 }
             }
 
-            if (locationFree) {
+            if (tryBushFirst) {
+                if (locationFreeForBush) {
                 Entity_ID id;
                 create_bush(update_state, update_state.active_dimension, id);
 
                 Entity &bush = update_state.entities[id];
                 bush.coord.x = abs_x;
                 bush.coord.y = height + 20.0f;
-            }
-        }
+                }
 
-        //grass spawner
-        if (surface_det_rand(static_cast<u64>(abs_x) ^ update_state.world_seed) % GEN_TREE_MAX_WIDTH < 15 &&
-            height > chunk_coord.y * CHUNK_CELL_WIDTH &&
-            height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
-            height >= SEA_LEVEL_CELL) {
-            // Check if a grass already exists at this location
-            bool locationFree = true;
-            for (const auto& entity_id : update_state.dimensions[update_state.active_dimension].entity_indicies) {
-                const Entity& existingEntity = update_state.entities[entity_id];
+                // Spawn grass if location is free
+                else if (locationFreeForGrass) {
+                    Entity_ID id;
+                    create_grass(update_state, update_state.active_dimension, id);
 
-                if (existingEntity.texture == Texture_Id::GRASS &&
-                    std::abs(existingEntity.coord.x - abs_x) <10) {  // 10 distance between big grass
-                    locationFree = false;
-                    break;
+                    Entity &grass = update_state.entities[id];
+                    grass.coord.x = abs_x;
+                    grass.coord.y = height + 10.0f;
+                }
+            } else {
+                // Spawn grass if location is free
+                if (locationFreeForGrass) {
+                    Entity_ID id;
+                    create_grass(update_state, update_state.active_dimension, id);
+
+                    Entity &grass = update_state.entities[id];
+                    grass.coord.x = abs_x;
+                    grass.coord.y = height + 10.0f;
+                }
+
+                // Spawn bush if location is free
+                else if (locationFreeForBush) {
+                    Entity_ID id;
+                    create_bush(update_state, update_state.active_dimension, id);
+
+                    Entity &bush = update_state.entities[id];
+                    bush.coord.x = abs_x;
+                    bush.coord.y = height + 20.0f;
                 }
             }
-
-            if (locationFree) {
-                Entity_ID id;
-                create_grass(update_state, update_state.active_dimension, id);
-
-                Entity &grass = update_state.entities[id];
-                grass.coord.x = abs_x;
-                grass.coord.y = height + 15.0f;
-            }
         }
+
 
         //neitzsche spawner
         if (abs_x == 250 && height > chunk_coord.y * CHUNK_CELL_WIDTH &&
