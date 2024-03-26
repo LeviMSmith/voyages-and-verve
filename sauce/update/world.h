@@ -15,8 +15,8 @@ struct Chunk_Coord {
 };
 
 /// Cell ///
-enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD };
-#define CELL_TYPE_NUM 4
+enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD, SNOW };
+#define CELL_TYPE_NUM 5
 
 struct Cell_Type_Info {
   u8 solidity;   // Used for collisions and cellular automata
@@ -78,6 +78,17 @@ inline Cell default_gold_cell() {
   return cell;
 }
 
+inline Cell default_snow_cell() {
+  Cell cell;
+  cell.type = Cell_Type::SNOW;
+  cell.cr = 230 + std::rand() % 12;
+  cell.cg = 230 + std::rand() % 12;
+  cell.cb = 230 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
+
 inline Cell default_grass_cell() {
   Cell cell;
   cell.type = Cell_Type::DIRT;
@@ -100,6 +111,19 @@ inline Cell default_sand_cell() {
   return cell;
 }
 
+/*
+inline Cell default_snowy_air_cell() {
+  Cell cell;
+  cell.type = Cell_Type::AIR;
+  cell.cr = 255;
+  cell.cg = 255;
+  cell.cb = 255;
+  cell.ca = 100;
+
+  return cell;
+}
+*/
+
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,
 // loaded, and generated.
@@ -114,7 +138,7 @@ struct Chunk {
 /// Surface generation ///
 constexpr s32 SURFACE_Y_MAX = 7;
 constexpr s32 SURFACE_Y_MIN = -5;
-constexpr u16 SURFACE_CELL_RANGE =
+constexpr u16 FOREST_CELL_RANGE =
     SURFACE_Y_MAX * CHUNK_CELL_WIDTH - SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
 
 constexpr s32 SEA_WEST = -16;
@@ -125,8 +149,10 @@ constexpr u32 GEN_TREE_MAX_WIDTH = 1500;
 
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
-                          f64 randomness_scale);
-u16 surface_height(s64 x, u16 max_depth, u32 world_seed);
+                          f64 randomness_scale, u16 cell_range);
+u16 surface_height(s64 x, u16 max_depth, u32 world_seed,
+                   u64 randomness_range = CHUNK_CELL_WIDTH * 64,
+                   u16 cell_range = FOREST_CELL_RANGE);
 
 // For finding out where a chunk bottom right corner is
 Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);

@@ -31,6 +31,10 @@ const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
         255,    // solidity
         0.70f,  // friction
     },          // GOLD
+    {
+        200,    // solidity
+        0.70f,  // friction
+    },          // SNOW
 };
 
 u16 surface_det_rand(u64 seed) {
@@ -46,10 +50,10 @@ u16 surface_det_rand(u64 seed) {
 }
 
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
-                          f64 randomness_scale) {
+                          f64 randomness_scale, u16 cell_range) {
   u16 height = y1 + static_cast<u16>((y2 - y1) * fraction);
 
-  f64 divisor = SURFACE_CELL_RANGE * randomness_scale;
+  f64 divisor = cell_range * randomness_scale;
   s16 divisor_as_int = static_cast<s16>(divisor);
 
   if (divisor_as_int != 0) {
@@ -58,27 +62,27 @@ u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
     height += nudge;
   }
 
-  return std::min(SURFACE_CELL_RANGE, height);
+  return std::min(cell_range, height);
 }
 
-u16 surface_height(s64 x, u16 max_depth, u32 world_seed) {
+u16 surface_height(s64 x, u16 max_depth, u32 world_seed, u64 randomness_range,
+                   u16 cell_range) {
   static std::map<s64, u16> heights;
-  static const u64 RANDOMNESS_RANGE = CHUNK_CELL_WIDTH * 64;
 
   auto height_iter = heights.find(x);
   if (height_iter != heights.end()) {
     return height_iter->second;
   }
 
-  if (x % RANDOMNESS_RANGE == 0) {
+  if (x % randomness_range == 0) {
     u16 height =
-        surface_det_rand(static_cast<u64>(x ^ world_seed)) % SURFACE_CELL_RANGE;
+        surface_det_rand(static_cast<u64>(x ^ world_seed)) % cell_range;
     heights[x] = height;
     return height;
   }
 
-  s64 lower_x = static_cast<s64>(x / RANDOMNESS_RANGE) * RANDOMNESS_RANGE;
-  s64 upper_x = lower_x + RANDOMNESS_RANGE;
+  s64 lower_x = static_cast<s64>(x / randomness_range) * randomness_range;
+  s64 upper_x = lower_x + randomness_range;
 
   u16 lower_height = surface_height(lower_x, 1, world_seed);
   u16 upper_height = surface_height(upper_x, 1, world_seed);
@@ -93,7 +97,7 @@ u16 surface_height(s64 x, u16 max_depth, u32 world_seed) {
     } else {
       y_mid = interpolate_and_nudge(lower_height, upper_height, 0.5,
                                     static_cast<u64>(x ^ world_seed),
-                                    0.5 / std::pow(depth, 2.5));
+                                    0.5 / std::pow(depth, 2.5), cell_range);
       heights[x_mid] = y_mid;
     }
 
@@ -109,9 +113,9 @@ u16 surface_height(s64 x, u16 max_depth, u32 world_seed) {
   }
 
   f64 fraction = static_cast<f64>(x - lower_x) / (upper_x - lower_x);
-  u16 height = interpolate_and_nudge(lower_height, upper_height, fraction,
-                                     static_cast<u64>(x ^ world_seed),
-                                     0.5 / std::pow(max_depth, 2.5));
+  u16 height = interpolate_and_nudge(
+      lower_height, upper_height, fraction, static_cast<u64>(x ^ world_seed),
+      0.5 / std::pow(max_depth, 2.5), cell_range);
   heights[x] = height;
   return height;
 }

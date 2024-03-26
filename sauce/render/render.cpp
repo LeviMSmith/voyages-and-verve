@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "update/update.h"
+#include "update/world.h"
 
 namespace VV {
 Result init_rendering(Render_State &render_state, Update_State &us,
@@ -63,6 +64,8 @@ Result init_rendering(Render_State &render_state, Update_State &us,
     LOG_ERROR("Failed to create sdl renderer: {}", SDL_GetError());
     return Result::SDL_ERROR;
   }
+
+  SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_BLEND);
 
   // Do an initial resize to get all the base info from the screen loading
   // into the state
@@ -156,9 +159,17 @@ Result render(Render_State &render_state, Update_State &update_state,
   */
   gen_world_texture(render_state, update_state, config);
 
-  render_entities(render_state, update_state, INT8_MIN, 0);
-  render_entities(render_state, update_state);
+  render_entities(render_state, update_state, INT8_MIN, 20);
   render_cell_texture(render_state, update_state);
+
+  // Alaska overlay
+  if (active_player.coord.x + active_player.camx >
+      FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+    SDL_SetRenderDrawColor(render_state.renderer, 255, 255, 255, 190);
+    SDL_RenderFillRect(render_state.renderer, NULL);
+  }
+
+  render_entities(render_state, update_state, 21, INT8_MAX);
 
   // Debug overlay
   static int w = 0, h = 0;

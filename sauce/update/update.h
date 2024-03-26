@@ -53,7 +53,12 @@ void update_kinetic(Update_State &update_state);
 constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
 void update_cells(Update_State &update_state);
 
-Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
+constexpr s64 FOREST_EAST_BORDER_CHUNK = 25;
+
+void gen_overworld_chunk(Update_State &update_state, DimensionIndex dim,
+                         Chunk &chunk, const Chunk_Coord &chunk_coord);
+
+Result gen_chunk(Update_State &update_state, Chunk &chunk,
                  const Chunk_Coord &chunk_coord);
 Result load_chunk(Update_State &update_state, DimensionIndex dimid,
                   const Chunk_Coord &coord);
@@ -76,12 +81,12 @@ Result create_tree(Update_State &us, DimensionIndex dim,
                                     // there for a position an sprite
 
 Result create_bush(Update_State &us, DimensionIndex dim,
-                   Entity_ID &id);  // This is background grass_tall that just is
-                                    // there for a position an sprite
+                   Entity_ID &id);  // This is background grass_tall that just
+                                    // is there for a position an sprite
 
 Result create_grass(Update_State &us, DimensionIndex dim,
-                   Entity_ID &id);  // This is background grass_short that just is
-                                    // there for a position an sprite
+                    Entity_ID &id);  // This is background grass_short that just
+                                     // is there for a position an sprite
 
 Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id);
 
