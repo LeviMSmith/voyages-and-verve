@@ -70,9 +70,9 @@ inline Cell default_water_cell() {
 inline Cell default_gold_cell() {
   Cell cell;
   cell.type = Cell_Type::GOLD;
-  cell.cr = 237 + std::rand() % 12;
-  cell.cg = 196 + std::rand() % 12;
-  cell.cb = 83 + std::rand() % 12;
+  cell.cr = 237 + std::rand() % 18;
+  cell.cg = 220 + std::rand() % 20;
+  cell.cb = 43 + std::rand() % 12;
   cell.ca = 255;
 
   return cell;
