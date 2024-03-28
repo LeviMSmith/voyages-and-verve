@@ -24,6 +24,8 @@ struct Render_State {
   SDL_Renderer *renderer;
   SDL_Surface *surface;
 
+  Biome biome;
+
   std::string debug_info;
   TTF_Font *main_font;
 
@@ -56,7 +58,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 Result refresh_debug_overlay(Render_State &render_state,
                              const Update_State &update_state, int &w, int &h);
 
-//Result render_trees(Render_State &rs, Update_State &us);
+// Result render_trees(Render_State &rs, Update_State &us);
 Result render_cell_texture(Render_State &render_state,
                            Update_State &update_state);
 Result render_entities(Render_State &render_state, Update_State &update_state,

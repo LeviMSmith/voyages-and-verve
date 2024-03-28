@@ -135,6 +135,8 @@ struct Chunk {
   Cell cells[CHUNK_CELLS];
 };
 
+enum class Biome : u8 { FOREST, ALASKA };
+
 /// Surface generation ///
 constexpr s32 SURFACE_Y_MAX = 7;
 constexpr s32 SURFACE_Y_MIN = -5;
@@ -146,6 +148,7 @@ constexpr s32 SEA_LEVEL = 0;
 constexpr f64 SEA_LEVEL_CELL = SEA_LEVEL * CHUNK_CELL_WIDTH;
 
 constexpr u32 GEN_TREE_MAX_WIDTH = 1500;
+constexpr u32 AK_GEN_TREE_MAX_WIDTH = 450;
 
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,

@@ -581,6 +581,31 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
         }
       }
     }
+
+    u16 tree_rand =
+        surface_det_rand(static_cast<u64>(abs_x) ^ update_state.world_seed);
+    if (tree_rand % AK_GEN_TREE_MAX_WIDTH < 15 &&
+        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
+        height >= SEA_LEVEL_CELL) {
+      Entity_ID new_tree;
+      Result en_res =
+          create_tree(update_state, update_state.active_dimension, new_tree);
+
+      if (en_res == Result::SUCCESS) {
+        Entity &tree = update_state.entities[new_tree];
+
+        if (tree_rand & 1) {
+          tree.texture = Texture_Id::AKTREE1;
+          tree.coord.y = height + 110;
+        } else {
+          tree.texture = Texture_Id::AKTREE2;
+          tree.coord.y = height + 90;
+        }
+
+        tree.coord.x = abs_x;
+      }
+    }
   }
 }
 

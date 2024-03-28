@@ -123,12 +123,32 @@ Result render(Render_State &render_state, Update_State &update_state,
   static u64 frame = 0;
   Entity &active_player = *get_active_player(update_state);
 
+  if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK)) {
+    if (active_player.coord.x + active_player.camx >
+        FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::ALASKA;
+    } else {
+      render_state.biome = Biome::FOREST;
+    }
+  }
+
   SDL_RenderClear(render_state.renderer);
 
-  // Sky
-  SDL_RenderCopy(render_state.renderer,
-                 render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
-                 NULL);
+  // Background
+  switch (render_state.biome) {
+    case Biome::FOREST: {
+      SDL_RenderCopy(render_state.renderer,
+                     render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
+                     NULL);
+      break;
+    }
+    case Biome::ALASKA: {
+      SDL_RenderCopy(render_state.renderer,
+                     render_state.textures[(u8)Texture_Id::ALASKA_BG].texture,
+                     NULL, NULL);
+      break;
+    }
+  }
 
   // Mountains
   if (update_state.active_dimension == DimensionIndex::OVERWORLD) {
@@ -163,9 +183,8 @@ Result render(Render_State &render_state, Update_State &update_state,
   render_cell_texture(render_state, update_state);
 
   // Alaska overlay
-  if (active_player.coord.x + active_player.camx >
-      FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
-    SDL_SetRenderDrawColor(render_state.renderer, 255, 255, 255, 190);
+  if (render_state.biome == Biome::ALASKA) {
+    SDL_SetRenderDrawColor(render_state.renderer, 255, 255, 255, 170);
     SDL_RenderFillRect(render_state.renderer, NULL);
   }
 
