@@ -33,6 +33,8 @@ extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
 struct Cell {
   Cell_Type type;
   u8 cr, cg, cb, ca;  // Color rgba8
+  // u8 density;         // Used in fluid dynamics for fluids
+  // u8 vx, vy;
 };
 
 // Factory cell functions

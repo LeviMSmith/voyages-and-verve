@@ -114,6 +114,7 @@ Result update_keypresses(Update_State &us) {
   Entity &active_player = *get_active_player(us);
 
   static constexpr f32 MOVEMENT_CONSTANT = 0.4f;
+  static constexpr f32 AIR_MOV_CONSTANT = 0.1f;
   static constexpr f32 SWIM_CONSTANT = 0.025f;
   static constexpr f32 MOVEMENT_JUMP_ACC = 4.5f;
   static constexpr f32 MOVEMENT_JUMP_VEL = -1.0f * (KINETIC_GRAVITY + 1.0f);
@@ -140,6 +141,8 @@ Result update_keypresses(Update_State &us) {
     if (active_player.ax > MOVEMENT_ACC_LIMIT_NEG) {
       if (active_player.status & (u8)Entity_Status::IN_WATER) {
         active_player.ax -= SWIM_CONSTANT;
+      } else if (!(active_player.status & (u8)Entity_Status::ON_GROUND)) {
+        active_player.ax -= AIR_MOV_CONSTANT;
       } else {
         active_player.ax -= MOVEMENT_CONSTANT;
       }
@@ -162,6 +165,8 @@ Result update_keypresses(Update_State &us) {
     if (active_player.ax < MOVEMENT_ACC_LIMIT) {
       if (active_player.status & (u8)Entity_Status::IN_WATER) {
         active_player.ax += SWIM_CONSTANT;
+      } else if (!(active_player.status & (u8)Entity_Status::ON_GROUND)) {
+        active_player.ax += AIR_MOV_CONSTANT;
       } else {
         active_player.ax += MOVEMENT_CONSTANT;
       }
@@ -354,7 +359,7 @@ void update_cells(Update_State &update_state) {
 
       for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
         switch (chunk.cells[cell_index].type) {
-          case Cell_Type::GOLD: {
+          case Cell_Type::GOLD: {  // Basic sand movement
             s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
                      static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
             s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
@@ -392,6 +397,13 @@ void update_cells(Update_State &update_state) {
               break;
             }
 
+            break;
+          }
+          case Cell_Type::WATER: {
+            /// First solve density field, then solve velocity. ///
+
+            // To solve the density field we follow three steps:
+            // Add forces, diffuse, then move
             break;
           }
           default:

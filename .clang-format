@@ -1,5 +1,8 @@
 ﻿---
 BasedOnStyle: Google
-AllowShortBlocksOnASingleLine: "false"
+AllowShortBlocksOnASingleLine: 'false'
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
+PointerAlignment: Left
+
+...
