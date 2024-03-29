@@ -718,6 +718,7 @@ Result get_entity_id(std::unordered_set<Entity_ID> &entity_id_pool,
 Result create_entity(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   Result id_res = get_entity_id(us.entity_id_pool, id);
   if (id_res != Result::SUCCESS) {
+    id = 0;
     return id_res;
   }
 

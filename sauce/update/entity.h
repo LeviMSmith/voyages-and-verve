@@ -28,6 +28,13 @@ enum class Entity_Status : u8 {
 // AOS, so a little OOP, but I think this is very flexible way
 // to hold all the data. Plus no mapping like a SOA would require.
 
+// Entity functionality: whenever components of an entity need to be acted on,
+// they should be registered in the dimensions component list. For example, if
+// an entity should be rendered, it should be added to the dimension's render
+// map with it's z depth. Generally this is handled in the create factories, but
+// with anything custom, you can also add functionality after the entity is
+// created.
+
 struct Entity {
   Entity_Coord coord;  // For bounding box and rendering, this is top left
   f32 vx, vy;
