@@ -13,6 +13,9 @@ xwayland for some reason has troubles with this, so if you're using wayland, run
 
 `export SDL_VIDEODRIVER=wayland`
 
+**This is probably fixed with a new SDL update**
+Please open an issue if you find that it's not.
+
 ### Build dependancies
 
 Most code dependancies should be in vendor and built automatically by cmake,
@@ -35,4 +38,4 @@ Build the generated cmake config
 
 `cmake --build ./build`
 
-Now the executable is built in, likely, build/voyages-and-verve
+Now the executable is built in, likely, build/{platform}/{release}/voyages-and-verve
