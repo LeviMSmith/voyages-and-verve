@@ -96,7 +96,7 @@ Result poll_events(App &app) {
   }
 
   return Result::SUCCESS;
-}  // namespace VV
+}
 
 Result init_app(App &app, int argv, const char **argc) {
   spdlog::set_level(spdlog::level::debug);

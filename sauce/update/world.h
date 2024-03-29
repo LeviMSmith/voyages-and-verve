@@ -159,7 +159,7 @@ u16 surface_height(s64 x, u16 max_depth, u32 world_seed,
                    u64 randomness_range = CHUNK_CELL_WIDTH * 64,
                    u16 cell_range = FOREST_CELL_RANGE);
 
-// For finding out where a chunk bottom right corner is
+// For finding out where a chunk bottom left corner is
 Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord);
 Chunk_Coord get_chunk_coord(f64 x, f64 y);
 
