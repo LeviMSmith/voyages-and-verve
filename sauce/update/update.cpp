@@ -416,41 +416,49 @@ void update_cells(Update_State &update_state) {
             s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
                      static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
 
-            Cell *cl = get_cell_at_world_pos(dim, cx - 1, cy);
-            Cell *ct = get_cell_at_world_pos(dim, cx, cy + 1);
-            Cell *cr = get_cell_at_world_pos(dim, cx + 1, cy);
-            Cell *cb = get_cell_at_world_pos(dim, cx, cy - 1);
+            Cell *adjecent_cells[4] = {get_cell_at_world_pos(dim, cx - 1, cy),
+                                       get_cell_at_world_pos(dim, cx, cy + 1),
+                                       get_cell_at_world_pos(dim, cx + 1, cy),
+                                       get_cell_at_world_pos(dim, cx, cy - 1)};
 
+            Cell *mv_cand = nullptr;
             u8 cell_counter = 0;
             s16 running_density = 0;
-            if (cl != nullptr) {
-              if (cl->type == Cell_Type::WATER) {
-                running_density += cl->density;
-              }
-              cell_counter++;
-            }
-            if (ct != nullptr) {
-              if (ct->type == Cell_Type::WATER) {
-                running_density += ct->density;
-              }
-              cell_counter++;
-            }
-            if (cr != nullptr) {
-              if (cr->type == Cell_Type::WATER) {
-                running_density += cr->density;
-              }
-              cell_counter++;
-            }
-            if (cb != nullptr) {
-              if (cb->type == Cell_Type::WATER) {
-                running_density += cb->density;
-              }
-              cell_counter++;
-            }
+
+            const s16 density_thrsh = -1;
+            const s16 CELL_GRAV_MOD = 10;
 
             Cell &cell = chunk.cells[cell_index];
 
+            for (u8 i = 0; i < 4; i++) {
+              Cell *c = adjecent_cells[i];
+              if (c != nullptr) {
+                if (c->type == Cell_Type::WATER) {
+                  running_density += c->density;
+                  s16 o_dense = c->density;
+                  if (i == 1) {
+                    o_dense += CELL_GRAV_MOD;
+                  } else if (i == 3) {
+                    o_dense -= CELL_GRAV_MOD;
+                  }
+                  if (cell.density - o_dense > density_thrsh) {
+                    mv_cand = c;
+                  }
+                } else {
+                  if (c->density - CELL_TYPE_INFOS[(u8)c->type].solidity >
+                      density_thrsh) {
+                    mv_cand = c;
+                  }
+                }
+                cell_counter++;
+              }
+            }
+
             cell.density = running_density + cell.density * cell_counter;
+
+            if (mv_cand != nullptr) {
+              std::swap(cell, *mv_cand);
+            }
 
             break;
           }

@@ -19,7 +19,7 @@ enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD, SNOW };
 #define CELL_TYPE_NUM 5
 
 struct Cell_Type_Info {
-  u8 solidity;   // Used for collisions and cellular automata
+  s16 solidity;  // Used for collisions and cellular automata
   f32 friction;  // Used for slowing down an entity as it moves through or on
                  // that cell
 };
