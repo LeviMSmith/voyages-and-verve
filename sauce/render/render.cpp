@@ -684,6 +684,12 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
 
       // LOG_DEBUG("World offset: {} {}", world_offset.x, world_offset.y);
 
+      // TODO: No booleans! Maybe a separate animated entity collection in
+      // dimension?
+      //
+      // TODO: Also need to account for a full sprite sheet. Have y indexes be
+      // different states? i.e. walking anim, jumping, idle, etc.
+      entity.status = entity.status & ~(u8)Entity_Status::ON_GROUND;
       if (entity.status & (u8)Entity_Status::ANIMATED) {
         if (world_offset.x >= -entity.anim_width &&
             world_offset.x <= SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING +

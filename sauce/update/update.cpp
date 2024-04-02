@@ -231,7 +231,8 @@ void update_kinetic(Update_State &update_state) {
   // structure (octtree?) to determine if we're colliding with other entities
   for (Entity_ID entity_index : active_dimension.e_kinetic) {
     Entity &entity = update_state.entities[entity_index];
-    entity.status = 0;
+    entity.status = entity.status & ~((u8)Entity_Status::IN_WATER |
+                                      (u8)Entity_Status::ON_GROUND);
 
     Chunk_Coord cc = get_chunk_coord(entity.coord.x, entity.coord.y);
 
