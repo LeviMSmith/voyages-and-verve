@@ -408,7 +408,7 @@ void update_cells(Update_State &update_state) {
             // To solve the density field we follow three steps:
             // Add forces, diffuse, then move
 
-            // First attempt to get adjecent cells. If a chunk isn't loaded, it
+            // First, attempt to get adjecent cells. If a chunk isn't loaded, it
             // should return nullptr
 
             s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
@@ -422,10 +422,11 @@ void update_cells(Update_State &update_state) {
                                        get_cell_at_world_pos(dim, cx, cy - 1)};
 
             Cell *mv_cand = nullptr;
+            s16 mv_cand_dense = 0;
             u8 cell_counter = 0;
             s16 running_density = 0;
 
-            const s16 density_thrsh = -1;
+            const s16 density_thrsh = 40;
             const s16 CELL_GRAV_MOD = 10;
 
             Cell &cell = chunk.cells[cell_index];
@@ -433,28 +434,46 @@ void update_cells(Update_State &update_state) {
             for (u8 i = 0; i < 4; i++) {
               Cell *c = adjecent_cells[i];
               if (c != nullptr) {
+                s16 o_dense;
+
                 if (c->type == Cell_Type::WATER) {
-                  running_density += c->density;
-                  s16 o_dense = c->density;
-                  if (i == 1) {
-                    o_dense += CELL_GRAV_MOD;
-                  } else if (i == 3) {
-                    o_dense -= CELL_GRAV_MOD;
-                  }
-                  if (cell.density - o_dense > density_thrsh) {
-                    mv_cand = c;
-                  }
+                  o_dense = c->density;
+                  running_density += o_dense;
+                  cell_counter++;
                 } else {
-                  if (c->density - CELL_TYPE_INFOS[(u8)c->type].solidity >
-                      density_thrsh) {
+                  o_dense = CELL_TYPE_INFOS[(u8)c->type].solidity;
+                }
+
+                if (i == 1) {
+                  o_dense -= CELL_GRAV_MOD;
+                } else if (i == 3) {
+                  o_dense += CELL_GRAV_MOD;
+                }
+
+                /*
+                if (c->type == Cell_Type::WATER) {
+                  running_density += o_dense;
+                  cell_counter++;
+                }
+                */
+
+                if (cell.density - o_dense > density_thrsh) {
+                  if (mv_cand == nullptr) {
                     mv_cand = c;
+                    mv_cand_dense = o_dense;
+                  } else {
+                    if (o_dense < mv_cand_dense) {
+                      mv_cand = c;
+                      mv_cand_dense = o_dense;
+                    }
                   }
                 }
-                cell_counter++;
               }
             }
 
-            cell.density = running_density + cell.density * cell_counter;
+            cell.density = std::max(
+                std::min(running_density - (cell.density * cell_counter), 200),
+                10);
 
             if (mv_cand != nullptr) {
               std::swap(cell, *mv_cand);

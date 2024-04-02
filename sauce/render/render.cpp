@@ -480,6 +480,19 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 #endif
 
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
+          Cell &cell = chunk.cells[cell_index];
+
+          if (cell.type == Cell_Type::WATER) {
+            cr = cell.cr * static_cast<f32>(cell.density / 8.0f);
+            cg = cell.cg * static_cast<f32>(cell.density / 8.0f);
+            cb = cell.cb * static_cast<f32>(cell.density / 8.0f);
+            ca = cell.ca;
+          } else {
+            cr = cell.cr;
+            cg = cell.cg;
+            cb = cell.cb;
+            ca = cell.ca;
+          }
 
           if (config.debug_overlay) {
             if (cell_y == 0 && cell_x == 0) {
@@ -487,18 +500,9 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
               cg = 0;
               cb = 0;
               ca = 255;
-            } else {
-              cr = chunk.cells[cell_index].cr;
-              cg = chunk.cells[cell_index].cg;
-              cb = chunk.cells[cell_index].cb;
-              ca = chunk.cells[cell_index].ca;
             }
-          } else {
-            cr = chunk.cells[cell_index].cr;
-            cg = chunk.cells[cell_index].cg;
-            cb = chunk.cells[cell_index].cb;
-            ca = chunk.cells[cell_index].ca;
           }
+
           pixels[buffer_index] = (cr << 24) | (cg << 16) | (cb << 8) | ca;
           if (buffer_index >
               SCREEN_CHUNK_SIZE * SCREEN_CHUNK_SIZE * CHUNK_CELLS - 1) {
