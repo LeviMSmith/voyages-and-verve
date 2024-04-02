@@ -411,7 +411,6 @@ void update_cells(Update_State &update_state) {
             // First attempt to get adjecent cells. If a chunk isn't loaded, it
             // should return nullptr
 
-            /*
             s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
                      static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
             s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
@@ -452,7 +451,6 @@ void update_cells(Update_State &update_state) {
             Cell &cell = chunk.cells[cell_index];
 
             cell.density = running_density + cell.density * cell_counter;
-            */
 
             break;
           }
