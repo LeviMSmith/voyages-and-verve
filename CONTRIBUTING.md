@@ -9,7 +9,7 @@ Debugging:
 
 Configured work for mac:
 
-- Install brew LLVM, don't use macClang as c20 standards are not FULLY supported
+- ~~Install brew LLVM, don't use macClang as c20 standards are not FULLY supported~~ Using c++17 now. Any up to date compiler should work.
 - Export LLVM compiler
 - Configured config.cpp to prevent buffer overflow on mac
 
