@@ -116,7 +116,7 @@ Result update_keypresses(Update_State &us) {
   Entity &active_player = *get_active_player(us);
 
   static constexpr f32 MOVEMENT_CONSTANT = 0.4f;
-  static constexpr f32 AIR_MOV_CONSTANT = 0.1f;
+  static constexpr f32 AIR_MOV_CONSTANT = 0.15f;
   static constexpr f32 SWIM_CONSTANT = 0.025f;
   static constexpr f32 MOVEMENT_JUMP_ACC = 4.5f;
   static constexpr f32 MOVEMENT_JUMP_VEL = -1.0f * (KINETIC_GRAVITY + 1.0f);
@@ -228,7 +228,7 @@ void update_kinetic(Update_State &update_state) {
   // Now resolve colisions
 
   // TODO: this just does cell collisions. We need some kind of spacial data
-  // structure to determine if we're colliding with other entities
+  // structure (octtree?) to determine if we're colliding with other entities
   for (Entity_ID entity_index : active_dimension.e_kinetic) {
     Entity &entity = update_state.entities[entity_index];
     entity.status = 0;

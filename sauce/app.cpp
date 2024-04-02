@@ -150,14 +150,14 @@ Result run_app(App &app) {
     Result poll_result = poll_events(app);
     if (poll_result == Result::WINDOW_CLOSED) {
       LOG_INFO("Window should close.");
-      return Result::SUCCESS;
+      break;
     }
 
     // Update
     Result update_res = update(app.update_state);
     if (update_res == Result::WINDOW_CLOSED) {
       LOG_INFO("Window should close.");
-      return Result::SUCCESS;
+      break;
     }
 
     // Render. This just draws, the flip is after the delay

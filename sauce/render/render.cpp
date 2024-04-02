@@ -552,9 +552,9 @@ Result refresh_debug_overlay(Render_State &render_state,
   debug_info_stream << std::fixed << std::setprecision(2) << x << ", " << y;
 
   // Continue appending the rest of the information
-  debug_info_stream << " Status: " << status << " | World seed " << std::hex
-                    << std::setw(8) << std::setfill('0')
-                    << update_state.world_seed;
+  debug_info_stream << " Status: " << static_cast<u32>(status)
+                    << " | World seed " << std::hex << std::setw(8)
+                    << std::setfill('0') << update_state.world_seed;
 
   // Convert the stringstream to a string when you're ready to use it
   render_state.debug_info = debug_info_stream.str();
