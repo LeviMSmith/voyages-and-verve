@@ -16,7 +16,7 @@ bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
 
 const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
     {
-        255,    // solidity
+        10000,  // solidity
         0.70f,  // friction
     },          // DIRT
     {

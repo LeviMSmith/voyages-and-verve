@@ -19,7 +19,7 @@ enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD, SNOW };
 #define CELL_TYPE_NUM 5
 
 struct Cell_Type_Info {
-  u8 solidity;   // Used for collisions and cellular automata
+  s16 solidity;  // Used for collisions and cellular automata
   f32 friction;  // Used for slowing down an entity as it moves through or on
                  // that cell
 };
@@ -33,8 +33,8 @@ extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
 struct Cell {
   Cell_Type type;
   u8 cr, cg, cb, ca;  // Color rgba8
-  // u8 density;         // Used in fluid dynamics for fluids
-  // u8 vx, vy;
+  s16 density;        // Used in fluid dynamics for fluids
+  // s16 vx, vy;
 };
 
 // Factory cell functions
@@ -56,6 +56,7 @@ inline Cell default_air_cell() {
       255,             // cg
       255,             // cb
       0,               // ca
+      0,               // density
   };
 }
 
@@ -66,6 +67,7 @@ inline Cell default_water_cell() {
       0,                 // cg
       255,               // cb
       200,               // ca
+      10                 // density
   };
 }
 
