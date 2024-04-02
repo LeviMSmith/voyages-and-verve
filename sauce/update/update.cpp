@@ -1,5 +1,7 @@
 #include "update/update.h"
 
+#include <optional>
+
 #include "SDL_mouse.h"
 #include "update/world.h"
 
@@ -53,7 +55,7 @@ Result update(Update_State &update_state) {
   Chunk_Coord current_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
 
-  if (last_player_chunk != current_player_chunk) {
+  if (!(last_player_chunk == current_player_chunk)) {
     /*
     LOG_DEBUG("Player moved to cell chunk {} {}", current_player_chunk.x,
               current_player_chunk.y);

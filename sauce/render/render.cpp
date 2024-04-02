@@ -1,6 +1,6 @@
 #include "render/render.h"
 
-#include <format>
+#include <iomanip>
 #include <regex>
 #include <sstream>
 
@@ -123,7 +123,8 @@ Result render(Render_State &render_state, Update_State &update_state,
   static u64 frame = 0;
   Entity &active_player = *get_active_player(update_state);
 
-  if (update_state.events.contains(Update_Event::PLAYER_MOVED_CHUNK)) {
+  if (update_state.events.find(Update_Event::PLAYER_MOVED_CHUNK) ==
+      update_state.events.end()) {
     if (active_player.coord.x + active_player.camx >
         FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::ALASKA;
@@ -441,7 +442,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
     for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
       Chunk &chunk = active_dimension.chunks[ic];
 #ifndef NDEBUG
-      if (chunk.coord != ic) {
+      if (!(chunk.coord == ic)) {
         LOG_WARN(
             "Mapping of chunks failed! key: {}, {} chunk recieved: {}, "
             "{}",
@@ -530,12 +531,33 @@ Result refresh_debug_overlay(Render_State &render_state,
   y = update_state.entities[update_state.active_player].coord.y;
   u8 status = update_state.entities[update_state.active_player].status;
 
-  render_state.debug_info = std::format(
-      "FPS: {:.1f} | Dimension id: {} Chunks loaded in dim {} | Player pos: "
-      "{:.2f}, {:.2f} Status: {} | World seed {:08x}",
-      update_state.average_fps, (u8)update_state.active_dimension,
-      update_state.dimensions.at(update_state.active_dimension).chunks.size(),
-      x, y, status, update_state.world_seed);
+  // Create a stringstream
+  std::stringstream debug_info_stream;
+
+  // Use stream manipulators to format the floating-point numbers
+  debug_info_stream << std::fixed << std::setprecision(1);  // For FPS
+  debug_info_stream << "FPS: " << update_state.average_fps;
+
+  // Reset stream format for other types
+  debug_info_stream << std::setprecision(0);
+
+  debug_info_stream
+      << " | Dimension id: "
+      << static_cast<unsigned>(update_state.active_dimension)
+      << " Chunks loaded in dim "
+      << update_state.dimensions.at(update_state.active_dimension).chunks.size()
+      << " | Player pos: ";
+
+  // Set precision for player position
+  debug_info_stream << std::fixed << std::setprecision(2) << x << ", " << y;
+
+  // Continue appending the rest of the information
+  debug_info_stream << " Status: " << status << " | World seed " << std::hex
+                    << std::setw(8) << std::setfill('0')
+                    << update_state.world_seed;
+
+  // Convert the stringstream to a string when you're ready to use it
+  render_state.debug_info = debug_info_stream.str();
 
   if (render_state.debug_overlay_texture != nullptr) {
     SDL_DestroyTexture(render_state.debug_overlay_texture);
@@ -642,7 +664,8 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
         render_state.textures.find(static_cast<u8>(entity.texture));
 
     if (sdk_texture == render_state.textures.end()) {
-      if (!suppressed_id_warns.contains(entity.texture)) {
+      if (suppressed_id_warns.find(entity.texture) !=
+          suppressed_id_warns.end()) {
         LOG_WARN("Entity wants texture {} which isn't loaded!",
                  (u8)entity.texture);
         suppressed_id_warns.insert(entity.texture);

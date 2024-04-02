@@ -4,6 +4,7 @@
 #include <windows.h>
 #undef min  // SDL has a macro for this on windows for some reason
 #elif defined(__linux__)
+#include <linux/limits.h>
 #include <unistd.h>
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -46,8 +47,9 @@ Result get_resource_dir(std::filesystem::path &res_dir) {
   char path[1024];
   uint32_t size = sizeof(path);
   if (_NSGetExecutablePath(path, &size) == 0) {
-    // _NSGetExecutablePath doesn't guarantee null-termination if the buffer is exactly the size needed
-    path[size - 1] = '\0'; // Correctly ensure null-termination
+    // _NSGetExecutablePath doesn't guarantee null-termination if the buffer is
+    // exactly the size needed
+    path[size - 1] = '\0';  // Correctly ensure null-termination
     res_dir = std::filesystem::path(path).parent_path() / "res";
     return Result::SUCCESS;
   } else {
