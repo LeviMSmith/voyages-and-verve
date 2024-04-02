@@ -277,7 +277,7 @@ void update_kinetic(Update_State &update_state) {
             case Cell_Type::GOLD:
             case Cell_Type::DIRT: {
               if (entity.coord.y - entity.boundingh <= cell_coord.y) {
-                entity.status = entity.status | (u8)Entity_Status::ON_GROUND;
+                entity.status |= (u8)Entity_Status::ON_GROUND;
               }
 
               // With solid cells, we also don't allow the entity to intersect
@@ -407,6 +407,53 @@ void update_cells(Update_State &update_state) {
 
             // To solve the density field we follow three steps:
             // Add forces, diffuse, then move
+
+            // First attempt to get adjecent cells. If a chunk isn't loaded, it
+            // should return nullptr
+
+            /*
+            s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
+                     static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
+            s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
+                     static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
+
+            Cell *cl = get_cell_at_world_pos(dim, cx - 1, cy);
+            Cell *ct = get_cell_at_world_pos(dim, cx, cy + 1);
+            Cell *cr = get_cell_at_world_pos(dim, cx + 1, cy);
+            Cell *cb = get_cell_at_world_pos(dim, cx, cy - 1);
+
+            u8 cell_counter = 0;
+            s16 running_density = 0;
+            if (cl != nullptr) {
+              if (cl->type == Cell_Type::WATER) {
+                running_density += cl->density;
+              }
+              cell_counter++;
+            }
+            if (ct != nullptr) {
+              if (ct->type == Cell_Type::WATER) {
+                running_density += ct->density;
+              }
+              cell_counter++;
+            }
+            if (cr != nullptr) {
+              if (cr->type == Cell_Type::WATER) {
+                running_density += cr->density;
+              }
+              cell_counter++;
+            }
+            if (cb != nullptr) {
+              if (cb->type == Cell_Type::WATER) {
+                running_density += cb->density;
+              }
+              cell_counter++;
+            }
+
+            Cell &cell = chunk.cells[cell_index];
+
+            cell.density = running_density + cell.density * cell_counter;
+            */
+
             break;
           }
           default:
