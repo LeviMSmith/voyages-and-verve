@@ -100,7 +100,7 @@ Result update_mouse(Update_State &us) {
 
     assert(cell_index < CHUNK_CELLS);
 
-    chunk.cells[cell_index] = default_gold_cell();
+    chunk.cells[cell_index] = default_water_cell();
 
     us.events.emplace(Update_Event::CELL_CHANGE);
   }
@@ -416,67 +416,48 @@ void update_cells(Update_State &update_state) {
             s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
                      static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
 
-            Cell *adjecent_cells[4] = {get_cell_at_world_pos(dim, cx - 1, cy),
-                                       get_cell_at_world_pos(dim, cx, cy + 1),
-                                       get_cell_at_world_pos(dim, cx + 1, cy),
-                                       get_cell_at_world_pos(dim, cx, cy - 1)};
-
-            Cell *mv_cand = nullptr;
-            s16 mv_cand_dense = 0;
-            u8 cell_counter = 0;
-            s16 running_density = 0;
-
-            const s16 density_thrsh = 40;
-            const s16 CELL_GRAV_MOD = 10;
-
             Cell &cell = chunk.cells[cell_index];
+            // Start at bottom then sides
+            u32 rand_dir = std::rand();
+            s8 side_mod = rand_dir % 10;
+            Cell *adjecent_cells[3] = {
+                get_cell_at_world_pos(dim, cx, cy - 1),
+                get_cell_at_world_pos(dim, cx - side_mod, cy),
+                get_cell_at_world_pos(dim, cx + side_mod, cy)};
 
-            for (u8 i = 0; i < 4; i++) {
-              Cell *c = adjecent_cells[i];
-              if (c != nullptr) {
-                s16 o_dense;
+            // Normally this would just be a for loop going through the
+            // directions, but this has to be so wicked fast
 
-                if (c->type == Cell_Type::WATER) {
-                  o_dense = c->density;
-                  running_density += o_dense;
-                  cell_counter++;
-                } else {
-                  o_dense = CELL_TYPE_INFOS[(u8)c->type].solidity;
-                }
-
-                if (i == 1) {
-                  o_dense -= CELL_GRAV_MOD;
-                } else if (i == 3) {
-                  o_dense += CELL_GRAV_MOD;
-                }
-
-                /*
-                if (c->type == Cell_Type::WATER) {
-                  running_density += o_dense;
-                  cell_counter++;
-                }
-                */
-
-                if (cell.density - o_dense > density_thrsh) {
-                  if (mv_cand == nullptr) {
-                    mv_cand = c;
-                    mv_cand_dense = o_dense;
-                  } else {
-                    if (o_dense < mv_cand_dense) {
-                      mv_cand = c;
-                      mv_cand_dense = o_dense;
-                    }
-                  }
-                }
+            Cell *o_cell = adjecent_cells[0];  // Start with bottom
+            if (o_cell != nullptr) {
+              if (o_cell->type == Cell_Type::AIR) {
+                std::swap(cell, *o_cell);
+                break;  // Out of switch
               }
             }
 
-            cell.density = std::max(
-                std::min(running_density - (cell.density * cell_counter), 200),
-                10);
-
-            if (mv_cand != nullptr) {
-              std::swap(cell, *mv_cand);
+            // Only check one direction and do so randomly
+            /*
+        if (rand_dir % 10 < 5) {  // Some of the time skip moving
+          break;
+        }
+            */
+            if (rand_dir & 1) {
+              o_cell = adjecent_cells[1];  // Left
+              if (o_cell != nullptr) {
+                if (o_cell->type == Cell_Type::AIR) {
+                  std::swap(cell, *o_cell);
+                  break;  // Out of switch
+                }
+              }
+            } else {
+              o_cell = adjecent_cells[2];  // Right
+              if (o_cell != nullptr) {
+                if (o_cell->type == Cell_Type::AIR) {
+                  std::swap(cell, *o_cell);
+                  break;  // Out of switch
+                }
+              }
             }
 
             break;
