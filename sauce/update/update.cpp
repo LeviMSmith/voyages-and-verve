@@ -420,15 +420,9 @@ void update_cells(Update_State &update_state) {
             // Start at bottom then sides
             u32 rand_dir = std::rand();
             s8 side_mod = rand_dir % 10;
-            Cell *adjecent_cells[3] = {
-                get_cell_at_world_pos(dim, cx, cy - 1),
-                get_cell_at_world_pos(dim, cx - side_mod, cy),
-                get_cell_at_world_pos(dim, cx + side_mod, cy)};
 
-            // Normally this would just be a for loop going through the
-            // directions, but this has to be so wicked fast
-
-            Cell *o_cell = adjecent_cells[0];  // Start with bottom
+            Cell *o_cell =
+                get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
             if (o_cell != nullptr) {
               if (o_cell->type == Cell_Type::AIR) {
                 std::swap(cell, *o_cell);
@@ -443,7 +437,7 @@ void update_cells(Update_State &update_state) {
         }
             */
             if (rand_dir & 1) {
-              o_cell = adjecent_cells[1];  // Left
+              o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
               if (o_cell != nullptr) {
                 if (o_cell->type == Cell_Type::AIR) {
                   std::swap(cell, *o_cell);
@@ -451,7 +445,7 @@ void update_cells(Update_State &update_state) {
                 }
               }
             } else {
-              o_cell = adjecent_cells[2];  // Right
+              o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
               if (o_cell != nullptr) {
                 if (o_cell->type == Cell_Type::AIR) {
                   std::swap(cell, *o_cell);
