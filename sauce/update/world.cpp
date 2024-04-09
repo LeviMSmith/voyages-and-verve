@@ -132,6 +132,9 @@ Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord) {
 Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   Chunk_Coord return_chunk_coord;
 
+  x += 0.01;
+  y += 0.01;
+
   return_chunk_coord.x = static_cast<s32>(x / CHUNK_CELL_WIDTH);
   return_chunk_coord.y = static_cast<s32>(y / CHUNK_CELL_WIDTH);
 
