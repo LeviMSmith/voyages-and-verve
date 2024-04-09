@@ -473,14 +473,14 @@ void update_cells(Update_State &update_state) {
 
   std::vector<std::future<void>> futures;
 
-  for (u8 color = 0; color < 2; color++) {  // If using two colors
+  for (u8 color = 0; color < 4; color++) {  // If using two colors
     auto future = update_state.thread_pool->enqueue([&, color] {
       for (ic.x = bl.x; ic.x < bl.x + CHUNK_CELL_SIM_RADIUS * 2; ic.x++) {
         for (ic.y = bl.y; ic.y < bl.y + CHUNK_CELL_SIM_RADIUS * 2; ic.y++) {
           auto chunk_iter = dim.chunks.find(ic);
           if (chunk_iter != dim.chunks.end()) {
             if (chunk_iter->second.color ==
-                (Chunk_Color)color) {  // Check if chunk has the correct color
+                color) {  // Check if chunk has the correct color
               // Ensures that no two adjacent chunks of the same color are
               // updated in parallel
               update_cells_chunk(dim, chunk_iter->second, ic);
@@ -758,10 +758,18 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
   }
 
   chunk.coord = chunk_coord;
-  if ((chunk.coord.x + chunk.coord.y) & 1) {
-    chunk.color = Chunk_Color::WHITE;
+  if (chunk.coord.x % 2 == 0) {
+    if (chunk.coord.y % 2 == 0) {
+      chunk.color = 0;  // Both x and y are even
+    } else {
+      chunk.color = 1;  // x is even, y is odd
+    }
   } else {
-    chunk.color = Chunk_Color::BLACK;
+    if (chunk.coord.y % 2 == 0) {
+      chunk.color = 2;  // x is odd, y is even
+    } else {
+      chunk.color = 3;  // Both x and y are odd
+    }
   }
 
   return Result::SUCCESS;

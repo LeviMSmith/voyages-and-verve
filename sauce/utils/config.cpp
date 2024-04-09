@@ -19,7 +19,7 @@ Config default_config() {
       400,    // window_height
       true,   // window_start_maximized
       false,  // show_chunk_corners
-      3,      // num_threads
+      4,      // num_threads
       "",     // res_dir: Should be set by caller
       "",     // tex_dir: set with res_dir
   };
