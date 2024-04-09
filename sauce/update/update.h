@@ -8,6 +8,8 @@
 #include "core.h"
 #include "update/entity.h"
 #include "update/world.h"
+#include "utils/config.h"
+#include "utils/threadpool.h"
 
 namespace VV {
 enum Update_Event : u8 {
@@ -16,6 +18,8 @@ enum Update_Event : u8 {
 };
 
 struct Update_State {
+  ThreadPool *thread_pool;
+
   std::vector<SDL_Event> pending_events;
 
   std::map<DimensionIndex, Dimension> dimensions;
@@ -39,9 +43,13 @@ struct Update_State {
   f32 average_fps;
 };
 
-Result init_updating(Update_State &update_state,
+int update_worker_thread(void *update_state);
+
+Result init_update_threads(Update_State &us, const Config &config);
+Result init_updating(Update_State &update_state, const Config &config,
                      const std::optional<u32> &seed);
 Result update(Update_State &update_state);
+void destroy_update(Update_State &update_state);
 
 Result update_mouse(Update_State &us);
 Result update_keypresses(Update_State &us);
@@ -52,6 +60,8 @@ constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
 
 constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
+
+void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc);
 void update_cells(Update_State &update_state);
 
 constexpr s64 FOREST_EAST_BORDER_CHUNK = 25;

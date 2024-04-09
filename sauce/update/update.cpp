@@ -3,11 +3,17 @@
 #include <optional>
 
 #include "SDL_mouse.h"
+#include "SDL_thread.h"
 #include "update/world.h"
+#include "utils/config.h"
+#include "utils/threadpool.h"
 
 namespace VV {
-Result init_updating(Update_State &update_state,
+
+Result init_updating(Update_State &update_state, const Config &config,
                      const std::optional<u32> &seed) {
+  update_state.thread_pool = new ThreadPool(config.num_threads);
+
   const DimensionIndex starting_dim = DimensionIndex::OVERWORLD;
   // const DimensionIndex starting_dim = DimensionIndex::WATERWORLD;
   update_state.dimensions.emplace(starting_dim, Dimension());
@@ -69,6 +75,10 @@ Result update(Update_State &update_state) {
   update_cells(update_state);
 
   return Result::SUCCESS;
+}
+
+void destroy_update(Update_State &update_state) {
+  delete update_state.thread_pool;
 }
 
 Result update_mouse(Update_State &us) {
@@ -342,6 +352,112 @@ void update_kinetic(Update_State &update_state) {
   }
 }
 
+void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
+  for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
+    switch (chunk.cells[cell_index].type) {
+      case Cell_Type::GOLD: {  // Basic sand movement
+        s64 cx = cc.x * CHUNK_CELL_WIDTH +
+                 static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
+        s64 cy = cc.y * CHUNK_CELL_WIDTH +
+                 static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
+
+        Cell *below = get_cell_at_world_pos(dim, cx, cy - 1);
+
+        if (CELL_TYPE_INFOS[(u8)below->type].solidity < 200) {
+          std::swap(chunk.cells[cell_index], *below);
+          break;
+        }
+
+        // Which side to try first
+        s8 dir = std::rand() % 2;
+        if (dir == 0) {
+          dir = -1;
+        }
+
+        Cell *side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
+        if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
+          std::swap(chunk.cells[cell_index], *side_cell);
+          break;
+        }
+
+        if (dir == 1) {
+          dir = -1;
+        }
+        if (dir == -1) {
+          dir = 1;
+        }
+
+        side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
+        if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
+          std::swap(chunk.cells[cell_index], *side_cell);
+          break;
+        }
+
+        break;
+      }
+      case Cell_Type::WATER: {
+        /// First solve density field, then solve velocity. ///
+
+        // To solve the density field we follow three steps:
+        // Add forces, diffuse, then move
+
+        // First, attempt to get adjecent cells. If a chunk isn't loaded, it
+        // should return nullptr
+
+        s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
+                 static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
+        s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
+                 static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
+
+        Cell &cell = chunk.cells[cell_index];
+        // Start at bottom then sides
+        u32 rand_dir = std::rand();
+        s8 side_mod = rand_dir % 7;
+
+        // Normally this would just be a for loop going through the
+        // directions, but this has to be so wicked fast
+
+        Cell *o_cell =
+            get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
+        if (o_cell != nullptr) {
+          if (o_cell->type == Cell_Type::AIR) {
+            std::swap(cell, *o_cell);
+            break;  // Out of switch
+          }
+        }
+
+        // Only check one direction and do so randomly
+        /*
+    if (rand_dir % 10 < 5) {  // Some of the time skip moving
+      break;
+    }
+        */
+        if (rand_dir & 1) {
+          o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
+          if (o_cell != nullptr) {
+            if (o_cell->type == Cell_Type::AIR) {
+              std::swap(cell, *o_cell);
+              break;  // Out of switch
+            }
+          }
+        } else {
+          o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
+          if (o_cell != nullptr) {
+            if (o_cell->type == Cell_Type::AIR) {
+              std::swap(cell, *o_cell);
+              break;  // Out of switch
+            }
+          }
+        }
+
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
+
 void update_cells(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
   Dimension &dim = *get_active_dimension(update_state);
@@ -355,104 +471,29 @@ void update_cells(Update_State &update_state) {
 
   Chunk_Coord ic;
 
-  // Not existance based processing. Probably won't ever be.
-  for (ic.x = bl.x; ic.x < bl.x + CHUNK_CELL_SIM_RADIUS * 2; ic.x++) {
-    for (ic.y = bl.y; ic.y < bl.y + CHUNK_CELL_SIM_RADIUS * 2; ic.y++) {
-      Chunk &chunk = dim.chunks[ic];
+  std::vector<std::future<void>> futures;
 
-      for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-        switch (chunk.cells[cell_index].type) {
-          case Cell_Type::GOLD: {  // Basic sand movement
-            s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
-            s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
-
-            Cell *below = get_cell_at_world_pos(dim, cx, cy - 1);
-
-            if (CELL_TYPE_INFOS[(u8)below->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *below);
-              break;
+  for (u8 color = 0; color < 2; color++) {  // If using two colors
+    auto future = update_state.thread_pool->enqueue([&, color] {
+      for (ic.x = bl.x; ic.x < bl.x + CHUNK_CELL_SIM_RADIUS * 2; ic.x++) {
+        for (ic.y = bl.y; ic.y < bl.y + CHUNK_CELL_SIM_RADIUS * 2; ic.y++) {
+          auto chunk_iter = dim.chunks.find(ic);
+          if (chunk_iter != dim.chunks.end()) {
+            if (chunk_iter->second.color ==
+                (Chunk_Color)color) {  // Check if chunk has the correct color
+              // Ensures that no two adjacent chunks of the same color are
+              // updated in parallel
+              update_cells_chunk(dim, chunk_iter->second, ic);
             }
-
-            // Which side to try first
-            s8 dir = std::rand() % 2;
-            if (dir == 0) {
-              dir = -1;
-            }
-
-            Cell *side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
-            if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *side_cell);
-              break;
-            }
-
-            if (dir == 1) {
-              dir = -1;
-            }
-            if (dir == -1) {
-              dir = 1;
-            }
-
-            side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
-            if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *side_cell);
-              break;
-            }
-
-            break;
           }
-          case Cell_Type::WATER: {
-            s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
-            s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
-
-            Cell &cell = chunk.cells[cell_index];
-            // Start at bottom then sides
-            u32 rand_dir = std::rand();
-            s8 side_mod = rand_dir % 10;
-
-            Cell *o_cell =
-                get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
-            if (o_cell != nullptr) {
-              if (o_cell->type == Cell_Type::AIR) {
-                std::swap(cell, *o_cell);
-                break;  // Out of switch
-              }
-            }
-
-            // Only check one direction and do so randomly
-            /*
-        if (rand_dir % 10 < 5) {  // Some of the time skip moving
-          break;
-        }
-            */
-            if (rand_dir & 1) {
-              o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
-              if (o_cell != nullptr) {
-                if (o_cell->type == Cell_Type::AIR) {
-                  std::swap(cell, *o_cell);
-                  break;  // Out of switch
-                }
-              }
-            } else {
-              o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
-              if (o_cell != nullptr) {
-                if (o_cell->type == Cell_Type::AIR) {
-                  std::swap(cell, *o_cell);
-                  break;  // Out of switch
-                }
-              }
-            }
-
-            break;
-          }
-          default:
-            break;
         }
       }
-    }
+    });
+    futures.push_back(std::move(future));
+  }
+
+  for (auto &future : futures) {
+    future.wait();
   }
 }
 
@@ -717,6 +758,11 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
   }
 
   chunk.coord = chunk_coord;
+  if ((chunk.coord.x + chunk.coord.y) & 1) {
+    chunk.color = Chunk_Color::WHITE;
+  } else {
+    chunk.color = Chunk_Color::BLACK;
+  }
 
   return Result::SUCCESS;
 }

@@ -30,6 +30,7 @@ enum class Result : s32 {
   GENERAL_ERROR,
   ENTITY_POOL_FULL,
   BAD_ARGS_ERROR,
+  OS_ERROR,
 };
 
 #ifndef NDEBUG

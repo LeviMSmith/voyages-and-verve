@@ -133,10 +133,13 @@ inline Cell default_snowy_air_cell() {
 // loaded, and generated.
 constexpr u16 CHUNK_CELL_WIDTH = 64;
 constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH;  // 4096
+                                                                  //
+enum class Chunk_Color : u8 { WHITE, BLACK };
 
 struct Chunk {
   Chunk_Coord coord;
   Cell cells[CHUNK_CELLS];
+  Chunk_Color color;
 };
 
 enum class Biome : u8 { FOREST, ALASKA };

@@ -10,6 +10,7 @@ struct Config {
   bool window_start_maximized;
 
   bool debug_overlay;
+  u8 num_threads;
 
   std::filesystem::path res_dir;
   std::filesystem::path tex_dir;
