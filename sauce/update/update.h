@@ -5,11 +5,11 @@
 #include <unordered_set>
 
 #include "SDL_events.h"
-#include "SDL_thread.h"
 #include "core.h"
 #include "update/entity.h"
 #include "update/world.h"
 #include "utils/config.h"
+#include "utils/threadpool.h"
 
 namespace VV {
 enum Update_Event : u8 {
@@ -17,14 +17,10 @@ enum Update_Event : u8 {
   CELL_CHANGE,
 };
 
-#define VV_MAX_THREADS 16
-
 struct Update_State {
-  std::vector<SDL_Event> pending_events;
+  ThreadPool *thread_pool;
 
-  u8 num_threads;  // As opposed to the config variable of the same name, this
-                   // indicates how many threads have actually been created
-  SDL_Thread *threads[VV_MAX_THREADS];
+  std::vector<SDL_Event> pending_events;
 
   std::map<DimensionIndex, Dimension> dimensions;
 
