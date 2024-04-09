@@ -121,7 +121,7 @@ Result init_app(App &app, int argv, const char **argc) {
     return args_res;
   }
 
-  Result update_res = init_updating(app.update_state, world_seed);
+  Result update_res = init_updating(app.update_state, app.config, world_seed);
   if (update_res != Result::SUCCESS) {
     LOG_FATAL("Failed to initialize updater. Exiting.");
     return update_res;
@@ -200,5 +200,6 @@ Result run_app(App &app) {
 
 void destroy_app(App &app) {
   destroy_rendering(app.render_state);
+  destroy_update(app.update_state);
 }
 }  // namespace VV

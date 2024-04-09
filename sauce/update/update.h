@@ -5,9 +5,11 @@
 #include <unordered_set>
 
 #include "SDL_events.h"
+#include "SDL_thread.h"
 #include "core.h"
 #include "update/entity.h"
 #include "update/world.h"
+#include "utils/config.h"
 
 namespace VV {
 enum Update_Event : u8 {
@@ -15,8 +17,14 @@ enum Update_Event : u8 {
   CELL_CHANGE,
 };
 
+#define VV_MAX_THREADS 16
+
 struct Update_State {
   std::vector<SDL_Event> pending_events;
+
+  u8 num_threads;  // As opposed to the config variable of the same name, this
+                   // indicates how many threads have actually been created
+  SDL_Thread *threads[VV_MAX_THREADS];
 
   std::map<DimensionIndex, Dimension> dimensions;
 
@@ -39,9 +47,13 @@ struct Update_State {
   f32 average_fps;
 };
 
-Result init_updating(Update_State &update_state,
+int update_worker_thread(void *update_state);
+
+Result init_update_threads(Update_State &us, const Config &config);
+Result init_updating(Update_State &update_state, const Config &config,
                      const std::optional<u32> &seed);
 Result update(Update_State &update_state);
+void destroy_update(Update_State &update_state);
 
 Result update_mouse(Update_State &us);
 Result update_keypresses(Update_State &us);
@@ -52,6 +64,8 @@ constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
 
 constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
+
+void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc);
 void update_cells(Update_State &update_state);
 
 constexpr s64 FOREST_EAST_BORDER_CHUNK = 25;
