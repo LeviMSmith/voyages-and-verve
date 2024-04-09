@@ -403,14 +403,6 @@ void update_cells(Update_State &update_state) {
             break;
           }
           case Cell_Type::WATER: {
-            /// First solve density field, then solve velocity. ///
-
-            // To solve the density field we follow three steps:
-            // Add forces, diffuse, then move
-
-            // First, attempt to get adjecent cells. If a chunk isn't loaded, it
-            // should return nullptr
-
             s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
                      static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
             s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
