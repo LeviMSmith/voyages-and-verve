@@ -496,10 +496,17 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 
           if (config.debug_overlay) {
             if (cell_y == 0 && cell_x == 0) {
-              cr = 255;
-              cg = 0;
-              cb = 0;
-              ca = 255;
+              if (chunk.all_cell != Cell_Type::WATER) {
+                cr = 255;
+                cg = 0;
+                cb = 0;
+                ca = 255;
+              } else {
+                cr = 0;
+                cg = 0;
+                cb = 255;
+                ca = 255;
+              }
             }
           }
 
