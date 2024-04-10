@@ -3,9 +3,9 @@
 #include <optional>
 
 #include "SDL_mouse.h"
-#include "SDL_thread.h"
 #include "update/world.h"
 #include "utils/config.h"
+#include "utils/datastructures.h"
 #include "utils/threadpool.h"
 
 namespace VV {
@@ -465,33 +465,55 @@ void update_cells(Update_State &update_state) {
   Chunk_Coord player_chunkc =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
 
+  // Calculate bounds based on the player's current chunk coordinates.
   Chunk_Coord bl;
   bl.x = player_chunkc.x - CHUNK_CELL_SIM_RADIUS;
   bl.y = player_chunkc.y - CHUNK_CELL_SIM_RADIUS;
 
-  Chunk_Coord ic;
+  // Prepare a thread-safe queue or stack to hold all chunks that need
+  // processing.
+  ThreadSafeProcessingSet chunk_stack;
+
+  // Populate the queue with all chunks in the area.
+  for (int x = bl.x; x < bl.x + CHUNK_CELL_SIM_RADIUS * 2; x++) {
+    for (int y = bl.y; y < bl.y + CHUNK_CELL_SIM_RADIUS * 2; y++) {
+      Chunk_Coord ic = {x, y};
+      if (dim.chunks.find(ic) !=
+          dim.chunks.end()) {  // Ensure chunk exists before adding
+        chunk_stack.push(ic);
+      }
+    }
+  }
 
   std::vector<std::future<void>> futures;
-
-  for (u8 color = 0; color < 4; color++) {  // If using two colors
-    auto future = update_state.thread_pool->enqueue([&, color] {
-      for (ic.x = bl.x; ic.x < bl.x + CHUNK_CELL_SIM_RADIUS * 2; ic.x++) {
-        for (ic.y = bl.y; ic.y < bl.y + CHUNK_CELL_SIM_RADIUS * 2; ic.y++) {
-          auto chunk_iter = dim.chunks.find(ic);
-          if (chunk_iter != dim.chunks.end()) {
-            if (chunk_iter->second.color ==
-                color) {  // Check if chunk has the correct color
-              // Ensures that no two adjacent chunks of the same color are
-              // updated in parallel
-              update_cells_chunk(dim, chunk_iter->second, ic);
-            }
+  for (int i = 0; i < 4; i++) {  // Assuming 4 worker threads
+    auto future = update_state.thread_pool->enqueue([&]() {
+      Chunk_Coord chunk_coord;
+      while (chunk_stack.try_pop(
+          chunk_coord)) {  // Attempt to pop a chunk from the stack
+        if (!chunk_stack.is_adjacent(chunk_coord)) {
+          // Process the chunk.
+          auto chunk_iter = dim.chunks.find(chunk_coord);
+          if (chunk_iter !=
+              dim.chunks.end()) {  // Double-check in case of race conditions
+            update_cells_chunk(dim, chunk_iter->second, chunk_coord);
           }
+          chunk_stack.mark_done(
+              chunk_coord);  // Mark this chunk as done processing
+        } else {
+          // If adjacent to a chunk being processed, push it back for later
+          // processing.
+          std::this_thread::yield();  // Optionally yield to reduce tight
+                                      // looping on this condition
+          chunk_stack.push(chunk_coord);
         }
       }
     });
+
     futures.push_back(std::move(future));
   }
 
+  // Wait for all futures to complete
   for (auto &future : futures) {
     future.wait();
   }

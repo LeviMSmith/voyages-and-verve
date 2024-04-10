@@ -10,6 +10,7 @@
 
 // ChatGPT made this. If it breaks, God help you.
 
+namespace VV {
 class ThreadPool {
  public:
   ThreadPool(size_t threads) : stop(false) {
@@ -77,3 +78,4 @@ class ThreadPool {
   std::condition_variable condition;
   bool stop;
 };
+}  // namespace VV

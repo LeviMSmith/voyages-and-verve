@@ -1,13 +1,8 @@
 #include "update/world.h"
 
 namespace VV {
-bool Chunk_Coord::operator<(const Chunk_Coord &b) const {
-  u64 a_hash =
-      (static_cast<u64>(static_cast<u32>(y)) << 32) | static_cast<u32>(x);
-  u64 b_hash =
-      (static_cast<u64>(static_cast<u32>(b.y)) << 32) | static_cast<u32>(b.x);
-
-  return a_hash < b_hash;
+bool Chunk_Coord::operator<(const Chunk_Coord &other) const {
+  return x < other.x || (x == other.x && y < other.y);
 }
 
 bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
@@ -16,7 +11,7 @@ bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
 
 const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
     {
-        255,   // solidity
+        255,    // solidity
         0.70f,  // friction
     },          // DIRT
     {
