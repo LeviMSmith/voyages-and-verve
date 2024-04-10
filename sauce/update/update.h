@@ -103,7 +103,17 @@ Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id);
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them
-Dimension *get_active_dimension(Update_State &update_state);
-Entity *get_active_player(Update_State &update_state);
+inline Dimension *get_active_dimension(Update_State &update_state) {
+#ifndef NDEBUG
+  auto dim_iter = update_state.dimensions.find(update_state.active_dimension);
+  assert(dim_iter != update_state.dimensions.end());
+  return &dim_iter->second;
+#else
+  return &update_state.dimensions.at(update_state.active_dimension);
+#endif
+}
 
+inline Entity *get_active_player(Update_State &update_state) {
+  return &update_state.entities[update_state.active_player];
+}
 }  // namespace VV

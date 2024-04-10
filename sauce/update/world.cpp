@@ -30,6 +30,10 @@ const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
         200,    // solidity
         0.70f,  // friction
     },          // SNOW
+    {
+        0,
+        1.0f,
+    }  // NONE
 };
 
 u16 surface_det_rand(u64 seed) {

@@ -15,8 +15,8 @@ struct Chunk_Coord {
 };
 
 /// Cell ///
-enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD, SNOW };
-#define CELL_TYPE_NUM 5
+enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD, SNOW, NONE };
+#define CELL_TYPE_NUM 6
 
 struct Cell_Type_Info {
   s16 solidity;  // Used for collisions and cellular automata
@@ -137,7 +137,7 @@ constexpr u16 CHUNK_CELLS = CHUNK_CELL_WIDTH * CHUNK_CELL_WIDTH;  // 4096
 struct Chunk {
   Chunk_Coord coord;
   Cell cells[CHUNK_CELLS];
-  u8 color;
+  Cell_Type all_cell;
 };
 
 enum class Biome : u8 { FOREST, ALASKA };
