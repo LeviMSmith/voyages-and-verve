@@ -101,6 +101,8 @@ Result create_grass(Update_State &us, DimensionIndex dim,
 
 Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id);
 
+void delete_entity(Update_State &us, Dimension &dim, Entity_ID id);
+
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them
 inline Dimension *get_active_dimension(Update_State &update_state) {

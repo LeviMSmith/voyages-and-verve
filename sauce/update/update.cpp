@@ -37,9 +37,6 @@ Result init_updating(Update_State &update_state, const Config &config,
 
   Entity &active_player = *get_active_player(update_state);
 
-  Dimension &active_dimension = *get_active_dimension(update_state);
-  active_dimension.entity_indicies.push_back(update_state.active_player);
-
   load_chunks_square(update_state, update_state.active_dimension,
                      active_player.coord.x, active_player.coord.y, 8 / 2);
 
@@ -508,7 +505,8 @@ void update_health(Update_State &us) {
       if (e.status & (u16)Entity_Status::DEATHLESS) {
         e.coord = e.respawn_point;
       } else {
-        e.status |= (u8)Entity_Status::DEAD;
+        // Doesn't really matter since they'll be deleted
+        // e.status |= (u8)Entity_Status::DEAD;
 
         // Delete entity
         dead_entities.push_back(id);
@@ -516,20 +514,9 @@ void update_health(Update_State &us) {
     }
   }
 
-  // Delete
+  // Delete dead but not deathless entities
   for (Entity_ID id : dead_entities) {
-    auto kin_iter = dim.e_kinetic.find(id);
-    if (kin_iter != dim.e_kinetic.end()) {
-      dim.e_kinetic.erase(id);
-    }
-    auto health_iter = dim.e_kinetic.find(id);
-    if (health_iter != dim.e_health.end()) {
-      dim.e_health.erase(id);
-    }
-    auto entity_iter = us.entity_id_pool.find(id);
-    if (entity_iter != us.entity_id_pool.end()) {
-      us.entity_id_pool.erase(id);
-    }
+    delete_entity(us, dim, id);
   }
 }
 
@@ -927,6 +914,16 @@ Result create_entity(Update_State &us, DimensionIndex dim, Entity_ID &id) {
 
   us.entities[id] = default_entity();
 
+  auto dimension_iter = us.dimensions.find(dim);
+  if (dimension_iter != us.dimensions.end()) {
+    dimension_iter->second.entity_indicies.insert(id);
+  } else {
+    LOG_WARN(
+        "Failed to create new entity. Couldn't find dimension specified: {}",
+        (u8)dim);
+    return Result::VALUE_ERROR;
+  }
+
   return Result::SUCCESS;
 }
 
@@ -960,10 +957,9 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player.max_health = 200;
   player.health = 200;
 
-  us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(player.zdepth, id);
-  us.dimensions[dim].e_kinetic.push_back(id);
-  us.dimensions[dim].e_health.push_back(id);
+  us.dimensions[dim].e_kinetic.insert(id);
+  us.dimensions[dim].e_health.insert(id);
 
   return Result::SUCCESS;
 }
@@ -979,7 +975,6 @@ Result create_tree(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   tree.texture = Texture_Id::TREE;
   tree.zdepth = -10;
 
-  us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(tree.zdepth, id);
 
   return Result::SUCCESS;
@@ -996,7 +991,6 @@ Result create_bush(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   bush.texture = Texture_Id::BUSH;
   bush.zdepth = -10;
 
-  us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(bush.zdepth, id);
 
   return Result::SUCCESS;
@@ -1013,7 +1007,6 @@ Result create_grass(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   grass.texture = Texture_Id::GRASS;
   grass.zdepth = -10;
 
-  us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(grass.zdepth, id);
 
   return Result::SUCCESS;
@@ -1036,10 +1029,30 @@ Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   entity.anim_delay = 20;  // 20 frames
   entity.status = entity.status | (u8)Entity_Status::ANIMATED;
 
-  us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(entity.zdepth, id);
 
   return Result::SUCCESS;
+}
+
+void delete_entity(Update_State &us, Dimension &dim, Entity_ID id) {
+  auto kin_iter = dim.e_kinetic.find(id);
+  if (kin_iter != dim.e_kinetic.end()) {
+    dim.e_kinetic.erase(id);
+  }
+  auto health_iter = dim.e_kinetic.find(id);
+  if (health_iter != dim.e_health.end()) {
+    dim.e_health.erase(id);
+  }
+  auto range = dim.e_render.equal_range(id);
+  // Erase all elements within this range
+  if (range.first != range.second) {
+    dim.e_render.erase(range.first, range.second);
+  }
+
+  auto entity_iter = us.entity_id_pool.find(id);
+  if (entity_iter != us.entity_id_pool.end()) {
+    us.entity_id_pool.erase(id);
+  }
 }
 
 }  // namespace VV

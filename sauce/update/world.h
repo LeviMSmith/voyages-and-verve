@@ -175,6 +175,8 @@ enum class DimensionIndex : u8 {
 
 struct Dimension {
   std::map<Chunk_Coord, Chunk> chunks;
+  std::set<Entity_ID>
+      entity_indicies;  // General collection of all entities in the dimension
 
   // Entities are all stored in Update_State, but for existance based
   // processing, we keep an index here
