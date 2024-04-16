@@ -24,6 +24,8 @@ struct Update_State {
 
   std::map<DimensionIndex, Dimension> dimensions;
 
+  std::map<std::string, Entity_Factory> entity_factories;
+
   std::unordered_set<Entity_ID> entity_id_pool;
   Entity entities[MAX_TOTAL_ENTITIES];
 
@@ -45,7 +47,8 @@ struct Update_State {
 
 int update_worker_thread(void *update_state);
 
-Result init_update_threads(Update_State &us, const Config &config);
+Result init_entity_factory(Update_State &us,
+                           std::filesystem::path &factory_json);
 Result init_updating(Update_State &update_state, const Config &config,
                      const std::optional<u32> &seed);
 Result update(Update_State &update_state);

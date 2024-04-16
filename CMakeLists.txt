@@ -27,6 +27,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL_ttf)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/spdlog/include)
+target_include_directories(${PROJECT_NAME} PRIVATE vendor/rapidjson/include)
 
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
@@ -65,6 +66,7 @@ target_include_directories(${PROJECT_NAME}_test PRIVATE ${gtest_SOURCE_DIR}/incl
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/SDL/include)
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/SDL_ttf)
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/spdlog/include)
+target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/rapidjson/include)
 
 target_link_libraries(${PROJECT_NAME}_test PRIVATE gtest gtest_main)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE SDL2-static)

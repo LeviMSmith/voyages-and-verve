@@ -1,14 +1,83 @@
 #include "update/update.h"
 
+#include <fstream>
 #include <optional>
 
 #include "SDL_mouse.h"
+#include "rapidjson/document.h"
+#include "render/texture.h"
 #include "update/world.h"
 #include "utils/config.h"
 #include "utils/datastructures.h"
 #include "utils/threadpool.h"
 
+namespace rj = rapidjson;
+
 namespace VV {
+
+Result init_entity_factory(Update_State &us,
+                           std::filesystem::path &factory_json) {
+  (void)us;
+  std::ifstream f_fjson(factory_json, std::ifstream::ate);
+  if (!f_fjson.is_open() || !f_fjson.good()) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  std::streamsize size = f_fjson.tellg();
+  f_fjson.seekg(0, std::ios::beg);
+  std::vector<char> json_data;
+
+  if (!f_fjson.read(json_data.data(), size)) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  rj::Document d;
+  d.Parse(json_data.data());
+
+  for (auto &entity_desc : d.GetObject()) {
+    if (!entity_desc.value.IsObject()) {
+      LOG_WARN("Entity descriptor {} is not an object!", entity_desc.name);
+      continue;
+    }
+
+    std::string entity_name = entity_desc.name.GetString();
+    // TODO: Warn if we're overwritting an entity of the same name
+    Entity_Factory &new_entity_factory = us.entity_factories[entity_name];
+    Entity &new_entity = new_entity_factory.e;
+
+    for (auto &entity_item : entity_desc.value.GetObject()) {
+      std::string entity_item_name = entity_item.name.GetString();
+
+      if (entity_item_name == "texture") {
+        new_entity.texture = (Texture_Id)entity_item.value.GetUint();
+        new_entity_factory.register_render = true;
+      } else if (entity_item_name == "max_health") {
+        new_entity.max_health = entity_item.value.GetUint64();
+        new_entity_factory.register_health = true;
+      } else if (entity_item_name == "starting_health") {
+        new_entity.health = entity_item.value.GetUint64();
+      } else if (entity_item_name == "zdepth") {
+        new_entity.zdepth = entity_item.value.GetInt();
+      } else if (entity_item_name == "kinetic") {
+        new_entity_factory.register_kinetic = true;
+      } else if (entity_item_name == "bouyancy") {
+        new_entity.bouyancy = KINETIC_GRAVITY - entity_item.value.GetDouble();
+      } else if (entity_item_name == "deathless") {
+        new_entity.status |= (u16)Entity_Status::DEATHLESS;
+      } else if (entity_item_name == "flipped") {
+        new_entity.flipped = true;
+      } else if (entity_item_name == "anim_width") {
+        new_entity.anim_width = entity_item.value.GetUint();
+      } else if (entity_item_name == "anim_delay") {
+        new_entity.anim_delay = entity_item.value.GetUint();
+      } else if (entity_item_name == "anim_frames") {
+        new_entity.anim_delay = entity_item.value.GetUint();
+      }
+    }
+  }
+
+  return Result::SUCCESS;
+}
 
 Result init_updating(Update_State &update_state, const Config &config,
                      const std::optional<u32> &seed) {

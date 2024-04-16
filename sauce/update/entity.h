@@ -66,6 +66,13 @@ struct Entity {
   Entity_Coord respawn_point;
 };
 
+struct Entity_Factory {
+  Entity e;
+  bool register_kinetic;
+  bool register_render;
+  bool register_health;
+};
+
 Entity default_entity();
 
 inline Entity_Coord get_cam_coord(const Entity &e);
