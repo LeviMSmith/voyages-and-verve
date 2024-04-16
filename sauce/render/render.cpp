@@ -191,6 +191,8 @@ Result render(Render_State &render_state, Update_State &update_state,
 
   render_entities(render_state, update_state, 21, INT8_MAX);
 
+  render_hud(render_state, update_state);
+
   // Debug overlay
   static int w = 0, h = 0;
   if (frame % 20 == 0 && config.debug_overlay) {
@@ -760,6 +762,41 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
       }
     }
   }
+
+  return Result::SUCCESS;
+}
+
+Result render_hud(Render_State &render_state, Update_State &update_state) {
+  Entity &active_player = *get_active_player(update_state);
+
+  // Draw active player health bar
+  // First a black background
+  SDL_SetRenderDrawColor(render_state.renderer, 0x33, 0x33, 0x33, 0xFF);
+
+  const s64 HEALTH_MAX_WIDTH = 1000;
+  int bar_width = std::min(active_player.max_health, HEALTH_MAX_WIDTH);
+
+  const int BAR_MARGIN = 30;
+  const int BAR_HEIGHT = 40;
+  SDL_Rect health_back_rect = {
+      render_state.window_width - bar_width - BAR_MARGIN,  // x position
+      BAR_MARGIN,                                          // y position
+      bar_width,                                           // width
+      BAR_HEIGHT                                           // height
+  };
+  SDL_RenderFillRect(render_state.renderer, &health_back_rect);
+
+  // Now the red filling
+  const int HEALTH_MARGIN = 2;
+  int disp_health_width = std::max(
+      std::min(active_player.health, HEALTH_MAX_WIDTH - (HEALTH_MARGIN * 2)),
+      (s64)0);
+  SDL_SetRenderDrawColor(render_state.renderer, 0xff, 0x33, 0x33, 0xFF);
+  SDL_Rect health_bar = {render_state.window_width - bar_width - BAR_MARGIN -
+                             HEALTH_MARGIN,           // x position
+                         BAR_MARGIN + HEALTH_MARGIN,  // y position
+                         disp_health_width, BAR_HEIGHT - (HEALTH_MARGIN * 2)};
+  SDL_RenderFillRect(render_state.renderer, &health_bar);
 
   return Result::SUCCESS;
 }

@@ -915,6 +915,9 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player.boundingw = 11;
   player.boundingh = 29;
 
+  player.max_health = 200;
+  player.health = 200;
+
   us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(player.zdepth, id);
   us.dimensions[dim].e_kinetic.push_back(id);

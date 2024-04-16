@@ -58,6 +58,9 @@ struct Entity {
   u8 anim_current_frame;
   u16 anim_delay;
   u16 anim_timer;
+
+  s64 health;
+  s64 max_health;
 };
 
 Entity default_entity();

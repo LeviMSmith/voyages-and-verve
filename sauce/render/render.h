@@ -64,4 +64,6 @@ Result render_cell_texture(Render_State &render_state,
 Result render_entities(Render_State &render_state, Update_State &update_state,
                        Entity_Z z_min = 1, Entity_Z z_thresh = INT8_MAX);
 
+Result render_hud(Render_State &render_state, Update_State &update_state);
+
 }  // namespace VV
