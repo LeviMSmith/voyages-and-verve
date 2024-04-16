@@ -493,6 +493,46 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
   }    // all_cell switch
 }
 
+void update_health(Update_State &us) {
+  Dimension &dim = *get_active_dimension(us);
+
+  std::vector<Entity_ID> dead_entities;
+  for (Entity_ID id : dim.e_health) {
+    Entity &e = us.entities[id];
+
+    // clamp health to max to be sure
+    e.health = std::min(e.max_health, e.health);
+
+    if (e.health <= 0) {
+      // For now return to respawn point
+      if (e.status & (u16)Entity_Status::DEATHLESS) {
+        e.coord = e.respawn_point;
+      } else {
+        e.status |= (u8)Entity_Status::DEAD;
+
+        // Delete entity
+        dead_entities.push_back(id);
+      }
+    }
+  }
+
+  // Delete
+  for (Entity_ID id : dead_entities) {
+    auto kin_iter = dim.e_kinetic.find(id);
+    if (kin_iter != dim.e_kinetic.end()) {
+      dim.e_kinetic.erase(id);
+    }
+    auto health_iter = dim.e_kinetic.find(id);
+    if (health_iter != dim.e_health.end()) {
+      dim.e_health.erase(id);
+    }
+    auto entity_iter = us.entity_id_pool.find(id);
+    if (entity_iter != us.entity_id_pool.end()) {
+      us.entity_id_pool.erase(id);
+    }
+  }
+}
+
 void update_cells(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
   Dimension &dim = *get_active_dimension(update_state);
@@ -886,7 +926,6 @@ Result create_entity(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   }
 
   us.entities[id] = default_entity();
-  us.dimensions[dim].entity_indicies.push_back(id);
 
   return Result::SUCCESS;
 }
@@ -909,6 +948,9 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   player.camy -= 20;
   player.vy = -1.1;
 
+  player.status |= (u16)Entity_Status::DEATHLESS;
+  player.respawn_point = player.coord;
+
   // TODO: Should be in a resource description file. This will be different
   // than texture width and height. Possibly with offsets. Maybe multiple
   // bounding boxes
@@ -921,6 +963,7 @@ Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   us.dimensions[dim].entity_indicies.push_back(id);
   us.dimensions[dim].e_render.emplace(player.zdepth, id);
   us.dimensions[dim].e_kinetic.push_back(id);
+  us.dimensions[dim].e_health.push_back(id);
 
   return Result::SUCCESS;
 }

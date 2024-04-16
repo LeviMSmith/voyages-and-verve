@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 
 #include "core.h"
 #include "update/entity.h"
@@ -177,11 +178,11 @@ struct Dimension {
 
   // Entities are all stored in Update_State, but for existance based
   // processing, we keep an index here
-  std::vector<Entity_ID> entity_indicies;
-
   std::multimap<Entity_Z, Entity_ID> e_render;  // Entites with a texture
-  std::vector<Entity_ID>
+  std::set<Entity_ID>
       e_kinetic;  // Entities that should be updated in the kinetic step
+  std::set<Entity_ID>
+      e_health;  // Entites that need to have their health checked
 };
 
 Cell *get_cell_at_world_pos(Dimension &dim, s64 x, s64 y);

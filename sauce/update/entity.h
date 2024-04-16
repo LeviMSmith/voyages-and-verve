@@ -18,6 +18,8 @@ enum class Entity_Status : u8 {
   ON_GROUND = 1,
   IN_WATER = 2,
   ANIMATED = 4,
+  DEAD = 8,
+  DEATHLESS = 16,  // Will respawn when dead
 };
 
 // Monolithic Entity struct. Every entity possess every possible
@@ -42,7 +44,7 @@ struct Entity {
 
   f32 camx, camy;  // This is relative to coord
 
-  u8 status;
+  u16 status;
   f32 bouyancy;
 
   // The physics bounding box starting from coord as top left
@@ -61,6 +63,7 @@ struct Entity {
 
   s64 health;
   s64 max_health;
+  Entity_Coord respawn_point;
 };
 
 Entity default_entity();
