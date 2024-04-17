@@ -841,7 +841,7 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
         if (locationFreeForGrass) {
           Entity_ID id;
           create_entity(update_state, update_state.active_dimension,
-                        Entity_Factory_Type::TREE, id);
+                        Entity_Factory_Type::GRASS, id);
 
           Entity &grass = update_state.entities[id];
           grass.coord.x = abs_x;
