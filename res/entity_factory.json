@@ -1,0 +1,39 @@
+{
+  "guyplayer": {
+    "bounding_head": {
+      "x": 11,
+      "y": 11
+    },
+    "bounding_body": {
+      "x": 11,
+      "y": 28
+    },
+    "texture": 1,
+    "max_health": 200,
+    "starting_health": 200,
+    "zdepth": 9,
+    "kinetic": true,
+    "bouyancy": 0.01,
+    "deathless": true
+  },
+  "tree": {
+    "texture": 3,
+    "zdepth": -10
+  },
+  "bush": {
+    "texture": 6,
+    "zdepth": -10
+  },
+  "grass": {
+    "texture": 7,
+    "zdepth": -10
+  },
+  "neitzsche": {
+    "texture": 5,
+    "zdepth": 10,
+    "flipped": true,
+    "anim_width": 25,
+    "anim_delay": 20,
+    "anim_frames": 2
+  }
+}

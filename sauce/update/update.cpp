@@ -1,14 +1,125 @@
 #include "update/update.h"
 
+#include <fstream>
 #include <optional>
+#include <regex>
 
 #include "SDL_mouse.h"
+#include "rapidjson/document.h"
+#include "render/texture.h"
+#include "update/entity.h"
 #include "update/world.h"
 #include "utils/config.h"
 #include "utils/datastructures.h"
 #include "utils/threadpool.h"
 
+namespace rj = rapidjson;
+
 namespace VV {
+
+Result init_entity_factory(Update_State &us,
+                           std::filesystem::path factory_json) {
+  std::ifstream f_fjson(factory_json, std::ifstream::ate);
+  if (!f_fjson.is_open() || !f_fjson.good()) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  std::streamsize size = f_fjson.tellg();
+  f_fjson.seekg(0, std::ios::beg);
+  std::vector<char> json_data(size);
+
+  if (!f_fjson.read(json_data.data(), size)) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  rj::Document d;
+  d.Parse(json_data.data());
+
+  std::regex bounding_regex("bounding_([\\S]+)");
+
+  for (auto &entity_desc : d.GetObject()) {
+    if (!entity_desc.value.IsObject()) {
+      LOG_WARN("Entity descriptor {} is not an object!",
+               entity_desc.name.GetString());
+      continue;
+    }
+
+    std::string entity_name = entity_desc.name.GetString();
+    Entity_Factory_Type entity_type;
+    if (entity_name == "guyplayer") {
+      entity_type = Entity_Factory_Type::GUYPLAYER;
+    } else if (entity_name == "tree") {
+      entity_type = Entity_Factory_Type::TREE;
+    } else if (entity_name == "bush") {
+      entity_type = Entity_Factory_Type::BUSH;
+    } else if (entity_name == "grass") {
+      entity_type = Entity_Factory_Type::GRASS;
+    } else if (entity_name == "neitzsche") {
+      entity_type = Entity_Factory_Type::NIETZSCHE;
+    }
+
+    // TODO: Warn if we're overwritting an entity of the same name
+    Entity_Factory &new_entity_factory = us.entity_factories[entity_type];
+    Entity &new_entity = new_entity_factory.e;
+
+    for (auto &entity_item : entity_desc.value.GetObject()) {
+      std::string entity_item_name = entity_item.name.GetString();
+
+      std::smatch bounding_matches;
+      if (std::regex_match(entity_item_name, bounding_matches,
+                           bounding_regex)) {
+        if (bounding_matches.size() == 2) {
+          std::string bound_name = bounding_matches[1].str();
+
+          f32 x = entity_item.value["x"].GetDouble();
+          f32 y = entity_item.value["y"].GetDouble();
+
+          if (bound_name == "head") {
+            new_entity.head_boundingw = x;
+            new_entity.head_boundingh = y;
+          } else if (bound_name == "body" || bound_name == "default") {
+            new_entity.boundingw = x;
+            new_entity.boundingh = y;
+          }
+        } else {
+          LOG_WARN("Malformed bounding box name {}. Skipping.",
+                   entity_item_name);
+        }
+
+        continue;
+      }
+
+      if (entity_item_name == "texture") {
+        new_entity.texture = (Texture_Id)entity_item.value.GetUint();
+        new_entity_factory.register_render = true;
+      } else if (entity_item_name == "max_health") {
+        new_entity.max_health = entity_item.value.GetUint64();
+        new_entity_factory.register_health = true;
+      } else if (entity_item_name == "starting_health") {
+        new_entity.health = entity_item.value.GetUint64();
+      } else if (entity_item_name == "zdepth") {
+        new_entity.zdepth = entity_item.value.GetInt();
+      } else if (entity_item_name == "kinetic") {
+        new_entity_factory.register_kinetic = true;
+      } else if (entity_item_name == "bouyancy") {
+        new_entity.bouyancy = KINETIC_GRAVITY - entity_item.value.GetDouble();
+      } else if (entity_item_name == "deathless") {
+        new_entity.status |= (u16)Entity_Status::DEATHLESS;
+      } else if (entity_item_name == "flipped") {
+        new_entity.flipped = true;
+      } else if (entity_item_name == "anim_width") {
+        new_entity.anim_width = entity_item.value.GetUint();
+        new_entity.status |= (u16)Entity_Status::ANIMATED;
+      } else if (entity_item_name == "anim_delay") {
+        new_entity.anim_delay = entity_item.value.GetUint();
+      } else if (entity_item_name == "anim_frames") {
+        new_entity.anim_frames = entity_item.value.GetUint();
+      }
+    }
+  }
+
+  return Result::SUCCESS;
+}
 
 Result init_updating(Update_State &update_state, const Config &config,
                      const std::optional<u32> &seed) {
@@ -27,8 +138,23 @@ Result init_updating(Update_State &update_state, const Config &config,
     update_state.world_seed = seed.value();
   }
 
-  Result ap_res = create_player(update_state, update_state.active_dimension,
-                                update_state.active_player);
+  std::filesystem::path res_dir;
+  Result res_dir_res = get_resource_dir(res_dir);
+  if (res_dir_res != Result::SUCCESS) {
+    LOG_ERROR("Updater failed to get resource dir");
+    return res_dir_res;
+  }
+  std::filesystem::path entity_factory_path = res_dir / "entity_factory.json";
+  Result entity_factory_res =
+      init_entity_factory(update_state, entity_factory_path);
+  if (entity_factory_res != Result::SUCCESS) {
+    LOG_ERROR("Updater failed to initialize entity factories");
+    return res_dir_res;
+  }
+
+  Result ap_res =
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::GUYPLAYER, update_state.active_player);
 
   if (ap_res != Result::SUCCESS) {
     LOG_ERROR("Couldn't create initial player! EC: {:x}", (s32)ap_res);
@@ -36,9 +162,6 @@ Result init_updating(Update_State &update_state, const Config &config,
   }
 
   Entity &active_player = *get_active_player(update_state);
-
-  Dimension &active_dimension = *get_active_dimension(update_state);
-  active_dimension.entity_indicies.push_back(update_state.active_player);
 
   load_chunks_square(update_state, update_state.active_dimension,
                      active_player.coord.x, active_player.coord.y, 8 / 2);
@@ -493,6 +616,36 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
   }    // all_cell switch
 }
 
+void update_health(Update_State &us) {
+  Dimension &dim = *get_active_dimension(us);
+
+  std::vector<Entity_ID> dead_entities;
+  for (Entity_ID id : dim.e_health) {
+    Entity &e = us.entities[id];
+
+    // clamp health to max to be sure
+    e.health = std::min(e.max_health, e.health);
+
+    if (e.health <= 0) {
+      // For now return to respawn point
+      if (e.status & (u16)Entity_Status::DEATHLESS) {
+        e.coord = e.respawn_point;
+      } else {
+        // Doesn't really matter since they'll be deleted
+        // e.status |= (u8)Entity_Status::DEAD;
+
+        // Delete entity
+        dead_entities.push_back(id);
+      }
+    }
+  }
+
+  // Delete dead but not deathless entities
+  for (Entity_ID id : dead_entities) {
+    delete_entity(us, dim, id);
+  }
+}
+
 void update_cells(Update_State &update_state) {
   Entity &active_player = *get_active_player(update_state);
   Dimension &dim = *get_active_dimension(update_state);
@@ -616,7 +769,8 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
 
       if (locationFree) {
         Entity_ID id;
-        create_tree(update_state, update_state.active_dimension, id);
+        create_entity(update_state, update_state.active_dimension,
+                      Entity_Factory_Type::TREE, id);
 
         Entity &tree = update_state.entities[id];
         tree.coord.x = abs_x;
@@ -664,7 +818,8 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
       if (tryBushFirst) {
         if (locationFreeForBush) {
           Entity_ID id;
-          create_bush(update_state, update_state.active_dimension, id);
+          create_entity(update_state, update_state.active_dimension,
+                        Entity_Factory_Type::BUSH, id);
 
           Entity &bush = update_state.entities[id];
           bush.coord.x = abs_x;
@@ -674,7 +829,8 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
         // Spawn grass if location is free
         else if (locationFreeForGrass) {
           Entity_ID id;
-          create_grass(update_state, update_state.active_dimension, id);
+          create_entity(update_state, update_state.active_dimension,
+                        Entity_Factory_Type::GRASS, id);
 
           Entity &grass = update_state.entities[id];
           grass.coord.x = abs_x;
@@ -684,7 +840,8 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
         // Spawn grass if location is free
         if (locationFreeForGrass) {
           Entity_ID id;
-          create_grass(update_state, update_state.active_dimension, id);
+          create_entity(update_state, update_state.active_dimension,
+                        Entity_Factory_Type::TREE, id);
 
           Entity &grass = update_state.entities[id];
           grass.coord.x = abs_x;
@@ -694,7 +851,8 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
         // Spawn bush if location is free
         else if (locationFreeForBush) {
           Entity_ID id;
-          create_bush(update_state, update_state.active_dimension, id);
+          create_entity(update_state, update_state.active_dimension,
+                        Entity_Factory_Type::BUSH, id);
 
           Entity &bush = update_state.entities[id];
           bush.coord.x = abs_x;
@@ -707,7 +865,8 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
     if (abs_x == 250 && height > chunk_coord.y * CHUNK_CELL_WIDTH &&
         height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
       Entity_ID id;
-      create_neitzsche(update_state, update_state.active_dimension, id);
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::NIETZSCHE, id);
 
       Entity &neitzsche = update_state.entities[id];
       neitzsche.coord.x = abs_x;
@@ -751,8 +910,8 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
         height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH &&
         height >= SEA_LEVEL_CELL) {
       Entity_ID new_tree;
-      Result en_res =
-          create_tree(update_state, update_state.active_dimension, new_tree);
+      Result en_res = create_entity(update_state, update_state.active_dimension,
+                                    Entity_Factory_Type::TREE, new_tree);
 
       if (en_res == Result::SUCCESS) {
         Entity &tree = update_state.entities[new_tree];
@@ -878,7 +1037,8 @@ Result get_entity_id(std::unordered_set<Entity_ID> &entity_id_pool,
   return Result::ENTITY_POOL_FULL;
 }
 
-Result create_entity(Update_State &us, DimensionIndex dim, Entity_ID &id) {
+Result create_entity(Update_State &us, DimensionIndex dim,
+                     Entity_Factory_Type type, Entity_ID &id) {
   Result id_res = get_entity_id(us.entity_id_pool, id);
   if (id_res != Result::SUCCESS) {
     id = 0;
@@ -886,114 +1046,52 @@ Result create_entity(Update_State &us, DimensionIndex dim, Entity_ID &id) {
   }
 
   us.entities[id] = default_entity();
-  us.dimensions[dim].entity_indicies.push_back(id);
+
+  Entity_Factory &factory = us.entity_factories[type];
+  us.entities[id] = factory.e;
+
+  auto dimension_iter = us.dimensions.find(dim);
+  if (dimension_iter != us.dimensions.end()) {
+    dimension_iter->second.entity_indicies.insert(id);
+
+    if (factory.register_kinetic) {
+      dimension_iter->second.e_kinetic.insert(id);
+    }
+    if (factory.register_health) {
+      dimension_iter->second.e_health.insert(id);
+    }
+    if (factory.register_render) {
+      dimension_iter->second.e_render.emplace(factory.e.zdepth, id);
+    }
+  } else {
+    LOG_WARN(
+        "Failed to create new entity. Couldn't find dimension specified: {}",
+        (u8)dim);
+    return Result::VALUE_ERROR;
+  }
 
   return Result::SUCCESS;
 }
 
-Result create_player(Update_State &us, DimensionIndex dim, Entity_ID &id) {
-  Result id_res = get_entity_id(us.entity_id_pool, id);
-  if (id_res != Result::SUCCESS) {
-    return id_res;
+void delete_entity(Update_State &us, Dimension &dim, Entity_ID id) {
+  auto kin_iter = dim.e_kinetic.find(id);
+  if (kin_iter != dim.e_kinetic.end()) {
+    dim.e_kinetic.erase(id);
+  }
+  auto health_iter = dim.e_kinetic.find(id);
+  if (health_iter != dim.e_health.end()) {
+    dim.e_health.erase(id);
+  }
+  auto range = dim.e_render.equal_range(id);
+  // Erase all elements within this range
+  if (range.first != range.second) {
+    dim.e_render.erase(range.first, range.second);
   }
 
-  Entity &player = us.entities[id];
-  player = default_entity();
-
-  player.texture = Texture_Id::PLAYER;
-  player.zdepth = 9;
-  player.bouyancy = KINETIC_GRAVITY - 0.01f;
-
-  player.coord.y = CHUNK_CELL_WIDTH * SURFACE_Y_MAX;
-  player.coord.x = 15;
-  player.camy -= 20;
-  player.vy = -1.1;
-
-  // TODO: Should be in a resource description file. This will be different
-  // than texture width and height. Possibly with offsets. Maybe multiple
-  // bounding boxes
-  player.boundingw = 11;
-  player.boundingh = 29;
-
-  us.dimensions[dim].entity_indicies.push_back(id);
-  us.dimensions[dim].e_render.emplace(player.zdepth, id);
-  us.dimensions[dim].e_kinetic.push_back(id);
-
-  return Result::SUCCESS;
-}
-
-Result create_tree(Update_State &us, DimensionIndex dim, Entity_ID &id) {
-  Result id_res = get_entity_id(us.entity_id_pool, id);
-  if (id_res != Result::SUCCESS) {
-    return id_res;
+  auto entity_iter = us.entity_id_pool.find(id);
+  if (entity_iter != us.entity_id_pool.end()) {
+    us.entity_id_pool.erase(id);
   }
-
-  Entity &tree = us.entities[id];
-
-  tree.texture = Texture_Id::TREE;
-  tree.zdepth = -10;
-
-  us.dimensions[dim].entity_indicies.push_back(id);
-  us.dimensions[dim].e_render.emplace(tree.zdepth, id);
-
-  return Result::SUCCESS;
-}
-
-Result create_bush(Update_State &us, DimensionIndex dim, Entity_ID &id) {
-  Result id_res = get_entity_id(us.entity_id_pool, id);
-  if (id_res != Result::SUCCESS) {
-    return id_res;
-  }
-
-  Entity &bush = us.entities[id];
-
-  bush.texture = Texture_Id::BUSH;
-  bush.zdepth = -10;
-
-  us.dimensions[dim].entity_indicies.push_back(id);
-  us.dimensions[dim].e_render.emplace(bush.zdepth, id);
-
-  return Result::SUCCESS;
-}
-
-Result create_grass(Update_State &us, DimensionIndex dim, Entity_ID &id) {
-  Result id_res = get_entity_id(us.entity_id_pool, id);
-  if (id_res != Result::SUCCESS) {
-    return id_res;
-  }
-
-  Entity &grass = us.entities[id];
-
-  grass.texture = Texture_Id::GRASS;
-  grass.zdepth = -10;
-
-  us.dimensions[dim].entity_indicies.push_back(id);
-  us.dimensions[dim].e_render.emplace(grass.zdepth, id);
-
-  return Result::SUCCESS;
-}
-
-Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id) {
-  Result id_res = get_entity_id(us.entity_id_pool, id);
-  if (id_res != Result::SUCCESS) {
-    return id_res;
-  }
-
-  Entity &entity = us.entities[id];
-
-  entity.texture = Texture_Id::NEITZSCHE;
-  entity.flipped = true;
-  entity.zdepth = 10;
-
-  entity.anim_width = 25;
-  entity.anim_frames = 2;
-  entity.anim_delay = 20;  // 20 frames
-  entity.status = entity.status | (u8)Entity_Status::ANIMATED;
-
-  us.dimensions[dim].entity_indicies.push_back(id);
-  us.dimensions[dim].e_render.emplace(entity.zdepth, id);
-
-  return Result::SUCCESS;
 }
 
 }  // namespace VV

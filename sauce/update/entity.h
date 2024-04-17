@@ -18,6 +18,17 @@ enum class Entity_Status : u8 {
   ON_GROUND = 1,
   IN_WATER = 2,
   ANIMATED = 4,
+  DEAD = 8,
+  DEATHLESS = 16,  // Will respawn when dead
+};
+
+// For which entity to create
+enum class Entity_Factory_Type : u16 {
+  GUYPLAYER,
+  TREE,
+  BUSH,
+  GRASS,
+  NIETZSCHE,
 };
 
 // Monolithic Entity struct. Every entity possess every possible
@@ -42,11 +53,14 @@ struct Entity {
 
   f32 camx, camy;  // This is relative to coord
 
-  u8 status;
+  u16 status;
   f32 bouyancy;
 
   // The physics bounding box starting from coord as top left
   f32 boundingw, boundingh;
+
+  // Head bounding box starting from coord as top left
+  f32 head_boundingw, head_boundingh;
 
   Texture_Id texture;  // a number that is mapped to a file in res/textures
   u8 texture_index;    // an index into a texture atlas
@@ -58,6 +72,17 @@ struct Entity {
   u8 anim_current_frame;
   u16 anim_delay;
   u16 anim_timer;
+
+  s64 health;
+  s64 max_health;
+  Entity_Coord respawn_point;
+};
+
+struct Entity_Factory {
+  Entity e;
+  bool register_kinetic;
+  bool register_render;
+  bool register_health;
 };
 
 Entity default_entity();

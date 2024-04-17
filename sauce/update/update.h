@@ -24,6 +24,8 @@ struct Update_State {
 
   std::map<DimensionIndex, Dimension> dimensions;
 
+  std::map<Entity_Factory_Type, Entity_Factory> entity_factories;
+
   std::unordered_set<Entity_ID> entity_id_pool;
   Entity entities[MAX_TOTAL_ENTITIES];
 
@@ -45,7 +47,8 @@ struct Update_State {
 
 int update_worker_thread(void *update_state);
 
-Result init_update_threads(Update_State &us, const Config &config);
+Result init_entity_factory(Update_State &us,
+                           std::filesystem::path factory_json);
 Result init_updating(Update_State &update_state, const Config &config,
                      const std::optional<u32> &seed);
 Result update(Update_State &update_state);
@@ -81,25 +84,11 @@ Result get_entity_id(Entity_ID &id);
 
 // Factory functions. These should be used over default_entity.
 Result create_entity(Update_State &us, DimensionIndex dim,
+                     Entity_Factory_Type type,
                      Entity_ID &id);  // Creates default entity and returns
                                       // index in update_state.entities
 
-Result create_player(Update_State &us, DimensionIndex dim,
-                     Entity_ID &id);  // Creates a player entity
-
-Result create_tree(Update_State &us, DimensionIndex dim,
-                   Entity_ID &id);  // This is background tree that just is
-                                    // there for a position an sprite
-
-Result create_bush(Update_State &us, DimensionIndex dim,
-                   Entity_ID &id);  // This is background grass_tall that just
-                                    // is there for a position an sprite
-
-Result create_grass(Update_State &us, DimensionIndex dim,
-                    Entity_ID &id);  // This is background grass_short that just
-                                     // is there for a position an sprite
-
-Result create_neitzsche(Update_State &us, DimensionIndex dim, Entity_ID &id);
+void delete_entity(Update_State &us, Dimension &dim, Entity_ID id);
 
 // Don't hold on to these pointers too long. Additions to the vectors could
 // invalidate them
