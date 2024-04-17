@@ -13,7 +13,7 @@
     "starting_health": 200,
     "zdepth": 9,
     "kinetic": true,
-    "bouyancy": -0.01,
+    "bouyancy": 0.01,
     "deathless": true
   },
   "tree": {

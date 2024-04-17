@@ -22,6 +22,15 @@ enum class Entity_Status : u8 {
   DEATHLESS = 16,  // Will respawn when dead
 };
 
+// For which entity to create
+enum class Entity_Factory_Type : u16 {
+  GUYPLAYER,
+  TREE,
+  BUSH,
+  GRASS,
+  NIETZSCHE,
+};
+
 // Monolithic Entity struct. Every entity possess every possible
 // attribute to simplify the data. I'm thinking we'll probably
 // never have more than at max hundreds of thousands of these
@@ -49,6 +58,9 @@ struct Entity {
 
   // The physics bounding box starting from coord as top left
   f32 boundingw, boundingh;
+
+  // Head bounding box starting from coord as top left
+  f32 head_boundingw, head_boundingh;
 
   Texture_Id texture;  // a number that is mapped to a file in res/textures
   u8 texture_index;    // an index into a texture atlas
