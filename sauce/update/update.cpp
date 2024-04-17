@@ -56,6 +56,9 @@ Result init_entity_factory(Update_State &us,
       entity_type = Entity_Factory_Type::GRASS;
     } else if (entity_name == "neitzsche") {
       entity_type = Entity_Factory_Type::NIETZSCHE;
+    } else {
+      LOG_WARN("Unknown entity in descriptor file: {}", entity_name);
+      continue;
     }
 
     // TODO: Warn if we're overwritting an entity of the same name
@@ -1061,7 +1064,7 @@ Result create_entity(Update_State &us, DimensionIndex dim,
       dimension_iter->second.e_health.insert(id);
     }
     if (factory.register_render) {
-      dimension_iter->second.e_render.emplace(factory.e.zdepth, id);
+      dimension_iter->second.e_render.emplace(us.entities[id].zdepth, id);
     }
   } else {
     LOG_WARN(

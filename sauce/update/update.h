@@ -88,6 +88,8 @@ Result create_entity(Update_State &us, DimensionIndex dim,
                      Entity_ID &id);  // Creates default entity and returns
                                       // index in update_state.entities
 
+// There's currently no need to call this for existing entities when
+// the program closes since the memory is freed with Update_State
 void delete_entity(Update_State &us, Dimension &dim, Entity_ID id);
 
 // Don't hold on to these pointers too long. Additions to the vectors could
