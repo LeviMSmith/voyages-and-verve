@@ -375,7 +375,7 @@ void update_kinetic(Update_State &update_state) {
     // TODO: Should also definitly multithread this
 
     // Right now just checking the chunks below and to the right since that's
-    // where the bounding box might spill over. If an entity every becomes
+    // where the bounding box might spill over. If an entity ever becomes
     // larger than a chunk, we'll have to do this range based on that
 
     // This is bad. It's going to take forever. Definitly have to only do this
@@ -933,6 +933,26 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
   }
 }
 
+void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
+                        const Chunk_Coord &chunk_coord) {
+  // void cast these to promise the compiler we're going to use them in this
+  // function eventually
+  (void)update_state;
+  (void)chunk_coord;
+
+  if (chunk_coord.y < SEA_LEVEL) {
+    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
+      chunk.cells[cell_index] = default_water_cell();
+    }
+
+    chunk.all_cell = Cell_Type::WATER;
+  } else {
+    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
+      chunk.cells[cell_index] = default_air_cell();
+    }
+  }
+}
+
 void gen_overworld_chunk(Update_State &update_state, Chunk &chunk,
                          const Chunk_Coord &chunk_coord) {
   if (chunk_coord.x < FOREST_EAST_BORDER_CHUNK) {
@@ -940,8 +960,14 @@ void gen_overworld_chunk(Update_State &update_state, Chunk &chunk,
     return;
   }
 
-  if (chunk_coord.x >= FOREST_EAST_BORDER_CHUNK) {
+  if (chunk_coord.x >= FOREST_EAST_BORDER_CHUNK &&
+      chunk_coord.x < ALASKA_EAST_BORDER_CHUNK) {
     gen_ov_alaska_ch(update_state, chunk, chunk_coord);
+    return;
+  }
+
+  if (chunk_coord.x >= ALASKA_EAST_BORDER_CHUNK) {
+    gen_ov_ocean_chunk(update_state, chunk, chunk_coord);
     return;
   }
 }

@@ -141,7 +141,7 @@ struct Chunk {
   Cell_Type all_cell;
 };
 
-enum class Biome : u8 { FOREST, ALASKA };
+enum class Biome : u8 { FOREST, ALASKA, OCEAN };
 
 /// Surface generation ///
 constexpr s32 SURFACE_Y_MAX = 7;

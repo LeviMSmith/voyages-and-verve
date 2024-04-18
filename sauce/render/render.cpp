@@ -125,10 +125,13 @@ Result render(Render_State &render_state, Update_State &update_state,
 
   if (update_state.events.find(Update_Event::PLAYER_MOVED_CHUNK) ==
       update_state.events.end()) {
-    if (active_player.coord.x + active_player.camx >
-        FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+    f64 player_x = active_player.coord.x + active_player.camx;
+    if (player_x > ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::OCEAN;
+    } else if (player_x > FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH &&
+               player_x <= ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::ALASKA;
-    } else {
+    } else if (player_x <= FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::FOREST;
     }
   }
@@ -143,6 +146,7 @@ Result render(Render_State &render_state, Update_State &update_state,
                      NULL);
       break;
     }
+    case Biome::OCEAN:
     case Biome::ALASKA: {
       SDL_RenderCopy(render_state.renderer,
                      render_state.textures[(u8)Texture_Id::ALASKA_BG].texture,
