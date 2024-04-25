@@ -61,6 +61,7 @@ constexpr f32 KINETIC_FRICTION = 0.8f;
 constexpr f32 KINETIC_GRAVITY = 0.43f;
 constexpr f32 KINETIC_TERMINAL_VELOCITY = -300.0f;
 void update_kinetic(Update_State &update_state);
+void update_health(Update_State &us);
 
 constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
 

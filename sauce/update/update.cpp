@@ -177,6 +177,9 @@ Result update(Update_State &update_state) {
   static Chunk_Coord last_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
 
+  active_player.health--;
+
+  update_health(update_state);
   update_mouse(update_state);
   Result res = update_keypresses(update_state);
   if (res == Result::WINDOW_CLOSED) {
@@ -632,7 +635,9 @@ void update_health(Update_State &us) {
     if (e.health <= 0) {
       // For now return to respawn point
       if (e.status & (u16)Entity_Status::DEATHLESS) {
+        LOG_DEBUG("Entity {} died.", id);
         e.coord = e.respawn_point;
+        e.health = e.max_health;
       } else {
         // Doesn't really matter since they'll be deleted
         // e.status |= (u8)Entity_Status::DEAD;
@@ -938,7 +943,6 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
   // void cast these to promise the compiler we're going to use them in this
   // function eventually
   (void)update_state;
-  (void)chunk_coord;
 
   if (chunk_coord.y < SEA_LEVEL) {
     for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {

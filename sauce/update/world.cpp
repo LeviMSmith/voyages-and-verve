@@ -156,11 +156,6 @@ Cell *get_cell_at_world_pos(Dimension &dim, s64 x, s64 y) {
 
   u32 cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
 
-  if (cell_index >= CHUNK_CELLS) {
-    LOG_DEBUG("{} {} {} {} {}", x, y, cell_index, cell_x, cell_y);
-    assert(cell_index >= CHUNK_CELLS);
-  }
-
   return &(dim.chunks[cc].cells[cell_index]);
 }
 }  // namespace VV
