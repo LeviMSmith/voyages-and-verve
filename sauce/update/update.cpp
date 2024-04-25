@@ -177,7 +177,7 @@ Result update(Update_State &update_state) {
   static Chunk_Coord last_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
 
-  active_player.health--;
+  // active_player.health--;
 
   update_health(update_state);
   update_mouse(update_state);
@@ -412,6 +412,7 @@ void update_kinetic(Update_State &update_state) {
 
           // If neither, we are coliding, and resolve based on cell
           switch (chunk.cells[cell].type) {
+            case Cell_Type::NICARAGUA:
             case Cell_Type::SNOW:
             case Cell_Type::GOLD:
             case Cell_Type::DIRT: {
@@ -462,6 +463,7 @@ void update_kinetic(Update_State &update_state) {
               }
               break;
             }
+            case Cell_Type::STEAM:
             case Cell_Type::NONE:
             case Cell_Type::AIR: {
               break;
@@ -482,6 +484,60 @@ void update_kinetic(Update_State &update_state) {
   }
 }
 
+bool process_steam_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
+  s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
+           static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
+  s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
+           static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
+
+  Cell &cell = chunk.cells[cell_index];
+  // Start at bottom then sides
+  u32 rand_dir = std::rand();
+  s8 side_mod = rand_dir % 10;
+
+  // Normally this would just be a for loop going through the
+  // directions, but this has to be so wicked fast
+
+  Cell *o_cell = get_cell_at_world_pos(
+      dim, cx, cy + (rand_dir % 4 == 0 ? 1 : 0));  // Start with bottom
+  if (o_cell != nullptr) {
+    // Giving the steam some bonus upward power
+    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+        CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity + 50.0f) {
+      std::swap(cell, *o_cell);
+      return true;
+    }
+  }
+
+  // Only check one direction and do so randomly
+  /*
+if (rand_dir % 10 < 5) {  // Some of the time skip moving
+break;
+}
+  */
+  if (rand_dir & 1) {
+    o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
+    if (o_cell != nullptr) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+          CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  } else {
+    o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
+    if (o_cell != nullptr) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+          CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool process_water_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
   s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
            static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
@@ -498,7 +554,13 @@ bool process_water_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
 
   Cell *o_cell = get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
   if (o_cell != nullptr) {
-    if (o_cell->type == Cell_Type::AIR) {
+    if (CELL_TYPE_INFOS[(u16)o_cell->type].passive_heat >
+        CELL_TYPE_INFOS[(u16)Cell_Type::WATER].sublimation_point) {
+      cell = default_steam_cell();
+      return true;
+    }
+    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+        CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
       std::swap(cell, *o_cell);
       return true;
     }
@@ -513,7 +575,8 @@ break;
   if (rand_dir & 1) {
     o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
     if (o_cell != nullptr) {
-      if (o_cell->type == Cell_Type::AIR) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+          CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
@@ -521,7 +584,8 @@ break;
   } else {
     o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
     if (o_cell != nullptr) {
-      if (o_cell->type == Cell_Type::AIR) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+          CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
@@ -611,6 +675,9 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
           case Cell_Type::WATER: {
             process_water_cell(dim, chunk, cell_index);
             break;
+          }
+          case Cell_Type::STEAM: {
+            process_steam_cell(dim, chunk, cell_index);
           }
           default:
             break;
@@ -957,23 +1024,46 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
   }
 }
 
+void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
+                      const Chunk_Coord &chunk_coord) {
+  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+    f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
+    s32 height = static_cast<s32>(surface_height(
+                     abs_x, 64, update_state.world_seed, 64 * CHUNK_CELL_WIDTH,
+                     CHUNK_CELL_WIDTH * 26)) +
+                 SURFACE_Y_MIN * CHUNK_CELL_WIDTH;
+
+    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+
+      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+      if (our_height < height) {
+        chunk.cells[cell_index] = default_nicaragua_cell();
+      } else {
+        chunk.cells[cell_index] = default_air_cell();
+      }
+    }
+  }
+}
+
 void gen_overworld_chunk(Update_State &update_state, Chunk &chunk,
                          const Chunk_Coord &chunk_coord) {
+  if (chunk_coord.x < NICARAGUA_EAST_BORDER_CHUNK) {
+    gen_ov_nicaragua(update_state, chunk, chunk_coord);
+    return;
+  }
+
   if (chunk_coord.x < FOREST_EAST_BORDER_CHUNK) {
     gen_ov_forest_ch(update_state, chunk, chunk_coord);
     return;
   }
 
-  if (chunk_coord.x >= FOREST_EAST_BORDER_CHUNK &&
-      chunk_coord.x < ALASKA_EAST_BORDER_CHUNK) {
+  if (chunk_coord.x < ALASKA_EAST_BORDER_CHUNK) {
     gen_ov_alaska_ch(update_state, chunk, chunk_coord);
     return;
   }
 
-  if (chunk_coord.x >= ALASKA_EAST_BORDER_CHUNK) {
-    gen_ov_ocean_chunk(update_state, chunk, chunk_coord);
-    return;
-  }
+  gen_ov_ocean_chunk(update_state, chunk, chunk_coord);
 }
 
 Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,

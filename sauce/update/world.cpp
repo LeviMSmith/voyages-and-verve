@@ -9,31 +9,55 @@ bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
   return (x == b.x) && (y == b.y);
 }
 
+// sublimation_points of -1.0f mean it cannot sublimate.
 const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
     {
-        255,    // solidity
-        0.70f,  // friction
-    },          // DIRT
+        255,      // solidity
+        0.70f,    // friction
+        -20.0f,   // passive_heat
+        3000.0f,  // sublimation_point
+    },            // DIRT
     {
         -100,  // solidity
         0.8f,  // friction
+        0.0,   // passive_heat
+        -1.0   // sublimation_point
     },         // AIR
     {
         50,     // solidity
         0.90f,  // friction
+        -80.0,  // passive_heat
+        100.0   // sublimation_point
     },          // WATER
     {
-        255,    // solidity
-        0.70f,  // friction
-    },          // GOLD
+        255,     // solidity
+        0.70f,   // friction
+        -10.0,   // passive_heat
+        10000.0  // sublimation_point
+    },           // GOLD
     {
-        200,    // solidity
-        0.70f,  // friction
-    },          // SNOW
+        200,     // solidity
+        0.70f,   // friction
+        -90.0f,  // passive_heat
+        200.0f   // sublimation_point
+    },           // SNOW
     {
-        0,
-        1.0f,
-    }  // NONE
+        0, 1.0f,
+        0.0f,  // passive_heat
+        -1.0f  // sublimation_point
+    },         // NONE
+    {
+        -50,    // solidity
+        0.8f,   // friction
+        50.0f,  // passive_heat
+        -1.0f   // sublimation_point
+    },          // STEAM
+    {
+        -50,      // solidity
+        0.8f,     // friction
+        150.0f,   // passive_heat
+        10000.0f  // sublimation_point
+    }             // NICARAGUA
 };
 
 u16 surface_det_rand(u64 seed) {
@@ -131,8 +155,8 @@ Entity_Coord get_world_pos_from_chunk(Chunk_Coord coord) {
 Chunk_Coord get_chunk_coord(f64 x, f64 y) {
   Chunk_Coord return_chunk_coord;
 
-  x += 0.01;
-  y += 0.01;
+  x += 0.02;
+  y += 0.02;
 
   return_chunk_coord.x = static_cast<s32>(x / CHUNK_CELL_WIDTH);
   return_chunk_coord.y = static_cast<s32>(y / CHUNK_CELL_WIDTH);

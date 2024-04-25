@@ -16,13 +16,24 @@ struct Chunk_Coord {
 };
 
 /// Cell ///
-enum class Cell_Type : u8 { DIRT, AIR, WATER, GOLD, SNOW, NONE };
-#define CELL_TYPE_NUM 6
+enum class Cell_Type : u8 {
+  DIRT,
+  AIR,
+  WATER,
+  GOLD,
+  SNOW,
+  NONE,
+  STEAM,
+  NICARAGUA
+};
+#define CELL_TYPE_NUM 8
 
 struct Cell_Type_Info {
   s16 solidity;  // Used for collisions and cellular automata
   f32 friction;  // Used for slowing down an entity as it moves through or on
                  // that cell
+  f32 passive_heat;
+  f32 sublimation_point;
 };
 
 extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
@@ -89,6 +100,30 @@ inline Cell default_snow_cell() {
   cell.cr = 230 + std::rand() % 12;
   cell.cg = 230 + std::rand() % 12;
   cell.cb = 230 + std::rand() % 12;
+  cell.ca = 255;
+
+  return cell;
+}
+
+inline Cell default_steam_cell() {
+  Cell cell;
+  cell.type = Cell_Type::STEAM;
+  cell.cr = 0xaf + std::rand() % 12;
+  cell.cg = 0xaf + std::rand() % 12;
+  cell.cb = 0xaf + std::rand() % 12;
+  cell.ca = 0x33 + std::rand() % 12;
+
+  return cell;
+}
+
+// 540f0f
+inline Cell default_nicaragua_cell() {
+  Cell cell;
+  cell.type = Cell_Type::NICARAGUA;
+
+  cell.cr = 0x54 + std::rand() % 12;
+  cell.cg = 0x0f + std::rand() % 12;
+  cell.cb = 0x0f + std::rand() % 12;
   cell.ca = 255;
 
   return cell;
