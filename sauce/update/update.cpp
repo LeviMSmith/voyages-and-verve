@@ -369,6 +369,7 @@ void update_kinetic(Update_State &update_state) {
   // TODO: this just does cell collisions. We need some kind of spacial data
   // structure (octtree?) to determine if we're colliding with other entities
   for (Entity_ID entity_index : active_dimension.e_kinetic) {
+    bool nica_damage = false;
     Entity &entity = update_state.entities[entity_index];
     entity.status = entity.status & ~((u8)Entity_Status::IN_WATER |
                                       (u8)Entity_Status::ON_GROUND);
@@ -412,7 +413,13 @@ void update_kinetic(Update_State &update_state) {
 
           // If neither, we are coliding, and resolve based on cell
           switch (chunk.cells[cell].type) {
-            case Cell_Type::NICARAGUA:
+            case Cell_Type::NICARAGUA: {
+              if (!nica_damage) {
+                entity.health--;
+                nica_damage = true;
+              }
+              [[fallthrough]];
+            }
             case Cell_Type::SNOW:
             case Cell_Type::GOLD:
             case Cell_Type::DIRT: {
@@ -1038,7 +1045,8 @@ void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
 
       s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
       if (our_height < height) {
-        chunk.cells[cell_index] = default_nicaragua_cell();
+        chunk.cells[cell_index] =
+            default_nicaragua_cell(y, CHUNK_CELL_WIDTH * 26);
       } else {
         chunk.cells[cell_index] = default_air_cell();
       }

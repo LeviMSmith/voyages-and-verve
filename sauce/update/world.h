@@ -117,13 +117,20 @@ inline Cell default_steam_cell() {
 }
 
 // 540f0f
-inline Cell default_nicaragua_cell() {
+inline Cell default_nicaragua_cell(int y, int max_y) {
   Cell cell;
   cell.type = Cell_Type::NICARAGUA;
 
-  cell.cr = 0x54 + std::rand() % 12;
-  cell.cg = 0x0f + std::rand() % 12;
-  cell.cb = 0x0f + std::rand() % 12;
+  // Base color adjusted by position to create a vertical gradient
+  float factor = static_cast<float>(y) / max_y;
+  int base_red =
+      0x54 + static_cast<int>(11 * factor);  // Gradient effect on red
+
+  // Random variation around the base color
+  cell.cr =
+      base_red + std::rand() % 6 - 3;  // Random perturbation around base_red
+  cell.cg = 0x0f + std::rand() % 12;   // Green stays fully random
+  cell.cb = 0x0f + std::rand() % 12;   // Blue stays fully random
   cell.ca = 255;
 
   return cell;
