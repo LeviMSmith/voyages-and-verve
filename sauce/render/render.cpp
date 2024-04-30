@@ -589,17 +589,11 @@ Result gen_light_map(Render_State &render_state, Update_State &update_state) {
   Dimension &active_dimension = *get_active_dimension(update_state);
 
   // Iterate through all chunks and add a light source for all air ones
-  static u64 frame = 0;
-  u64 num_chunks_processed = 0;
-
   Chunk_Coord ic = render_state.tl_tex_chunk;
-  for (; ic.x < render_state.tl_tex_chunk.x + SCREEN_CHUNK_SIZE + 1; ic.x++) {
+  const u16 LIGHT_SCS = 2;
+  for (; ic.x < render_state.tl_tex_chunk.x + LIGHT_SCS + 1; ic.x++) {
     for (ic.y = render_state.tl_tex_chunk.y;
-         ic.y >= render_state.tl_tex_chunk.y - SCREEN_CHUNK_SIZE; ic.y--) {
-      if (frame % 60 == 0) {
-        LOG_DEBUG("Lightmap chunk: {} at {} {}", num_chunks_processed, ic.x,
-                  ic.y);
-      }
+         ic.y >= render_state.tl_tex_chunk.y - LIGHT_SCS; ic.y--) {
       const auto &chunk_iter = active_dimension.chunks.find(ic);
       if (chunk_iter == active_dimension.chunks.end()) {
         continue;
@@ -615,23 +609,13 @@ Result gen_light_map(Render_State &render_state, Update_State &update_state) {
         SDL_Rect light_rect = {
             x_offset, y_offset,
             (CHUNK_CELL_WIDTH - 10) * render_state.screen_cell_size,
-            (CHUNK_CELL_WIDTH - 10) *
-                render_state
-                    .screen_cell_size};  // Assuming a square "light" area
+            (CHUNK_CELL_WIDTH - 10) * render_state.screen_cell_size};
         SDL_RenderFillRect(render_state.renderer, &light_rect);
       }
-      num_chunks_processed++;
     }
   }
 
-  if (frame % 60 == 0) {
-    LOG_DEBUG("Processed {} chunks when generating light map",
-              num_chunks_processed);
-  }
-
   SDL_SetRenderTarget(render_state.renderer, NULL);  // Reset render target
-
-  frame++;
 
   return Result::SUCCESS;
 }
