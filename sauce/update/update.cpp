@@ -230,16 +230,21 @@ Result update_mouse(Update_State &us) {
     c.x = static_cast<s32>(mouse_x / us.screen_cell_size) + tl.x;
     c.y = tl.y - static_cast<s32>(mouse_y / us.screen_cell_size);
 
-    Chunk_Coord cc = get_chunk_coord(c.x, c.y);
+    const u8 CELL_PLACE_RADIUS = 3;
+    for (s64 x = c.x - CELL_PLACE_RADIUS; x < c.x + CELL_PLACE_RADIUS; x++) {
+      for (s64 y = c.y - CELL_PLACE_RADIUS; y < c.y + CELL_PLACE_RADIUS; y++) {
+        Chunk_Coord cc = get_chunk_coord(x, y);
 
-    Chunk &chunk = active_dimension.chunks[cc];
-    u16 cx = std::abs((cc.x * CHUNK_CELL_WIDTH) - c.x);
-    u16 cy = c.y - (cc.y * CHUNK_CELL_WIDTH);
-    u32 cell_index = cx + cy * CHUNK_CELL_WIDTH;
+        Chunk &chunk = active_dimension.chunks[cc];
+        u16 cx = std::abs((cc.x * CHUNK_CELL_WIDTH) - x);
+        u16 cy = y - (cc.y * CHUNK_CELL_WIDTH);
+        u32 cell_index = cx + cy * CHUNK_CELL_WIDTH;
 
-    assert(cell_index < CHUNK_CELLS);
+        assert(cell_index < CHUNK_CELLS);
 
-    chunk.cells[cell_index] = default_water_cell();
+        chunk.cells[cell_index] = default_water_cell();
+      }
+    }
 
     us.events.emplace(Update_Event::CELL_CHANGE);
   }
@@ -510,7 +515,7 @@ bool process_steam_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
   if (o_cell != nullptr) {
     // Giving the steam some bonus upward power
     if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-        CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity + 50.0f) {
+        CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity + 30.0f) {
       std::swap(cell, *o_cell);
       return true;
     }
