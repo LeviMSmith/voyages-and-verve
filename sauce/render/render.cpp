@@ -376,11 +376,13 @@ Result handle_window_resize(Render_State &render_state, Update_State &us) {
   SDL_ClearError();
   render_state.surface = SDL_GetWindowSurface(render_state.window);
   if (render_state.surface == nullptr) {
-    // We never actually use this surface so if it doesn't work keep going
-    LOG_ERROR("Failed to get sdl surface: {}", SDL_GetError());
-    // return Result::SDL_ERROR;
+    // Log error but continue since the surface is not used
+    LOG_ERROR("Failed to get SDL surface: {}", SDL_GetError());
+    // return Result::SDL_ERROR; // Uncomment if you decide to handle this as an
+    // error
   }
 
+  // Get new window size
   SDL_GetWindowSize(render_state.window, &render_state.window_width,
                     &render_state.window_height);
   LOG_INFO("SDL window resized to {}, {}", render_state.window_width,
@@ -388,9 +390,26 @@ Result handle_window_resize(Render_State &render_state, Update_State &us) {
   us.window_width = render_state.window_width;
   us.window_height = render_state.window_height;
 
+  // Update screen cell size based on new dimensions
   render_state.screen_cell_size =
       render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
   us.screen_cell_size = render_state.screen_cell_size;
+
+  // Destroy the old light map texture to prevent memory leaks
+  if (render_state.light_map != nullptr) {
+    SDL_DestroyTexture(render_state.light_map);
+    render_state.light_map = nullptr;
+  }
+
+  // Recreate the light map texture with new dimensions
+  render_state.light_map = SDL_CreateTexture(
+      render_state.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+      render_state.window_width, render_state.window_height);
+  SDL_SetTextureBlendMode(render_state.light_map, SDL_BLENDMODE_MOD);
+  if (render_state.light_map == nullptr) {
+    LOG_ERROR("Failed to create light map with SDL: {}", SDL_GetError());
+    return Result::SDL_ERROR;
+  }
 
   return Result::SUCCESS;
 }
