@@ -585,8 +585,15 @@ Result gen_light_map(Render_State &render_state, Update_State &update_state) {
   SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_ADD);
   SDL_SetRenderDrawColor(render_state.renderer, 255, 255, 255, 200);
 
-  // Entity &active_player = *get_active_player(update_state);
   Dimension &active_dimension = *get_active_dimension(update_state);
+  Entity &active_player = *get_active_player(update_state);
+
+  Entity_Coord tl;
+  tl.x = active_player.camx + active_player.coord.x;
+  tl.x -= (update_state.window_width / 2.0f) / render_state.screen_cell_size;
+
+  tl.y = active_player.camy + active_player.coord.y;
+  tl.y += (update_state.window_height / 2.0f) / render_state.screen_cell_size;
 
   // Iterate through all chunks and add a light source for all air ones
   Chunk_Coord ic = render_state.tl_tex_chunk;
@@ -601,23 +608,22 @@ Result gen_light_map(Render_State &render_state, Update_State &update_state) {
       const Chunk &chunk = chunk_iter->second;
       // assert(chunk.coord == ic);
       if (chunk.all_cell == Cell_Type::AIR) {
-        int x_offset =
-            ((ic.x - render_state.tl_tex_chunk.x) * CHUNK_CELL_WIDTH) *
-            render_state.screen_cell_size;
-        int y_offset =
-            ((render_state.tl_tex_chunk.y - ic.y) * CHUNK_CELL_WIDTH) *
-            render_state.screen_cell_size;
+        f64 x_offset =
+            (ic.x * CHUNK_CELL_WIDTH) - tl.x - (CHUNK_CELL_WIDTH / 2.0);
+        f64 y_offset =
+            tl.y - (ic.y * CHUNK_CELL_WIDTH) + (CHUNK_CELL_WIDTH / 2.0);
         SDL_Rect light_rect = {
-            x_offset, y_offset,
-            (CHUNK_CELL_WIDTH - 10) * render_state.screen_cell_size,
-            (CHUNK_CELL_WIDTH - 10) * render_state.screen_cell_size};
+            static_cast<int>(x_offset * render_state.screen_cell_size),
+            static_cast<int>(y_offset * render_state.screen_cell_size),
+            (CHUNK_CELL_WIDTH / 2) * render_state.screen_cell_size,
+            (CHUNK_CELL_WIDTH / 2) * render_state.screen_cell_size};
         SDL_RenderFillRect(render_state.renderer, &light_rect);
       }
     }
   }
 
   SDL_SetRenderTarget(render_state.renderer, NULL);  // Reset render target
-
+                                                     //
   return Result::SUCCESS;
 }
 
