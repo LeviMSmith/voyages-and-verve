@@ -11,17 +11,6 @@ namespace VV {
 Result init_rendering(Render_State &render_state, Update_State &us,
                       Config &config) {
   // SDL init
-
-  // I think this was just because I forgot break statements in the switch.
-  /*
-  // For some reason SDL_QUIT is triggered randomly on my (Levi's) system, so
-  // we're not quiting on that. If SDL holds on to the handlers, we can't exit
-  // with a break otherwise.
-  if (!SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1")) {
-    LOG_WARN("SDL didn't relinquish the signal handlers. Good luck quiting.");
-  }
-  */
-
   int sdl_init_flags = SDL_INIT_VIDEO;
 
   SDL_ClearError();
@@ -183,9 +172,12 @@ Result render(Render_State &render_state, Update_State &update_state,
   }
   */
   gen_world_texture(render_state, update_state, config);
+  gen_light_map(render_state, update_state);
 
   render_entities(render_state, update_state, INT8_MIN, 20);
   render_cell_texture(render_state, update_state);
+
+  render_light_map(render_state, update_state);
 
   // Alaska overlay
   if (render_state.biome == Biome::ALASKA) {
@@ -228,6 +220,11 @@ void destroy_rendering(Render_State &render_state) {
     LOG_INFO("Destroyed cell texture");
   }
 
+  if (render_state.light_map != nullptr) {
+    SDL_DestroyTexture(render_state.light_map);
+    LOG_INFO("Destroyed light map texture");
+  }
+
   for (const std::pair<const u8, Res_Texture> &pair : render_state.textures) {
     SDL_DestroyTexture(pair.second.texture);
   }
@@ -248,6 +245,19 @@ void destroy_rendering(Render_State &render_state) {
 }
 
 Result init_render_textures(Render_State &render_state, const Config &config) {
+  render_state.debug_overlay_texture =
+      nullptr;  // refresh function handles creation
+
+  SDL_ClearError();
+  render_state.light_map = SDL_CreateTexture(
+      render_state.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+      render_state.window_width, render_state.window_height);
+  SDL_SetTextureBlendMode(render_state.light_map, SDL_BLENDMODE_MOD);
+  if (render_state.cell_texture == nullptr) {
+    LOG_ERROR("Failed to create light map with SDL: {}", SDL_GetError());
+    return Result::SDL_ERROR;
+  }
+
   try {
     if (!std::filesystem::is_directory(config.tex_dir)) {
       LOG_ERROR("Can't initialize textures. {} is not a directory!",
@@ -541,6 +551,28 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
   return Result::SUCCESS;
 }
 
+Result gen_light_map(Render_State &render_state, Update_State &update_state) {
+  (void)update_state;
+
+  SDL_SetRenderTarget(render_state.renderer, render_state.light_map);
+  SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);  // Full darkness
+  SDL_RenderClear(render_state.renderer);
+
+  /*
+  for (const auto& light : lights) {
+      // Assume light is an object with a position and radius
+      SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, light.intensity); //
+  Adjust light intensity SDL_RenderFillCircle(renderer, light.x, light.y,
+  light.radius); // Assuming you have a way to draw a filled circle
+  }
+  */
+
+  SDL_SetRenderTarget(render_state.renderer, NULL);  // Reset render target
+
+  return Result::SUCCESS;
+}
+
 Result refresh_debug_overlay(Render_State &render_state,
                              const Update_State &update_state, int &w, int &h) {
   f64 x, y;
@@ -766,6 +798,21 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
       }
     }
   }
+
+  return Result::SUCCESS;
+}
+
+Result render_light_map(Render_State &render_state,
+                        Update_State &update_state) {
+  (void)update_state;
+  SDL_RenderCopy(render_state.renderer, render_state.light_map, NULL, NULL);
+
+  /*
+  // Blend the light map with the darkness texture
+  SDL_SetTextureBlendMode(darkness_texture, SDL_BLENDMODE_MOD);
+  SDL_RenderCopy(renderer, darkness_texture, NULL, scene_rect);
+  SDL_RenderCopy(renderer, light_map, NULL, scene_rect);
+  */
 
   return Result::SUCCESS;
 }
