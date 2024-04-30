@@ -4,6 +4,8 @@
 #include <regex>
 #include <sstream>
 
+#include "SDL_surface.h"
+#include "render/texture.h"
 #include "update/update.h"
 #include "update/world.h"
 
@@ -174,12 +176,12 @@ Result render(Render_State &render_state, Update_State &update_state,
   }
   */
   gen_world_texture(render_state, update_state, config);
-  gen_light_map(render_state, update_state);
 
   render_entities(render_state, update_state, INT8_MIN, 20);
   render_cell_texture(render_state, update_state);
 
-  render_light_map(render_state, update_state);
+  // gen_light_map(render_state, update_state);
+  // render_light_map(render_state, update_state);
 
   // Alaska overlay
   if (render_state.biome == Biome::ALASKA) {
@@ -578,52 +580,55 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 
 Result gen_light_map(Render_State &render_state, Update_State &update_state) {
   // Reset texture and prepare to draw
-  SDL_SetRenderTarget(render_state.renderer, render_state.light_map);
-  SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);  // Full darkness
-  SDL_RenderClear(render_state.renderer);
+  // SDL_SetRenderTarget(render_state.renderer, render_state.light_map);
+  // SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);
+  // SDL_RenderClear(render_state.renderer);
 
-  SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_ADD);
-  SDL_SetRenderDrawColor(render_state.renderer, 255, 255, 255, 200);
+  // SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_ADD);
 
   Dimension &active_dimension = *get_active_dimension(update_state);
   Entity &active_player = *get_active_player(update_state);
 
   Entity_Coord tl;
-  tl.x = active_player.camx + active_player.coord.x;
-  tl.x -= (update_state.window_width / 2.0f) / render_state.screen_cell_size;
-
-  tl.y = active_player.camy + active_player.coord.y;
-  tl.y += (update_state.window_height / 2.0f) / render_state.screen_cell_size;
+  tl.x = active_player.camx + active_player.coord.x -
+         (update_state.window_width / 2.0f) / render_state.screen_cell_size;
+  tl.y = active_player.camy + active_player.coord.y +
+         (update_state.window_height / 2.0f) / render_state.screen_cell_size;
 
   // Iterate through all chunks and add a light source for all air ones
   Chunk_Coord ic = render_state.tl_tex_chunk;
-  const u16 LIGHT_SCS = SCREEN_CHUNK_SIZE;
-  for (; ic.x < render_state.tl_tex_chunk.x + LIGHT_SCS + 1; ic.x++) {
+  for (; ic.x < render_state.tl_tex_chunk.x + SCREEN_CHUNK_SIZE + 1; ic.x++) {
     for (ic.y = render_state.tl_tex_chunk.y;
-         ic.y >= render_state.tl_tex_chunk.y - LIGHT_SCS; ic.y--) {
+         ic.y >= render_state.tl_tex_chunk.y - SCREEN_CHUNK_SIZE; ic.y--) {
       const auto &chunk_iter = active_dimension.chunks.find(ic);
-      if (chunk_iter == active_dimension.chunks.end()) {
+      if (chunk_iter == active_dimension.chunks.end())
         continue;
-      }
       const Chunk &chunk = chunk_iter->second;
-      // assert(chunk.coord == ic);
+      int x_offset =
+          (ic.x * CHUNK_CELL_WIDTH) - tl.x - (CHUNK_CELL_WIDTH / 2.0);
+      int y_offset =
+          tl.y - (ic.y * CHUNK_CELL_WIDTH) + (CHUNK_CELL_WIDTH / 2.0);
+      SDL_Rect dst_rect = {
+          static_cast<int>(x_offset * render_state.screen_cell_size),
+          static_cast<int>(y_offset * render_state.screen_cell_size),
+          CHUNK_CELL_WIDTH *
+              render_state.screen_cell_size,  // Assuming the texture is the
+                                              // size of a chunk
+          CHUNK_CELL_WIDTH * render_state.screen_cell_size};
+
       if (chunk.all_cell == Cell_Type::AIR) {
-        f64 x_offset =
-            (ic.x * CHUNK_CELL_WIDTH) - tl.x - (CHUNK_CELL_WIDTH / 2.0);
-        f64 y_offset =
-            tl.y - (ic.y * CHUNK_CELL_WIDTH) + (CHUNK_CELL_WIDTH / 2.0);
-        SDL_Rect light_rect = {
-            static_cast<int>(x_offset * render_state.screen_cell_size),
-            static_cast<int>(y_offset * render_state.screen_cell_size),
-            (CHUNK_CELL_WIDTH / 2) * render_state.screen_cell_size,
-            (CHUNK_CELL_WIDTH / 2) * render_state.screen_cell_size};
-        SDL_RenderFillRect(render_state.renderer, &light_rect);
+        SDL_RenderCopy(
+            render_state.renderer,
+            render_state.textures[(u8)Texture_Id::LIGHT_SOURCE].texture, NULL,
+            &dst_rect);
+      } else {
+        SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);
+        SDL_RenderFillRect(render_state.renderer, &dst_rect);
       }
     }
   }
 
-  SDL_SetRenderTarget(render_state.renderer, NULL);  // Reset render target
-                                                     //
+  // SDL_SetRenderTarget(render_state.renderer, NULL);
   return Result::SUCCESS;
 }
 

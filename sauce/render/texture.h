@@ -21,5 +21,6 @@ enum class Texture_Id : u8 {
   ALASKA_BG = 8,
   AKTREE1 = 9,
   AKTREE2 = 0x0a,
+  LIGHT_SOURCE = 0x0b,
 };
 }  // namespace VV
