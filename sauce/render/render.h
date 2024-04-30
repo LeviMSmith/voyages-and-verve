@@ -31,6 +31,7 @@ struct Render_State {
   std::map<u8, Res_Texture>
       textures;  // This mapping should be the same as in resources.json
   SDL_Texture *debug_overlay_texture;
+  SDL_Texture *light_map;
 
   std::vector<SDL_Event> pending_events;
 
@@ -53,6 +54,7 @@ Result handle_window_resize(Render_State &render_state, Update_State &us);
 
 Result gen_world_texture(Render_State &render_state, Update_State &update_state,
                          const Config &config);
+Result gen_light_map(Render_State &render_state, Update_State &update_state);
 Result refresh_debug_overlay(Render_State &render_state,
                              const Update_State &update_state, int &w, int &h);
 
@@ -61,6 +63,7 @@ Result render_cell_texture(Render_State &render_state,
                            Update_State &update_state);
 Result render_entities(Render_State &render_state, Update_State &update_state,
                        Entity_Z z_min = 1, Entity_Z z_thresh = INT8_MAX);
+Result render_light_map(Render_State &render_state, Update_State &update_state);
 
 Result render_hud(Render_State &render_state, Update_State &update_state);
 

@@ -4,6 +4,8 @@
 #include <regex>
 #include <sstream>
 
+#include "SDL_surface.h"
+#include "render/texture.h"
 #include "update/update.h"
 #include "update/world.h"
 
@@ -11,17 +13,6 @@ namespace VV {
 Result init_rendering(Render_State &render_state, Update_State &us,
                       Config &config) {
   // SDL init
-
-  // I think this was just because I forgot break statements in the switch.
-  /*
-  // For some reason SDL_QUIT is triggered randomly on my (Levi's) system, so
-  // we're not quiting on that. If SDL holds on to the handlers, we can't exit
-  // with a break otherwise.
-  if (!SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1")) {
-    LOG_WARN("SDL didn't relinquish the signal handlers. Good luck quiting.");
-  }
-  */
-
   int sdl_init_flags = SDL_INIT_VIDEO;
 
   SDL_ClearError();
@@ -126,13 +117,14 @@ Result render(Render_State &render_state, Update_State &update_state,
   if (update_state.events.find(Update_Event::PLAYER_MOVED_CHUNK) ==
       update_state.events.end()) {
     f64 player_x = active_player.coord.x + active_player.camx;
-    if (player_x > ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
-      render_state.biome = Biome::OCEAN;
-    } else if (player_x > FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH &&
-               player_x <= ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
-      render_state.biome = Biome::ALASKA;
-    } else if (player_x <= FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+    if (player_x < NICARAGUA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::NICARAGUA;
+    } else if (player_x < FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::FOREST;
+    } else if (player_x < ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::ALASKA;
+    } else {
+      render_state.biome = Biome::OCEAN;
     }
   }
 
@@ -140,6 +132,7 @@ Result render(Render_State &render_state, Update_State &update_state,
 
   // Background
   switch (render_state.biome) {
+    case Biome::NICARAGUA:
     case Biome::FOREST: {
       SDL_RenderCopy(render_state.renderer,
                      render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
@@ -187,6 +180,9 @@ Result render(Render_State &render_state, Update_State &update_state,
   render_entities(render_state, update_state, INT8_MIN, 20);
   render_cell_texture(render_state, update_state);
 
+  // gen_light_map(render_state, update_state);
+  // render_light_map(render_state, update_state);
+
   // Alaska overlay
   if (render_state.biome == Biome::ALASKA) {
     SDL_SetRenderDrawColor(render_state.renderer, 255, 255, 255, 170);
@@ -228,6 +224,11 @@ void destroy_rendering(Render_State &render_state) {
     LOG_INFO("Destroyed cell texture");
   }
 
+  if (render_state.light_map != nullptr) {
+    SDL_DestroyTexture(render_state.light_map);
+    LOG_INFO("Destroyed light map texture");
+  }
+
   for (const std::pair<const u8, Res_Texture> &pair : render_state.textures) {
     SDL_DestroyTexture(pair.second.texture);
   }
@@ -248,6 +249,19 @@ void destroy_rendering(Render_State &render_state) {
 }
 
 Result init_render_textures(Render_State &render_state, const Config &config) {
+  render_state.debug_overlay_texture =
+      nullptr;  // refresh function handles creation
+
+  SDL_ClearError();
+  render_state.light_map = SDL_CreateTexture(
+      render_state.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+      render_state.window_width, render_state.window_height);
+  SDL_SetTextureBlendMode(render_state.light_map, SDL_BLENDMODE_MOD);
+  if (render_state.cell_texture == nullptr) {
+    LOG_ERROR("Failed to create light map with SDL: {}", SDL_GetError());
+    return Result::SDL_ERROR;
+  }
+
   try {
     if (!std::filesystem::is_directory(config.tex_dir)) {
       LOG_ERROR("Can't initialize textures. {} is not a directory!",
@@ -366,11 +380,13 @@ Result handle_window_resize(Render_State &render_state, Update_State &us) {
   SDL_ClearError();
   render_state.surface = SDL_GetWindowSurface(render_state.window);
   if (render_state.surface == nullptr) {
-    // We never actually use this surface so if it doesn't work keep going
-    LOG_ERROR("Failed to get sdl surface: {}", SDL_GetError());
-    // return Result::SDL_ERROR;
+    // Log error but continue since the surface is not used
+    LOG_ERROR("Failed to get SDL surface: {}", SDL_GetError());
+    // return Result::SDL_ERROR; // Uncomment if you decide to handle this as an
+    // error
   }
 
+  // Get new window size
   SDL_GetWindowSize(render_state.window, &render_state.window_width,
                     &render_state.window_height);
   LOG_INFO("SDL window resized to {}, {}", render_state.window_width,
@@ -378,9 +394,26 @@ Result handle_window_resize(Render_State &render_state, Update_State &us) {
   us.window_width = render_state.window_width;
   us.window_height = render_state.window_height;
 
+  // Update screen cell size based on new dimensions
   render_state.screen_cell_size =
       render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
   us.screen_cell_size = render_state.screen_cell_size;
+
+  // Destroy the old light map texture to prevent memory leaks
+  if (render_state.light_map != nullptr) {
+    SDL_DestroyTexture(render_state.light_map);
+    render_state.light_map = nullptr;
+  }
+
+  // Recreate the light map texture with new dimensions
+  render_state.light_map = SDL_CreateTexture(
+      render_state.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+      render_state.window_width, render_state.window_height);
+  SDL_SetTextureBlendMode(render_state.light_map, SDL_BLENDMODE_MOD);
+  if (render_state.light_map == nullptr) {
+    LOG_ERROR("Failed to create light map with SDL: {}", SDL_GetError());
+    return Result::SDL_ERROR;
+  }
 
   return Result::SUCCESS;
 }
@@ -446,7 +479,11 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
   u8 cr, cg, cb, ca;
   for (ic.y = center.y - radius; ic.y < ic_max.y; ic.y++) {
     for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
-      Chunk &chunk = active_dimension.chunks[ic];
+      const auto &chunk_iter = active_dimension.chunks.find(ic);
+      if (chunk_iter == active_dimension.chunks.end()) {
+        continue;
+      }
+      const Chunk &chunk = chunk_iter->second;
 #ifndef NDEBUG
       if (!(chunk.coord == ic)) {
         LOG_WARN(
@@ -486,7 +523,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 #endif
 
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
-          Cell &cell = chunk.cells[cell_index];
+          const Cell &cell = chunk.cells[cell_index];
 
           if (cell.type == Cell_Type::WATER) {
             cr = cell.cr * static_cast<f32>(cell.density / 8.0f);
@@ -538,6 +575,60 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 
   SDL_UnlockTexture(render_state.cell_texture);
 
+  return Result::SUCCESS;
+}
+
+Result gen_light_map(Render_State &render_state, Update_State &update_state) {
+  // Reset texture and prepare to draw
+  // SDL_SetRenderTarget(render_state.renderer, render_state.light_map);
+  // SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);
+  // SDL_RenderClear(render_state.renderer);
+
+  // SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_ADD);
+
+  Dimension &active_dimension = *get_active_dimension(update_state);
+  Entity &active_player = *get_active_player(update_state);
+
+  Entity_Coord tl;
+  tl.x = active_player.camx + active_player.coord.x -
+         (update_state.window_width / 2.0f) / render_state.screen_cell_size;
+  tl.y = active_player.camy + active_player.coord.y +
+         (update_state.window_height / 2.0f) / render_state.screen_cell_size;
+
+  // Iterate through all chunks and add a light source for all air ones
+  Chunk_Coord ic = render_state.tl_tex_chunk;
+  for (; ic.x < render_state.tl_tex_chunk.x + SCREEN_CHUNK_SIZE + 1; ic.x++) {
+    for (ic.y = render_state.tl_tex_chunk.y;
+         ic.y >= render_state.tl_tex_chunk.y - SCREEN_CHUNK_SIZE; ic.y--) {
+      const auto &chunk_iter = active_dimension.chunks.find(ic);
+      if (chunk_iter == active_dimension.chunks.end())
+        continue;
+      const Chunk &chunk = chunk_iter->second;
+      int x_offset =
+          (ic.x * CHUNK_CELL_WIDTH) - tl.x - (CHUNK_CELL_WIDTH / 2.0);
+      int y_offset =
+          tl.y - (ic.y * CHUNK_CELL_WIDTH) + (CHUNK_CELL_WIDTH / 2.0);
+      SDL_Rect dst_rect = {
+          static_cast<int>(x_offset * render_state.screen_cell_size),
+          static_cast<int>(y_offset * render_state.screen_cell_size),
+          CHUNK_CELL_WIDTH *
+              render_state.screen_cell_size,  // Assuming the texture is the
+                                              // size of a chunk
+          CHUNK_CELL_WIDTH * render_state.screen_cell_size};
+
+      if (chunk.all_cell == Cell_Type::AIR) {
+        SDL_RenderCopy(
+            render_state.renderer,
+            render_state.textures[(u8)Texture_Id::LIGHT_SOURCE].texture, NULL,
+            &dst_rect);
+      } else {
+        SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);
+        SDL_RenderFillRect(render_state.renderer, &dst_rect);
+      }
+    }
+  }
+
+  // SDL_SetRenderTarget(render_state.renderer, NULL);
   return Result::SUCCESS;
 }
 
@@ -766,6 +857,21 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
       }
     }
   }
+
+  return Result::SUCCESS;
+}
+
+Result render_light_map(Render_State &render_state,
+                        Update_State &update_state) {
+  (void)update_state;
+  SDL_RenderCopy(render_state.renderer, render_state.light_map, NULL, NULL);
+
+  /*
+  // Blend the light map with the darkness texture
+  SDL_SetTextureBlendMode(darkness_texture, SDL_BLENDMODE_MOD);
+  SDL_RenderCopy(renderer, darkness_texture, NULL, scene_rect);
+  SDL_RenderCopy(renderer, light_map, NULL, scene_rect);
+  */
 
   return Result::SUCCESS;
 }
