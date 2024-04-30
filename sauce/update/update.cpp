@@ -797,6 +797,7 @@ void update_cells(Update_State &update_state) {
 void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
   bool all_water = true;
+  bool all_air = true;
 
   for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
@@ -813,15 +814,19 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
       if (height < SEA_LEVEL_CELL && our_height <= height) {
         chunk.cells[cell_index] = default_sand_cell();
         all_water = false;
+        all_air = false;
       } else if (height < SEA_LEVEL_CELL && our_height > height &&
                  our_height < SEA_LEVEL_CELL) {
         chunk.cells[cell_index] = default_water_cell();
+        all_air = false;
       } else if (our_height < height && our_height >= height - grass_depth) {
         chunk.cells[cell_index] = default_grass_cell();
         all_water = false;
+        all_air = false;
       } else if (our_height < height - grass_depth) {
         chunk.cells[cell_index] = default_dirt_cell();
         all_water = false;
+        all_air = false;
       } else {
         chunk.cells[cell_index] = default_air_cell();
         all_water = false;
@@ -830,6 +835,8 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
 
     if (all_water) {
       chunk.all_cell = Cell_Type::WATER;
+    } else if (all_air) {
+      chunk.all_cell = Cell_Type::AIR;
     }
 
     // added distance between tree's to prevent overlap
@@ -964,6 +971,7 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
 
 void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
+  bool all_air = true;
   for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
     s32 height = static_cast<s32>(surface_height(
@@ -987,6 +995,7 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
         } else {
           chunk.cells[cell_index] = default_dirt_cell();
         }
+        all_air = false;
       }
     }
 
@@ -1015,6 +1024,10 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
       }
     }
   }
+
+  if (all_air) {
+    chunk.all_cell = Cell_Type::AIR;
+  }
 }
 
 void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
@@ -1033,11 +1046,14 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
     for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
       chunk.cells[cell_index] = default_air_cell();
     }
+
+    chunk.all_cell = Cell_Type::AIR;
   }
 }
 
 void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
+  bool all_air = true;
   for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
     s32 height = static_cast<s32>(surface_height(
@@ -1052,10 +1068,15 @@ void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
       if (our_height < height) {
         chunk.cells[cell_index] =
             default_nicaragua_cell(y, CHUNK_CELL_WIDTH * 26);
+        all_air = false;
       } else {
         chunk.cells[cell_index] = default_air_cell();
       }
     }
+  }
+
+  if (all_air) {
+    chunk.all_cell = Cell_Type::AIR;
   }
 }
 

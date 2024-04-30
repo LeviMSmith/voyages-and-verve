@@ -115,13 +115,14 @@ Result render(Render_State &render_state, Update_State &update_state,
   if (update_state.events.find(Update_Event::PLAYER_MOVED_CHUNK) ==
       update_state.events.end()) {
     f64 player_x = active_player.coord.x + active_player.camx;
-    if (player_x > ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
-      render_state.biome = Biome::OCEAN;
-    } else if (player_x > FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH &&
-               player_x <= ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
-      render_state.biome = Biome::ALASKA;
-    } else if (player_x <= FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+    if (player_x < NICARAGUA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::NICARAGUA;
+    } else if (player_x < FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::FOREST;
+    } else if (player_x < ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::ALASKA;
+    } else {
+      render_state.biome = Biome::OCEAN;
     }
   }
 
@@ -129,6 +130,7 @@ Result render(Render_State &render_state, Update_State &update_state,
 
   // Background
   switch (render_state.biome) {
+    case Biome::NICARAGUA:
     case Biome::FOREST: {
       SDL_RenderCopy(render_state.renderer,
                      render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
@@ -475,7 +477,11 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
   u8 cr, cg, cb, ca;
   for (ic.y = center.y - radius; ic.y < ic_max.y; ic.y++) {
     for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
-      Chunk &chunk = active_dimension.chunks[ic];
+      const auto &chunk_iter = active_dimension.chunks.find(ic);
+      if (chunk_iter == active_dimension.chunks.end()) {
+        continue;
+      }
+      const Chunk &chunk = chunk_iter->second;
 #ifndef NDEBUG
       if (!(chunk.coord == ic)) {
         LOG_WARN(
@@ -515,7 +521,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 #endif
 
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
-          Cell &cell = chunk.cells[cell_index];
+          const Cell &cell = chunk.cells[cell_index];
 
           if (cell.type == Cell_Type::WATER) {
             cr = cell.cr * static_cast<f32>(cell.density / 8.0f);
@@ -571,31 +577,61 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 }
 
 Result gen_light_map(Render_State &render_state, Update_State &update_state) {
-  (void)update_state;
-
   // Reset texture and prepare to draw
   SDL_SetRenderTarget(render_state.renderer, render_state.light_map);
   SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);  // Full darkness
   SDL_RenderClear(render_state.renderer);
 
-  Entity &active_player = *get_active_player(update_state);
+  SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_ADD);
+  SDL_SetRenderDrawColor(render_state.renderer, 255, 255, 255, 200);
 
-  // Remember, Entity::cam is relative to the entity's position
-  f64 camx, camy;
-  camx = active_player.camx + active_player.coord.x;
-  camy = active_player.camy + active_player.coord.y;
+  // Entity &active_player = *get_active_player(update_state);
+  Dimension &active_dimension = *get_active_dimension(update_state);
 
-  /*
-  for (const auto& light : lights) {
-      // Assume light is an object with a position and radius
-      SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
-      SDL_SetRenderDrawColor(renderer, 255, 255, 255, light.intensity); //
-  Adjust light intensity SDL_RenderFillCircle(renderer, light.x, light.y,
-  light.radius); // Assuming you have a way to draw a filled circle
+  // Iterate through all chunks and add a light source for all air ones
+  static u64 frame = 0;
+  u64 num_chunks_processed = 0;
+
+  Chunk_Coord ic = render_state.tl_tex_chunk;
+  for (; ic.x < render_state.tl_tex_chunk.x + SCREEN_CHUNK_SIZE + 1; ic.x++) {
+    for (ic.y = render_state.tl_tex_chunk.y;
+         ic.y >= render_state.tl_tex_chunk.y - SCREEN_CHUNK_SIZE; ic.y--) {
+      if (frame % 60 == 0) {
+        LOG_DEBUG("Lightmap chunk: {} at {} {}", num_chunks_processed, ic.x,
+                  ic.y);
+      }
+      const auto &chunk_iter = active_dimension.chunks.find(ic);
+      if (chunk_iter == active_dimension.chunks.end()) {
+        continue;
+      }
+      const Chunk &chunk = chunk_iter->second;
+      if (chunk.all_cell == Cell_Type::AIR) {
+        int x_offset =
+            ((ic.x - render_state.tl_tex_chunk.x) * CHUNK_CELL_WIDTH) *
+            render_state.screen_cell_size;
+        int y_offset =
+            ((render_state.tl_tex_chunk.y - ic.y) * CHUNK_CELL_WIDTH) *
+            render_state.screen_cell_size;
+        SDL_Rect light_rect = {
+            x_offset, y_offset,
+            (CHUNK_CELL_WIDTH - 10) * render_state.screen_cell_size,
+            (CHUNK_CELL_WIDTH - 10) *
+                render_state
+                    .screen_cell_size};  // Assuming a square "light" area
+        SDL_RenderFillRect(render_state.renderer, &light_rect);
+      }
+      num_chunks_processed++;
+    }
   }
-  */
+
+  if (frame % 60 == 0) {
+    LOG_DEBUG("Processed {} chunks when generating light map",
+              num_chunks_processed);
+  }
 
   SDL_SetRenderTarget(render_state.renderer, NULL);  // Reset render target
+
+  frame++;
 
   return Result::SUCCESS;
 }
