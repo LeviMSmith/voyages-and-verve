@@ -590,7 +590,7 @@ Result gen_light_map(Render_State &render_state, Update_State &update_state) {
 
   // Iterate through all chunks and add a light source for all air ones
   Chunk_Coord ic = render_state.tl_tex_chunk;
-  const u16 LIGHT_SCS = 2;
+  const u16 LIGHT_SCS = SCREEN_CHUNK_SIZE;
   for (; ic.x < render_state.tl_tex_chunk.x + LIGHT_SCS + 1; ic.x++) {
     for (ic.y = render_state.tl_tex_chunk.y;
          ic.y >= render_state.tl_tex_chunk.y - LIGHT_SCS; ic.y--) {
@@ -599,6 +599,7 @@ Result gen_light_map(Render_State &render_state, Update_State &update_state) {
         continue;
       }
       const Chunk &chunk = chunk_iter->second;
+      // assert(chunk.coord == ic);
       if (chunk.all_cell == Cell_Type::AIR) {
         int x_offset =
             ((ic.x - render_state.tl_tex_chunk.x) * CHUNK_CELL_WIDTH) *
