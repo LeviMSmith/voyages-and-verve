@@ -573,9 +573,17 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 Result gen_light_map(Render_State &render_state, Update_State &update_state) {
   (void)update_state;
 
+  // Reset texture and prepare to draw
   SDL_SetRenderTarget(render_state.renderer, render_state.light_map);
   SDL_SetRenderDrawColor(render_state.renderer, 0, 0, 0, 255);  // Full darkness
   SDL_RenderClear(render_state.renderer);
+
+  Entity &active_player = *get_active_player(update_state);
+
+  // Remember, Entity::cam is relative to the entity's position
+  f64 camx, camy;
+  camx = active_player.camx + active_player.coord.x;
+  camy = active_player.camy + active_player.coord.y;
 
   /*
   for (const auto& light : lights) {
