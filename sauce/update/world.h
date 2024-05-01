@@ -143,16 +143,16 @@ inline Cell default_lava_cell() {
 
   int chance = std::rand() % 100;
 
-  if (chance < 30) {
+  if (chance < 35) {
     // Darker lava (more black)
-    cell.cr = std::rand() % 80;  // 0 to 79
-    cell.cg = std::rand() % 40;  // 0 to 39
-    cell.cb = std::rand() % 40;  // 0 to 39
+    cell.cr = std::rand() % 64;  // 0 to 63
+    cell.cg = std::rand() % 32;  // 0 to 31
+    cell.cb = std::rand() % 32;  // 0 to 31
   } else {
     // Brighter lava (red-orange)
-    cell.cr = 0xc0 + std::rand() % 64;  // 192 to 255
-    cell.cg = 0x40 + std::rand() % 64;  // 64 to 127
-    cell.cb = std::rand() % 40;         // 0 to 39
+    cell.cr = 0xf0 + std::rand() % 16;  // 208 to 255
+    cell.cg = 0x10 + std::rand() % 32;  // 32 to 63
+    cell.cb = std::rand() % 16;         // 0 to 15
   }
 
   cell.ca = 255;  // Fully opaque
