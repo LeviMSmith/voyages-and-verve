@@ -9,8 +9,8 @@
       "y": 28
     },
     "texture": 1,
-    "max_health": 200,
-    "starting_health": 200,
+    "max_health": 20000,
+    "starting_health": 20000,
     "zdepth": 9,
     "kinetic": true,
     "bouyancy": 0.01,

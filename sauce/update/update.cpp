@@ -420,7 +420,7 @@ void update_kinetic(Update_State &update_state) {
           switch (chunk.cells[cell].type) {
             case Cell_Type::NICARAGUA: {
               if (!nica_damage) {
-                entity.health--;
+                entity.health -= 10;
                 nica_damage = true;
               }
               [[fallthrough]];
