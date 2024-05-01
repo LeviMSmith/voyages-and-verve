@@ -808,10 +808,10 @@ Result render_hud(Render_State &render_state, Update_State &update_state) {
   SDL_SetRenderDrawColor(render_state.renderer, 0x33, 0x33, 0x33, 0xFF);
 
   const s64 HEALTH_MAX_WIDTH = 1000;
-  int bar_width = std::min(active_player.max_health, HEALTH_MAX_WIDTH);
+  int bar_width = std::min(active_player.max_health / 100, HEALTH_MAX_WIDTH);
 
   const int BAR_MARGIN = 30;
-  const int BAR_HEIGHT = 40;
+  const int BAR_HEIGHT = 20;
   SDL_Rect health_back_rect = {
       render_state.window_width - bar_width - BAR_MARGIN,  // x position
       BAR_MARGIN,                                          // y position
@@ -822,9 +822,10 @@ Result render_hud(Render_State &render_state, Update_State &update_state) {
 
   // Now the red filling
   const int HEALTH_MARGIN = 2;
-  int disp_health_width = std::max(
-      std::min(active_player.health, HEALTH_MAX_WIDTH - (HEALTH_MARGIN * 2)),
-      (s64)0);
+  int disp_health_width =
+      std::max(std::min(active_player.health / 100,
+                        HEALTH_MAX_WIDTH - (HEALTH_MARGIN * 2)),
+               (s64)0);
   SDL_SetRenderDrawColor(render_state.renderer, 0xff, 0x33, 0x33, 0xFF);
   SDL_Rect health_bar = {render_state.window_width - bar_width - BAR_MARGIN -
                              HEALTH_MARGIN,           // x position
