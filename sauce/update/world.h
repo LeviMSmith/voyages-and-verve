@@ -24,9 +24,10 @@ enum class Cell_Type : u8 {
   SNOW,
   NONE,
   STEAM,
-  NICARAGUA
+  NICARAGUA,
+  LAVA
 };
-#define CELL_TYPE_NUM 8
+#define CELL_TYPE_NUM 9
 
 struct Cell_Type_Info {
   s16 solidity;  // Used for collisions and cellular automata
@@ -132,6 +133,29 @@ inline Cell default_nicaragua_cell(int y, int max_y) {
   cell.cg = 0x0f + std::rand() % 12;   // Green stays fully random
   cell.cb = 0x0f + std::rand() % 12;   // Blue stays fully random
   cell.ca = 255;
+
+  return cell;
+}
+
+inline Cell default_lava_cell() {
+  Cell cell;
+  cell.type = Cell_Type::LAVA;
+
+  int chance = std::rand() % 100;
+
+  if (chance < 30) {
+    // Darker lava (more black)
+    cell.cr = std::rand() % 80;  // 0 to 79
+    cell.cg = std::rand() % 40;  // 0 to 39
+    cell.cb = std::rand() % 40;  // 0 to 39
+  } else {
+    // Brighter lava (red-orange)
+    cell.cr = 0xc0 + std::rand() % 64;  // 192 to 255
+    cell.cg = 0x40 + std::rand() % 64;  // 64 to 127
+    cell.cb = std::rand() % 40;         // 0 to 39
+  }
+
+  cell.ca = 255;  // Fully opaque
 
   return cell;
 }

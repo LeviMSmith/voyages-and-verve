@@ -480,6 +480,10 @@ void update_kinetic(Update_State &update_state) {
             case Cell_Type::AIR: {
               break;
             }
+            case Cell_Type::LAVA: {
+              entity.health -= 1;
+              [[fallthrough]];
+            }
             case Cell_Type::WATER: {
               entity.status = entity.status | (u8)Entity_Status::IN_WATER;
               break;
@@ -494,6 +498,58 @@ void update_kinetic(Update_State &update_state) {
       }
     }
   }
+}
+
+bool process_lava_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
+  s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
+           static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
+  s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
+           static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
+
+  Cell &cell = chunk.cells[cell_index];
+  // Start at bottom then sides
+  u32 rand_dir = std::rand();
+  s8 side_mod = rand_dir % 3;
+
+  // Normally this would just be a for loop going through the
+  // directions, but this has to be so wicked fast
+
+  Cell *o_cell = get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
+  if (o_cell != nullptr) {
+    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+        CELL_TYPE_INFOS[(u16)Cell_Type::LAVA].solidity) {
+      std::swap(cell, *o_cell);
+      return true;
+    }
+  }
+
+  // Only check one direction and do so randomly
+  /*
+if (rand_dir % 10 < 5) {  // Some of the time skip moving
+break;
+}
+  */
+  if (rand_dir & 1) {
+    o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
+    if (o_cell != nullptr) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+          CELL_TYPE_INFOS[(u16)Cell_Type::LAVA].solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  } else {
+    o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
+    if (o_cell != nullptr) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
+          CELL_TYPE_INFOS[(u16)Cell_Type::LAVA].solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 bool process_steam_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
@@ -690,6 +746,11 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
           }
           case Cell_Type::STEAM: {
             process_steam_cell(dim, chunk, cell_index);
+            break;
+          }
+          case Cell_Type::LAVA: {
+            process_lava_cell(dim, chunk, cell_index);
+            break;
           }
           default:
             break;
@@ -1066,9 +1127,11 @@ void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
 
       s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
       if (our_height < height) {
-        chunk.cells[cell_index] =
-            default_nicaragua_cell(y, CHUNK_CELL_WIDTH * 26);
+        chunk.cells[cell_index] = default_nicaragua_cell(
+            our_height - SURFACE_Y_MIN, CHUNK_CELL_WIDTH * 26);
         all_air = false;
+      } else if (our_height < SEA_LEVEL_CELL + (CHUNK_CELL_WIDTH * 2)) {
+        chunk.cells[cell_index] = default_lava_cell();
       } else {
         chunk.cells[cell_index] = default_air_cell();
       }

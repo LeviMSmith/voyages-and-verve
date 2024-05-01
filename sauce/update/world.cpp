@@ -53,11 +53,17 @@ const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
         -1.0f   // sublimation_point
     },          // STEAM
     {
-        -50,      // solidity
+        200,      // solidity
         0.8f,     // friction
         150.0f,   // passive_heat
         10000.0f  // sublimation_point
-    }             // NICARAGUA
+    },            // NICARAGUA
+    {
+        -10,     // solidity
+        0.9f,    // friction
+        200.0f,  // passive_heat
+        1000.0f  // sublimation_point
+    }            // LAVA
 };
 
 u16 surface_det_rand(u64 seed) {
