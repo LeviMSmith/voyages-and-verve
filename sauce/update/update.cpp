@@ -500,58 +500,6 @@ void update_kinetic(Update_State &update_state) {
   }
 }
 
-bool process_lava_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
-  s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
-           static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
-  s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
-           static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
-
-  Cell &cell = chunk.cells[cell_index];
-  // Start at bottom then sides
-  u32 rand_dir = std::rand();
-  s8 side_mod = rand_dir % 3;
-
-  // Normally this would just be a for loop going through the
-  // directions, but this has to be so wicked fast
-
-  Cell *o_cell = get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
-  if (o_cell != nullptr) {
-    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-        CELL_TYPE_INFOS[(u16)Cell_Type::LAVA].solidity) {
-      std::swap(cell, *o_cell);
-      return true;
-    }
-  }
-
-  // Only check one direction and do so randomly
-  /*
-if (rand_dir % 10 < 5) {  // Some of the time skip moving
-break;
-}
-  */
-  if (rand_dir & 1) {
-    o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
-    if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::LAVA].solidity) {
-        std::swap(cell, *o_cell);
-        return true;
-      }
-    }
-  } else {
-    o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
-    if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::LAVA].solidity) {
-        std::swap(cell, *o_cell);
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 bool process_steam_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
   s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
            static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
@@ -606,54 +554,89 @@ break;
   return false;
 }
 
-bool process_water_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
-  s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
-           static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
-  s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
-           static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
-
+bool process_fluid_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
   Cell &cell = chunk.cells[cell_index];
-  // Start at bottom then sides
+  const Cell_Type_Info &cell_info = CELL_TYPE_INFOS[(u16)cell.type];
+
   u32 rand_dir = std::rand();
-  s8 side_mod = rand_dir % 7;
+#ifndef NDEBUG
+  if (cell_info.viscosity == 0) {
+    LOG_WARN("process_fluid_cell called on non fluid cell! {}", (int)cell.type);
+    return false;
+  }
+#endif
+  s8 side_mod = rand_dir % cell_info.viscosity;
 
-  // Normally this would just be a for loop going through the
-  // directions, but this has to be so wicked fast
-
-  Cell *o_cell = get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
+  // if in first row, the next cell we get needs to be from the chunk below us.
+  Cell *o_cell = nullptr;
+  if (cell_index < CHUNK_CELL_WIDTH) {
+    Chunk_Coord o_cc = {chunk.coord.x, chunk.coord.y - 1};
+    const auto &o_chunk_iter = dim.chunks.find(o_cc);
+    if (o_chunk_iter != dim.chunks.end()) {
+      o_cell = &o_chunk_iter->second
+                    .cells[CHUNK_CELLS - (CHUNK_CELL_WIDTH - cell_index)];
+    }
+  } else {
+    o_cell = &chunk.cells[cell_index - CHUNK_CELL_WIDTH];
+  }
   if (o_cell != nullptr) {
     if (CELL_TYPE_INFOS[(u16)o_cell->type].passive_heat >
-        CELL_TYPE_INFOS[(u16)Cell_Type::WATER].sublimation_point) {
+        cell_info.sublimation_point) {
+      // TODO: Need a map of cell functions that we can call with
+      // cell_info.sublimation_cell
       cell = default_steam_cell();
       return true;
     }
-    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-        CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
+    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity < cell_info.solidity) {
       std::swap(cell, *o_cell);
       return true;
     }
   }
 
   // Only check one direction and do so randomly
-  /*
-if (rand_dir % 10 < 5) {  // Some of the time skip moving
-break;
-}
-  */
-  if (rand_dir & 1) {
-    o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
+  if (rand_dir & 1) {  // Move left
+    Cell *o_cell = nullptr;
+    if ((cell_index - side_mod) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index == 0) {  // We're on the leftmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x - 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index - side_mod + CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index - 1 < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index - 1];
+    }
+
     if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity < cell_info.solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
     }
-  } else {
-    o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
+  } else {  // Move right
+    Cell *o_cell = nullptr;
+    if ((cell_index + side_mod) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index ==
+            CHUNK_CELLS - 1) {  // We're on the rightmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x + 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index + side_mod - CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index + 1 < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index + 1];
+    }
+
     if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
+      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity < cell_info.solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
@@ -668,8 +651,10 @@ void update_all_water_chunk(Dimension &dim, Chunk &chunk) {
   bool still_all_water = true;
   for (u32 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     u32 bottom_index = (CHUNK_CELL_WIDTH - 1) * CHUNK_CELL_WIDTH + x;
-    if (process_water_cell(dim, chunk, bottom_index)) {
-      still_all_water = false;
+    if (chunk.cells[bottom_index].type == Cell_Type::WATER) {
+      if (process_fluid_cell(dim, chunk, bottom_index)) {
+        still_all_water = false;
+      }
     }
   }
 
@@ -678,11 +663,15 @@ void update_all_water_chunk(Dimension &dim, Chunk &chunk) {
   for (u32 y = 1; y < CHUNK_CELL_WIDTH - 1; y++) {
     u32 left_index = y * CHUNK_CELL_WIDTH;
     u32 right_index = y * CHUNK_CELL_WIDTH + (CHUNK_CELL_WIDTH - 1);
-    if (process_water_cell(dim, chunk, left_index)) {
-      still_all_water = false;
+    if (chunk.cells[left_index].type == Cell_Type::WATER) {
+      if (process_fluid_cell(dim, chunk, left_index)) {
+        still_all_water = false;
+      }
     }
-    if (process_water_cell(dim, chunk, right_index)) {
-      still_all_water = false;
+    if (chunk.cells[right_index].type == Cell_Type::WATER) {
+      if (process_fluid_cell(dim, chunk, right_index)) {
+        still_all_water = false;
+      }
     }
   }
 
@@ -740,16 +729,13 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
 
             break;
           }
+          case Cell_Type::LAVA:
           case Cell_Type::WATER: {
-            process_water_cell(dim, chunk, cell_index);
+            process_fluid_cell(dim, chunk, cell_index);
             break;
           }
           case Cell_Type::STEAM: {
             process_steam_cell(dim, chunk, cell_index);
-            break;
-          }
-          case Cell_Type::LAVA: {
-            process_lava_cell(dim, chunk, cell_index);
             break;
           }
           default:

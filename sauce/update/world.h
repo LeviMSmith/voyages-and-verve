@@ -35,6 +35,8 @@ struct Cell_Type_Info {
                  // that cell
   f32 passive_heat;
   f32 sublimation_point;
+  Cell_Type sublimation_cell;
+  u8 viscosity;
 };
 
 extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
