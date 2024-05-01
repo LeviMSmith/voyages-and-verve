@@ -607,8 +607,8 @@ bool process_fluid_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
         o_cell = &o_chunk_iter->second.cells[o_cell_index];
       }
     } else {
-      assert(cell_index - 1 < CHUNK_CELLS);
-      o_cell = &chunk.cells[cell_index - 1];
+      assert(cell_index - side_mod < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index - side_mod];
     }
 
     if (o_cell != nullptr) {
@@ -631,8 +631,8 @@ bool process_fluid_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
         o_cell = &o_chunk_iter->second.cells[o_cell_index];
       }
     } else {
-      assert(cell_index + 1 < CHUNK_CELLS);
-      o_cell = &chunk.cells[cell_index + 1];
+      assert(cell_index + side_mod < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index + side_mod];
     }
 
     if (o_cell != nullptr) {

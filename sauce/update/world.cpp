@@ -75,12 +75,12 @@ const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
         0,                // viscosity
     },                    // NICARAGUA
     {
-        -10,               // solidity
+        10,                // solidity
         0.9f,              // friction
         200.0f,            // passive_heat
         1000.0f,           // sublimation_point
         Cell_Type::STEAM,  // sublimation_cell
-        1,                 // viscosity
+        2,                 // viscosity
     }                      // LAVA
 };
 
