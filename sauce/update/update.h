@@ -68,10 +68,6 @@ constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
 void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc);
 void update_cells(Update_State &update_state);
 
-constexpr s64 NICARAGUA_EAST_BORDER_CHUNK = -25;
-constexpr s64 FOREST_EAST_BORDER_CHUNK = 25;
-constexpr s64 ALASKA_EAST_BORDER_CHUNK = 50;
-
 void gen_overworld_chunk(Update_State &update_state, DimensionIndex dim,
                          Chunk &chunk, const Chunk_Coord &chunk_coord);
 

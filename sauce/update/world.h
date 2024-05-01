@@ -75,9 +75,9 @@ inline Cell default_air_cell() {
 inline Cell default_water_cell() {
   return {
       Cell_Type::WATER,  // type
-      0,                 // cr
-      0,                 // cg
-      255,               // cb
+      0x0e,              // cr
+      0x0b,              // cg
+      0x4c,              // cb
       200,               // ca
       10                 // density
   };
@@ -183,7 +183,7 @@ struct Chunk {
   Cell_Type all_cell;
 };
 
-enum class Biome : u8 { FOREST, ALASKA, OCEAN, NICARAGUA };
+enum class Biome : u8 { FOREST, ALASKA, OCEAN, NICARAGUA, DEEP_OCEAN };
 
 /// Surface generation ///
 constexpr s32 SURFACE_Y_MAX = 7;
@@ -194,9 +194,15 @@ constexpr u16 FOREST_CELL_RANGE =
 constexpr s32 SEA_WEST = -16;
 constexpr s32 SEA_LEVEL = 0;
 constexpr f64 SEA_LEVEL_CELL = SEA_LEVEL * CHUNK_CELL_WIDTH;
+constexpr s32 DEEP_SEA_LEVEL = -5;
+constexpr s64 DEEP_SEA_LEVEL_CELL = DEEP_SEA_LEVEL * CHUNK_CELL_WIDTH;
 
 constexpr u32 GEN_TREE_MAX_WIDTH = 1500;
 constexpr u32 AK_GEN_TREE_MAX_WIDTH = 450;
+
+constexpr s64 NICARAGUA_EAST_BORDER_CHUNK = -25;
+constexpr s64 FOREST_EAST_BORDER_CHUNK = 25;
+constexpr s64 ALASKA_EAST_BORDER_CHUNK = 50;
 
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,

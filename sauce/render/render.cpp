@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "SDL_surface.h"
+#include "render/render_utils.h"
 #include "render/texture.h"
 #include "update/update.h"
 #include "update/world.h"
@@ -117,6 +118,7 @@ Result render(Render_State &render_state, Update_State &update_state,
   if (update_state.events.find(Update_Event::PLAYER_MOVED_CHUNK) ==
       update_state.events.end()) {
     f64 player_x = active_player.coord.x + active_player.camx;
+    f64 player_y = active_player.coord.y + active_player.camy;
     if (player_x < NICARAGUA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::NICARAGUA;
     } else if (player_x < FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
@@ -124,7 +126,11 @@ Result render(Render_State &render_state, Update_State &update_state,
     } else if (player_x < ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::ALASKA;
     } else {
-      render_state.biome = Biome::OCEAN;
+      if (player_y < DEEP_SEA_LEVEL_CELL) {
+        render_state.biome = Biome::DEEP_OCEAN;
+      } else {
+        render_state.biome = Biome::OCEAN;
+      }
     }
   }
 
@@ -146,10 +152,14 @@ Result render(Render_State &render_state, Update_State &update_state,
                      NULL, NULL);
       break;
     }
+    case Biome::DEEP_OCEAN: {
+      break;
+    }
   }
 
   // Mountains
-  if (update_state.active_dimension == DimensionIndex::OVERWORLD) {
+  if (update_state.active_dimension == DimensionIndex::OVERWORLD &&
+      render_state.biome != Biome::DEEP_OCEAN) {
     Res_Texture &mountain_tex =
         render_state.textures[(u8)Texture_Id::MOUNTAINS];
     SDL_Rect dest_rect = {
@@ -166,6 +176,9 @@ Result render(Render_State &render_state, Update_State &update_state,
     SDL_RenderCopy(render_state.renderer,
                    render_state.textures[(u8)Texture_Id::MOUNTAINS].texture,
                    NULL, &dest_rect);
+  } else if (render_state.biome == Biome::DEEP_OCEAN) {
+    SDL_SetRenderDrawColor(render_state.renderer, 0x03, 0x01, 0x1e, 255);
+    SDL_RenderFillRect(render_state.renderer, NULL);
   }
 
   // Cells and entities
@@ -492,10 +505,25 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
           const Cell &cell = chunk.cells[cell_index];
 
           if (cell.type == Cell_Type::WATER) {
-            cr = cell.cr * static_cast<f32>(cell.density / 8.0f);
-            cg = cell.cg * static_cast<f32>(cell.density / 8.0f);
-            cb = cell.cb * static_cast<f32>(cell.density / 8.0f);
+            cr = cell.cr;
+            cg = cell.cg;
+            cb = cell.cb;
             ca = cell.ca;
+
+            if (ic.x >= ALASKA_EAST_BORDER_CHUNK) {
+              const s64 BONUS_DEEP_OCEAN_DEPTH = -30 * CHUNK_CELL_WIDTH;
+              f32 t =
+                  1.0f -
+                  std::max(
+                      std::min(((ic.y * CHUNK_CELL_WIDTH) + cell_y -
+                                DEEP_SEA_LEVEL_CELL - BONUS_DEEP_OCEAN_DEPTH) /
+                                   static_cast<f32>(SEA_LEVEL_CELL -
+                                                    (DEEP_SEA_LEVEL_CELL +
+                                                     BONUS_DEEP_OCEAN_DEPTH)),
+                               1.0f),
+                      0.0f);
+              lerp(cr, cg, cb, ca, 0, 0, 0, 240, t);
+            }
           } else {
             cr = cell.cr;
             cg = cell.cg;
@@ -638,9 +666,8 @@ Result render_cell_texture(Render_State &render_state,
   /*
 #ifndef NDEBUG
   if (offset_y > 0 || offset_x > 0) {
-    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
-             "above 0: x:{}, y:{}",
-             offset_x, offset_y);
+    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are
+" "above 0: x:{}, y:{}", offset_x, offset_y);
   }
 #endif
 */
