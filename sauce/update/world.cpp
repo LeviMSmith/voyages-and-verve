@@ -80,7 +80,7 @@ const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
         200.0f,            // passive_heat
         1000.0f,           // sublimation_point
         Cell_Type::STEAM,  // sublimation_cell
-        2,                 // viscosity
+        3,                 // viscosity
     }                      // LAVA
 };
 
