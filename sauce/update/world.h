@@ -16,7 +16,8 @@ struct Chunk_Coord {
 };
 
 /// Cell ///
-enum class Cell_Type : u8 {
+#define MAX_CELL_TYPES 1000
+enum class Cell_Type : u16 {
   DIRT,
   AIR,
   WATER,
@@ -25,9 +26,10 @@ enum class Cell_Type : u8 {
   NONE,
   STEAM,
   NICARAGUA,
-  LAVA
+  LAVA,
+  SAND,
+  GRASS
 };
-#define CELL_TYPE_NUM 9
 
 struct Cell_Type_Info {
   s16 solidity;  // Used for collisions and cellular automata
@@ -39,7 +41,7 @@ struct Cell_Type_Info {
   u8 viscosity;
 };
 
-extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
+extern Cell_Type_Info cell_type_infos[MAX_CELL_TYPES];
 
 // Monolithic cell struct. Everything the cell does should be put in here.
 // There should be support for millions of cells, so avoid putting too much here
@@ -48,154 +50,7 @@ extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
 struct Cell {
   Cell_Type type;
   u8 cr, cg, cb, ca;  // Color rgba8
-  s16 density;        // Used in fluid dynamics for fluids
-  // s16 vx, vy;
 };
-
-// Factory cell functions
-inline Cell default_dirt_cell() {
-  Cell cell;
-  cell.type = Cell_Type::DIRT;
-  cell.cr = 99 + std::rand() % 12;
-  cell.cg = 80 + std::rand() % 12;
-  cell.cb = 79 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_air_cell() {
-  return {
-      Cell_Type::AIR,  // type
-      255,             // cr
-      255,             // cg
-      255,             // cb
-      0,               // ca
-      0,               // density
-  };
-}
-
-inline Cell default_water_cell() {
-  return {
-      Cell_Type::WATER,  // type
-      0x0e,              // cr
-      0x0b,              // cg
-      0x4c,              // cb
-      200,               // ca
-      10                 // density
-  };
-}
-
-inline Cell default_gold_cell() {
-  Cell cell;
-  cell.type = Cell_Type::GOLD;
-  cell.cr = 237 + std::rand() % 18;
-  cell.cg = 220 + std::rand() % 20;
-  cell.cb = 43 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_snow_cell() {
-  Cell cell;
-  cell.type = Cell_Type::SNOW;
-  cell.cr = 230 + std::rand() % 12;
-  cell.cg = 230 + std::rand() % 12;
-  cell.cb = 230 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_steam_cell() {
-  Cell cell;
-  cell.type = Cell_Type::STEAM;
-  cell.cr = 0xaf + std::rand() % 12;
-  cell.cg = 0xaf + std::rand() % 12;
-  cell.cb = 0xaf + std::rand() % 12;
-  cell.ca = 0x33 + std::rand() % 12;
-
-  return cell;
-}
-
-// 540f0f
-inline Cell default_nicaragua_cell(int y, int max_y) {
-  Cell cell;
-  cell.type = Cell_Type::NICARAGUA;
-
-  // Base color adjusted by position to create a vertical gradient
-  float factor = static_cast<float>(y) / max_y;
-  int base_red =
-      0x54 + static_cast<int>(11 * factor);  // Gradient effect on red
-
-  // Random variation around the base color
-  cell.cr =
-      base_red + std::rand() % 6 - 3;  // Random perturbation around base_red
-  cell.cg = 0x0f + std::rand() % 12;   // Green stays fully random
-  cell.cb = 0x0f + std::rand() % 12;   // Blue stays fully random
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_lava_cell() {
-  Cell cell;
-  cell.type = Cell_Type::LAVA;
-
-  int chance = std::rand() % 100;
-
-  if (chance < 35) {
-    // Darker lava (more black)
-    cell.cr = std::rand() % 64;  // 0 to 63
-    cell.cg = std::rand() % 32;  // 0 to 31
-    cell.cb = std::rand() % 32;  // 0 to 31
-  } else {
-    // Brighter lava (red-orange)
-    cell.cr = 0xf0 + std::rand() % 16;  // 208 to 255
-    cell.cg = 0x10 + std::rand() % 32;  // 32 to 63
-    cell.cb = std::rand() % 16;         // 0 to 15
-  }
-
-  cell.ca = 255;  // Fully opaque
-
-  return cell;
-}
-
-inline Cell default_grass_cell() {
-  Cell cell;
-  cell.type = Cell_Type::DIRT;
-  cell.cr = 8 + std::rand() % 12;
-  cell.cg = 94 + std::rand() % 12;
-  cell.cb = 11 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_sand_cell() {
-  Cell cell;
-  cell.type = Cell_Type::DIRT;
-  cell.cr = 214 + std::rand() % 12;
-  cell.cg = 185 + std::rand() % 12;
-  cell.cb = 105 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-/*
-inline Cell default_snowy_air_cell() {
-  Cell cell;
-  cell.type = Cell_Type::AIR;
-  cell.cr = 255;
-  cell.cg = 255;
-  cell.cb = 255;
-  cell.ca = 100;
-
-  return cell;
-}
-*/
 
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,
