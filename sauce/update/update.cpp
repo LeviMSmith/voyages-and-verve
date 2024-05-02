@@ -17,11 +17,33 @@ namespace rj = rapidjson;
 
 namespace VV {
 
-Result init_cell_factory(Update_State &us,
-                         std::filesystem::path factory_json_path) {
-  (void)us;
-  (void)factory_json_path;
+Cell default_cells[MAX_CELL_TYPES];
+Cell_Type_Info cell_type_infos[MAX_CELL_TYPES];
 
+Result init_cell_factory(std::filesystem::path factory_json_path) {
+  std::ifstream f_fjson(factory_json_path, std::ifstream::ate);
+  if (!f_fjson.is_open() || !f_fjson.good()) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  std::streamsize size = f_fjson.tellg();
+  f_fjson.seekg(0, std::ios::beg);
+  std::vector<char> json_data(size);
+
+  if (!f_fjson.read(json_data.data(), size)) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  rj::Document d;
+  d.Parse(json_data.data());
+
+  for (auto &cell_desc : d.GetObject()) {
+    if (!cell_desc.value.IsObject()) {
+      LOG_WARN("Cell descriptor {} is not an object!",
+               cell_desc.name.GetString());
+      continue;
+    }
+  }
   return Result::SUCCESS;
 }
 

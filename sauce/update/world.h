@@ -16,6 +16,8 @@ struct Chunk_Coord {
 };
 
 /// Cell ///
+
+// You can increase this as you please as long as it is under 2^16
 #define MAX_CELL_TYPES 1000
 enum class Cell_Type : u16 {
   DIRT,
@@ -31,7 +33,10 @@ enum class Cell_Type : u16 {
   GRASS
 };
 
+enum Cell_State : u8 { SOLID, LIQUID, GAS };
+
 struct Cell_Type_Info {
+  Cell_State state;
   s16 solidity;  // Used for collisions and cellular automata
   f32 friction;  // Used for slowing down an entity as it moves through or on
                  // that cell
@@ -51,6 +56,8 @@ struct Cell {
   Cell_Type type;
   u8 cr, cg, cb, ca;  // Color rgba8
 };
+
+extern Cell default_cells[MAX_CELL_TYPES];
 
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,

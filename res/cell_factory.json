@@ -16,7 +16,7 @@
     "passive_heat": 0.0,
     "sublimation_point": -1.0,
     "sublimation_cell": "NONE",
-    "viscosity": 0
+    "viscosity": 0,
     "r_base": 255,
     "g_base": 255,
     "b_base": 255,
@@ -29,7 +29,7 @@
     "passive_heat": -80.0,
     "sublimation_point": 100.0,
     "sublimation_cell": "STEAM",
-    "viscosity": 7
+    "viscosity": 7,
     "r_base": 14,
     "g_base": 12,
     "b_base": 76,
