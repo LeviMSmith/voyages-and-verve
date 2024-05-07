@@ -34,32 +34,50 @@ enum class Cell_Type : u16 {
 };
 
 inline Cell_Type string_to_cell_type(const char *str) {
-  if (strcmp(str, "DIRT")) {
+  if (strcmp(str, "DIRT") == 0) {
     return Cell_Type::DIRT;
-  } else if (strcmp(str, "AIR")) {
+  } else if (strcmp(str, "AIR") == 0) {
     return Cell_Type::AIR;
-  } else if (strcmp(str, "WATER")) {
+  } else if (strcmp(str, "WATER") == 0) {
     return Cell_Type::WATER;
-  } else if (strcmp(str, "GOLD")) {
+  } else if (strcmp(str, "GOLD") == 0) {
     return Cell_Type::GOLD;
-  } else if (strcmp(str, "SNOW")) {
+  } else if (strcmp(str, "SNOW") == 0) {
     return Cell_Type::SNOW;
-  } else if (strcmp(str, "STEAM")) {
+  } else if (strcmp(str, "NONE") == 0) {
+    return Cell_Type::NONE;
+  } else if (strcmp(str, "STEAM") == 0) {
     return Cell_Type::STEAM;
-  } else if (strcmp(str, "NICARAGUA")) {
+  } else if (strcmp(str, "NICARAGUA") == 0) {
     return Cell_Type::NICARAGUA;
-  } else if (strcmp(str, "LAVA")) {
+  } else if (strcmp(str, "LAVA") == 0) {
     return Cell_Type::LAVA;
-  } else if (strcmp(str, "SAND")) {
+  } else if (strcmp(str, "SAND") == 0) {
     return Cell_Type::SAND;
-  } else if (strcmp(str, "GRASS")) {
+  } else if (strcmp(str, "GRASS") == 0) {
     return Cell_Type::GRASS;
   } else {
+    LOG_WARN("Uknown cell type: {}", str);
     return Cell_Type::NONE;
   }
 }
 
-enum Cell_State : u8 { SOLID, LIQUID, GAS };
+enum Cell_State : u8 { SOLID, LIQUID, GAS, POWDER };
+
+inline Cell_State string_to_cell_state(const char *str) {
+  if (strcmp(str, "SOLID") == 0) {
+    return Cell_State::SOLID;
+  } else if (strcmp(str, "LIQUID") == 0) {
+    return Cell_State::LIQUID;
+  } else if (strcmp(str, "GAS") == 0) {
+    return Cell_State::GAS;
+  } else if (strcmp(str, "POWDER") == 0) {
+    return Cell_State::POWDER;
+  } else {
+    LOG_WARN("Unknown cell state: {}", str);
+    return Cell_State::SOLID;
+  }
+}
 
 struct Cell_Type_Info {
   Cell_State state;

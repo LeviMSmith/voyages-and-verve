@@ -24,6 +24,7 @@
     "a_variety": 0
   },
   "WATER": {
+    "state": "LIQUID",
     "solidity": -20,
     "friction": 0.9,
     "passive_heat": -80.0,
@@ -31,12 +32,16 @@
     "sublimation_cell": "STEAM",
     "viscosity": 7,
     "r_base": 14,
+    "r_variety": 0,
     "g_base": 12,
+    "g_variety": 0,
     "b_base": 76,
+    "b_variety": 0,
     "a_base": 200,
     "a_variety": 0
   },
   "GOLD": {
+    "state": "POWDER",
     "solidity": 255,
     "friction": 0.7,
     "passive_heat": -10.0,
@@ -86,6 +91,7 @@
     "b_base": 15
   },
   "LAVA": {
+    "state": "LIQUID",
     "solidity": 10,
     "friction": 0.9,
     "passive_heat": 200.0,
@@ -126,6 +132,7 @@
     "b_base": 11
   },
   "SAND": {
+    "state": "POWDER",
     "solidity": 255,
     "friction": 0.7,
     "passive_heat": -20.0,

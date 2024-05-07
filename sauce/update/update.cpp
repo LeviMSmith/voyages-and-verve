@@ -39,7 +39,9 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
   rj::Document d;
   d.Parse(json_data.data());
 
+  u16 cell_types_processed = 0;
   for (auto &cell_desc : d.GetObject()) {
+    cell_types_processed++;
     if (!cell_desc.value.IsObject()) {
       LOG_WARN("Cell descriptor {} is not an object!",
                cell_desc.name.GetString());
@@ -48,6 +50,10 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
 
     const char *cell_type_name = cell_desc.name.GetString();
     Cell_Type this_cell_type = string_to_cell_type(cell_type_name);
+
+    LOG_DEBUG("Initializing cell factory for cell {} (Type: {})",
+              cell_type_name, (u16)this_cell_type);
+
     Cell_Type_Info &cell_info = cell_type_infos[(u16)this_cell_type];
 
     // Fill out a default
@@ -72,7 +78,10 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
     for (auto &cell_item : cell_desc.value.GetObject()) {
       std::string cell_item_name = cell_item.name.GetString();
 
-      if (cell_item_name == "solidity") {
+      if (cell_item_name == "state") {
+        const char *cell_state_name = cell_item.value.GetString();
+        cell_info.state = string_to_cell_state(cell_state_name);
+      } else if (cell_item_name == "solidity") {
         cell_info.solidity = cell_item.value.GetInt();
       } else if (cell_item_name == "friction") {
         cell_info.friction = cell_item.value.GetDouble();
@@ -89,7 +98,6 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
         cell_info.sublimation_cell = string_to_cell_type(o_cell_type);
       } else if (cell_item_name == "viscosity") {
         cell_info.viscosity = cell_item.value.GetInt();
-        cell_info.state = Cell_State::LIQUID;
       } else if (cell_item_name == "r_base") {
         cell_info.r_base = cell_item.value.GetInt();
       } else if (cell_item_name == "r_variety") {
@@ -109,6 +117,9 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
       }
     }  // Cell item loop
   }    // Cell loop
+
+  LOG_INFO("Parsed {} cell objects from cell factory file",
+           cell_types_processed);
   return Result::SUCCESS;
 }
 
@@ -663,8 +674,13 @@ bool process_fluid_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
 
   u32 rand_dir = std::rand();
 #ifndef NDEBUG
-  if (cell_info.viscosity == 0) {
-    LOG_WARN("process_fluid_cell called on non fluid cell! {}", (int)cell.type);
+  static bool suppressed = false;
+  if (cell_info.viscosity == 0 && !suppressed) {
+    LOG_WARN(
+        "process_fluid_cell called on non fluid cell! Cell type {} with 0 "
+        "viscosity",
+        (int)cell.type);
+    suppressed = true;
     return false;
   }
 #endif
@@ -791,8 +807,10 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
     }
     default: {
       for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-        switch (chunk.cells[cell_index].type) {
-          case Cell_Type::GOLD: {  // Basic sand movement
+        const Cell_Type_Info &cell_info =
+            cell_type_infos[(u16)chunk.cells[cell_index].type];
+        switch (cell_info.state) {
+          case Cell_State::POWDER: {  // Basic sand movement
             s64 cx = cc.x * CHUNK_CELL_WIDTH +
                      static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
             s64 cy = cc.y * CHUNK_CELL_WIDTH +
@@ -832,12 +850,11 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
 
             break;
           }
-          case Cell_Type::LAVA:
-          case Cell_Type::WATER: {
+          case Cell_State::LIQUID: {
             process_fluid_cell(dim, chunk, cell_index);
             break;
           }
-          case Cell_Type::STEAM: {
+          case Cell_State::GAS: {
             process_steam_cell(dim, chunk, cell_index);
             break;
           }
