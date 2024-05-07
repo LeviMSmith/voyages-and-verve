@@ -807,10 +807,11 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
     }
     default: {
       for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-        const Cell_Type_Info &cell_info =
-            cell_type_infos[(u16)chunk.cells[cell_index].type];
+        const Cell_Type_Info &cell_info = *chunk.cells[cell_index].cell_info;
+
         switch (cell_info.state) {
           case Cell_State::POWDER: {  // Basic sand movement
+            break;
             s64 cx = cc.x * CHUNK_CELL_WIDTH +
                      static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
             s64 cy = cc.y * CHUNK_CELL_WIDTH +
@@ -851,7 +852,7 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
             break;
           }
           case Cell_State::LIQUID: {
-            process_fluid_cell(dim, chunk, cell_index);
+            // process_fluid_cell(dim, chunk, cell_index);
             break;
           }
           case Cell_State::GAS: {
@@ -1380,7 +1381,7 @@ Cell create_cell(Cell_Type type) {
              : CELL_INFO.a_base + std::rand() % CELL_INFO.a_variety;
 
   Cell ret_cell = {
-      type, r, g, b, a,
+      type, &CELL_INFO, r, g, b, a,
   };
 
   return ret_cell;

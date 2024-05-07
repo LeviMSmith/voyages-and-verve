@@ -107,6 +107,7 @@ extern Cell_Type_Info cell_type_infos[MAX_CELL_TYPES];
 // info or static.
 struct Cell {
   Cell_Type type;
+  const Cell_Type_Info *cell_info;
   u8 cr, cg, cb, ca;  // Color rgba8
 };
 
