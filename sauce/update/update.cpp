@@ -37,12 +37,36 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
   rj::Document d;
   d.Parse(json_data.data());
 
+  u16 cell_type_index = 0;
   for (auto &cell_desc : d.GetObject()) {
     if (!cell_desc.value.IsObject()) {
       LOG_WARN("Cell descriptor {} is not an object!",
                cell_desc.name.GetString());
       continue;
     }
+
+    Cell_Type_Info &cell_info = cell_type_infos[cell_type_index];
+
+    for (auto &cell_item : cell_desc.value.GetObject()) {
+      std::string cell_item_name = cell_item.name.GetString();
+
+      if (cell_item_name == "solidity") {
+        cell_info.solidity = cell_item.value.GetInt();
+      } else if (cell_item_name == "friction") {
+        cell_info.friction = cell_item.value.GetDouble();
+      } else if (cell_item_name == "passive_heat") {
+        cell_info.passive_heat = cell_item.value.GetDouble();
+      } else if (cell_item_name == "sublimation_point") {
+        cell_info.sublimation_point = cell_item.value.GetDouble();
+      } else if (cell_item_name == "sublimation_cell") {
+        // TODO: string to anum mapper
+        const std::string o_cell_type = cell_item.value.GetString();
+      } else if (cell_item_name == "viscosity") {
+        cell_info.viscosity = cell_item.value.GetInt();
+      }
+    }
+
+    cell_type_index++;
   }
   return Result::SUCCESS;
 }
