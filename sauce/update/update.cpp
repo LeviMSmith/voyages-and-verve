@@ -34,10 +34,11 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
     return Result::FILESYSTEM_ERROR;
   }
 
+  // LOG_DEBUG("Cell factories: {}", json_data.data());
+
   rj::Document d;
   d.Parse(json_data.data());
 
-  u16 cell_type_index = 0;
   for (auto &cell_desc : d.GetObject()) {
     if (!cell_desc.value.IsObject()) {
       LOG_WARN("Cell descriptor {} is not an object!",
@@ -45,7 +46,28 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
       continue;
     }
 
-    Cell_Type_Info &cell_info = cell_type_infos[cell_type_index];
+    const char *cell_type_name = cell_desc.name.GetString();
+    Cell_Type this_cell_type = string_to_cell_type(cell_type_name);
+    Cell_Type_Info &cell_info = cell_type_infos[(u16)this_cell_type];
+
+    // Fill out a default
+    cell_info = {
+        Cell_State::SOLID,
+        0,
+        0.0,
+        0.0,
+        -1.0,
+        Cell_Type::NONE,  // sublimation_cell
+        0,                // viscosity
+        0,                // r_base
+        12,               // r_variety
+        0,
+        12,
+        0,
+        12,
+        255,
+        1,
+    };
 
     for (auto &cell_item : cell_desc.value.GetObject()) {
       std::string cell_item_name = cell_item.name.GetString();
@@ -58,16 +80,35 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
         cell_info.passive_heat = cell_item.value.GetDouble();
       } else if (cell_item_name == "sublimation_point") {
         cell_info.sublimation_point = cell_item.value.GetDouble();
+        if (cell_info.sublimation_point > -1.1 &&
+            cell_info.sublimation_point < -0.9) {
+          cell_info.state = Cell_State::GAS;
+        }
       } else if (cell_item_name == "sublimation_cell") {
-        // TODO: string to anum mapper
-        const std::string o_cell_type = cell_item.value.GetString();
+        const char *o_cell_type = cell_item.value.GetString();
+        cell_info.sublimation_cell = string_to_cell_type(o_cell_type);
       } else if (cell_item_name == "viscosity") {
         cell_info.viscosity = cell_item.value.GetInt();
+        cell_info.state = Cell_State::LIQUID;
+      } else if (cell_item_name == "r_base") {
+        cell_info.r_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "r_variety") {
+        cell_info.r_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "g_base") {
+        cell_info.g_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "g_variety") {
+        cell_info.g_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "b_base") {
+        cell_info.b_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "b_variety") {
+        cell_info.b_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "a_base") {
+        cell_info.a_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "a_variety") {
+        cell_info.a_variety = cell_item.value.GetInt();
       }
-    }
-
-    cell_type_index++;
-  }
+    }  // Cell item loop
+  }    // Cell loop
   return Result::SUCCESS;
 }
 
@@ -209,7 +250,7 @@ Result init_updating(Update_State &update_state, const Config &config,
     return res_dir_res;
   }
   std::filesystem::path cell_factory_path = res_dir / "cell_factory.json";
-  Result cell_factory_res = init_cell_factory(update_state, cell_factory_path);
+  Result cell_factory_res = init_cell_factory(cell_factory_path);
   if (cell_factory_res != Result::SUCCESS) {
     LOG_ERROR("Updater failed to initialize cell factories");
     return res_dir_res;
@@ -1306,7 +1347,26 @@ Result get_entity_id(std::unordered_set<Entity_ID> &entity_id_pool,
 }
 
 Cell create_cell(Cell_Type type) {
-  return {type, 0, 0, 0, 255};
+  const Cell_Type_Info &CELL_INFO = cell_type_infos[(u16)type];
+
+  u8 r = CELL_INFO.r_variety == 0
+             ? CELL_INFO.r_base
+             : CELL_INFO.r_base + std::rand() % CELL_INFO.r_variety;
+  u8 g = CELL_INFO.g_variety == 0
+             ? CELL_INFO.g_base
+             : CELL_INFO.g_base + std::rand() % CELL_INFO.g_variety;
+  u8 b = CELL_INFO.b_variety == 0
+             ? CELL_INFO.b_base
+             : CELL_INFO.b_base + std::rand() % CELL_INFO.b_variety;
+  u8 a = CELL_INFO.a_variety == 0
+             ? CELL_INFO.a_base
+             : CELL_INFO.a_base + std::rand() % CELL_INFO.a_variety;
+
+  Cell ret_cell = {
+      type, r, g, b, a,
+  };
+
+  return ret_cell;
 }
 
 Result create_entity(Update_State &us, DimensionIndex dim,

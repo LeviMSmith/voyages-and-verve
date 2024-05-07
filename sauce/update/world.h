@@ -33,6 +33,32 @@ enum class Cell_Type : u16 {
   GRASS
 };
 
+inline Cell_Type string_to_cell_type(const char *str) {
+  if (strcmp(str, "DIRT")) {
+    return Cell_Type::DIRT;
+  } else if (strcmp(str, "AIR")) {
+    return Cell_Type::AIR;
+  } else if (strcmp(str, "WATER")) {
+    return Cell_Type::WATER;
+  } else if (strcmp(str, "GOLD")) {
+    return Cell_Type::GOLD;
+  } else if (strcmp(str, "SNOW")) {
+    return Cell_Type::SNOW;
+  } else if (strcmp(str, "STEAM")) {
+    return Cell_Type::STEAM;
+  } else if (strcmp(str, "NICARAGUA")) {
+    return Cell_Type::NICARAGUA;
+  } else if (strcmp(str, "LAVA")) {
+    return Cell_Type::LAVA;
+  } else if (strcmp(str, "SAND")) {
+    return Cell_Type::SAND;
+  } else if (strcmp(str, "GRASS")) {
+    return Cell_Type::GRASS;
+  } else {
+    return Cell_Type::NONE;
+  }
+}
+
 enum Cell_State : u8 { SOLID, LIQUID, GAS };
 
 struct Cell_Type_Info {
@@ -44,6 +70,15 @@ struct Cell_Type_Info {
   f32 sublimation_point;
   Cell_Type sublimation_cell;
   u8 viscosity;
+
+  u8 r_base;
+  u8 r_variety;
+  u8 g_base;
+  u8 g_variety;
+  u8 b_base;
+  u8 b_variety;
+  u8 a_base;
+  u8 a_variety;
 };
 
 extern Cell_Type_Info cell_type_infos[MAX_CELL_TYPES];
@@ -56,8 +91,6 @@ struct Cell {
   Cell_Type type;
   u8 cr, cg, cb, ca;  // Color rgba8
 };
-
-extern Cell default_cells[MAX_CELL_TYPES];
 
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,

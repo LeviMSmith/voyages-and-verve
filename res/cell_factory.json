@@ -79,7 +79,7 @@
     "passive_heat": 150.0,
     "sublimation_point": 10000.0,
     "sublimation_cell": "LAVA",
-    "viscosity": 0
+    "viscosity": 0,
     "r_base": 84,
     "r_variety": 6,
     "g_base": 15,
@@ -115,13 +115,23 @@
     ]
   },
   "GRASS": {
-    "base_type": "DIRT",
+    "solidity": 255,
+    "friction": 0.7,
+    "passive_heat": -20.0,
+    "sublimation_point": 3000.0,
+    "sublimation_cell": "LAVA",
+    "viscosity": 0,
     "r_base": 8,
     "g_base": 94,
     "b_base": 11
   },
   "SAND": {
-    "base_type": "DIRT",
+    "solidity": 255,
+    "friction": 0.7,
+    "passive_heat": -20.0,
+    "sublimation_point": 3000.0,
+    "sublimation_cell": "LAVA",
+    "viscosity": 0,
     "r_base": 214,
     "g_base": 185,
     "b_base": 105

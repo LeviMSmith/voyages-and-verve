@@ -47,8 +47,7 @@ struct Update_State {
 
 int update_worker_thread(void *update_state);
 
-Result init_cell_factory(Update_State &us,
-                         std::filesystem::path factory_json_path);
+Result init_cell_factory(std::filesystem::path factory_json_path);
 Result init_entity_factory(Update_State &us,
                            std::filesystem::path factory_json);
 Result init_updating(Update_State &update_state, const Config &config,
