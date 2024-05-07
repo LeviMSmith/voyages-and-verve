@@ -855,7 +855,7 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
             break;
           }
           case Cell_State::GAS: {
-            process_steam_cell(dim, chunk, cell_index);
+            // process_steam_cell(dim, chunk, cell_index);
             break;
           }
           default:
