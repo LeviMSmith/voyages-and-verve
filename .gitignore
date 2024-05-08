@@ -4,3 +4,6 @@ build/
 /process/
 /.vs/
 .vscode/
+
+gmon.out
+/analysis.txt

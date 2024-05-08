@@ -4,22 +4,13 @@ Fully simulated pixel world
 
 ## Building and running
 
-Should build and run anywhere SDL2 will compile for, no extra configuration
-required. Except:
-
-#### Wayland
-
-xwayland for some reason has troubles with this, so if you're using wayland, run with
-
-`export SDL_VIDEODRIVER=wayland`
-
-**This is probably fixed with a new SDL update**
-Please open an issue if you find that it's not.
+Should build and run anywhere SDL2 will compile for. Requires the freetype library.
+Honestly not sure if that's a compile time dependancy or runtime.
 
 ### Build dependancies
 
 Most code dependancies should be in vendor and built automatically by cmake,
-so you'll just need that and a compiler. Potentially SDL_ttf might require the
+so you'll just need that and a compiler. SDL_ttf might require the
 freetype library installed on your system.
 
 Make sure to also clone the submodules to actually get that code into vendor:
@@ -27,6 +18,7 @@ Make sure to also clone the submodules to actually get that code into vendor:
 `git submodule update --init --recursive --depth 1`
 
 - [cmake](https://cmake.org/download/)
+- [freetype](https://freetype.org/)
 
 ### Building
 

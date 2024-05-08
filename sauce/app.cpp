@@ -1,8 +1,6 @@
 #include "app.h"
 
-#include <cassert>
 #include <chrono>
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -19,7 +17,6 @@
 #include "SDL_video.h"
 #include "core.h"
 #include "update/update.h"
-#include "update/world.h"
 
 namespace VV {
 Result handle_args(int argv, const char **argc,
