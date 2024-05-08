@@ -852,7 +852,7 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
             break;
           }
           case Cell_State::LIQUID: {
-            // process_fluid_cell(dim, chunk, cell_index);
+            process_fluid_cell(dim, chunk, cell_index);
             break;
           }
           case Cell_State::GAS: {
