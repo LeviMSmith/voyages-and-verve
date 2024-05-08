@@ -100,13 +100,13 @@
     "viscosity": 3,
     "colors": [
       {
-        "chance": 35,
         "r_base": 0,
         "r_variety": 64,
         "g_base": 0,
         "g_variety": 32,
         "b_base": 0,
-        "b_variety": 32
+        "b_variety": 32,
+        "probability": 35
       },
       {
         "r_base": 240,
@@ -124,8 +124,8 @@
     "solidity": 255,
     "friction": 0.7,
     "passive_heat": -20.0,
-    "sublimation_point": 3000.0,
-    "sublimation_cell": "LAVA",
+    "sublimation_point": 100.0,
+    "sublimation_cell": "DIRT",
     "viscosity": 0,
     "r_base": 8,
     "g_base": 94,
