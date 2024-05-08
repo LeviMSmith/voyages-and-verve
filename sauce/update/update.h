@@ -66,7 +66,7 @@ void update_health(Update_State &us);
 
 constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
 
-void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc);
+void update_cells_chunk(Dimension &dim, Chunk &chunk);
 void update_cells(Update_State &update_state);
 
 void gen_overworld_chunk(Update_State &update_state, DimensionIndex dim,

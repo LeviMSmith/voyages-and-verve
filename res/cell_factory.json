@@ -132,7 +132,6 @@
     "b_base": 11
   },
   "SAND": {
-    "state": "POWDER",
     "solidity": 255,
     "friction": 0.7,
     "passive_heat": -20.0,
