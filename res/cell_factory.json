@@ -1,0 +1,146 @@
+{
+  "DIRT": {
+    "solidity": 255,
+    "friction": 0.7,
+    "passive_heat": -20.0,
+    "sublimation_point": 3000.0,
+    "sublimation_cell": "LAVA",
+    "viscosity": 0,
+    "r_base": 99,
+    "g_base": 80,
+    "b_base": 79
+  },
+  "AIR": {
+    "solidity": -100,
+    "friction": 0.8,
+    "passive_heat": 0.0,
+    "sublimation_point": -1.0,
+    "sublimation_cell": "NONE",
+    "viscosity": 0,
+    "r_base": 255,
+    "g_base": 255,
+    "b_base": 255,
+    "a_base": 0,
+    "a_variety": 0
+  },
+  "WATER": {
+    "state": "LIQUID",
+    "solidity": -20,
+    "friction": 0.9,
+    "passive_heat": -80.0,
+    "sublimation_point": 100.0,
+    "sublimation_cell": "STEAM",
+    "viscosity": 7,
+    "r_base": 14,
+    "r_variety": 0,
+    "g_base": 12,
+    "g_variety": 0,
+    "b_base": 76,
+    "b_variety": 0,
+    "a_base": 200,
+    "a_variety": 0
+  },
+  "GOLD": {
+    "state": "POWDER",
+    "solidity": 255,
+    "friction": 0.7,
+    "passive_heat": -10.0,
+    "sublimation_point": 10000.0,
+    "sublimation_cell": "LAVA",
+    "viscosity": 0,
+    "r_base": 237,
+    "r_variety": 18,
+    "g_base": 220,
+    "g_variety": 20,
+    "b_base": 43
+  },
+  "SNOW": {
+    "solidity": 200,
+    "friction": 0.7,
+    "passive_heat": -90.0,
+    "sublimation_point": 0.0,
+    "sublimation_cell": "WATER",
+    "viscosity": 0,
+    "r_base": 230,
+    "g_base": 230,
+    "b_base": 230
+  },
+  "STEAM": {
+    "solidity": -50,
+    "friction": 0.8,
+    "passive_heat": 50.0,
+    "sublimation_point": -1.0,
+    "sublimation_cell": "NONE",
+    "viscosity": 4,
+    "r_base": 175,
+    "g_base": 175,
+    "b_base": 175,
+    "a_base": 51,
+    "a_variety": 12
+  },
+  "NICARAGUA": {
+    "solidity": 200,
+    "friction": 0.8,
+    "passive_heat": 150.0,
+    "sublimation_point": 10000.0,
+    "sublimation_cell": "LAVA",
+    "viscosity": 0,
+    "r_base": 84,
+    "r_variety": 6,
+    "g_base": 15,
+    "b_base": 15
+  },
+  "LAVA": {
+    "state": "LIQUID",
+    "solidity": 10,
+    "friction": 0.9,
+    "passive_heat": 200.0,
+    "sublimation_point": 10000.0,
+    "sublimation_cell": "STEAM",
+    "viscosity": 3,
+    "colors": [
+      {
+        "chance": 35,
+        "r_base": 0,
+        "r_variety": 64,
+        "g_base": 0,
+        "g_variety": 32,
+        "b_base": 0,
+        "b_variety": 32
+      },
+      {
+        "r_base": 240,
+        "r_variety": 16,
+        "g_base": 16,
+        "g_variety": 32,
+        "b_base": 0,
+        "b_variety": 16,
+        "a_base": 250,
+        "a_variety": 6
+      }
+    ]
+  },
+  "GRASS": {
+    "solidity": 255,
+    "friction": 0.7,
+    "passive_heat": -20.0,
+    "sublimation_point": 3000.0,
+    "sublimation_cell": "LAVA",
+    "viscosity": 0,
+    "r_base": 8,
+    "g_base": 94,
+    "b_base": 11
+  },
+  "SAND": {
+    "state": "POWDER",
+    "solidity": 255,
+    "friction": 0.7,
+    "passive_heat": -20.0,
+    "sublimation_point": 3000.0,
+    "sublimation_cell": "LAVA",
+    "viscosity": 0,
+    "r_base": 214,
+    "g_base": 185,
+    "b_base": 105
+  }
+}

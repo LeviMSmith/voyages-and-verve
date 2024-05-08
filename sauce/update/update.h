@@ -47,6 +47,7 @@ struct Update_State {
 
 int update_worker_thread(void *update_state);
 
+Result init_cell_factory(std::filesystem::path factory_json_path);
 Result init_entity_factory(Update_State &us,
                            std::filesystem::path factory_json);
 Result init_updating(Update_State &update_state, const Config &config,
@@ -80,6 +81,8 @@ Result load_chunks_square(Update_State &update_state, DimensionIndex dimid,
 
 // This can fail! Check the result.
 Result get_entity_id(Entity_ID &id);
+
+Cell create_cell(Cell_Type type);
 
 // Factory functions. These should be used over default_entity.
 Result create_entity(Update_State &us, DimensionIndex dim,
