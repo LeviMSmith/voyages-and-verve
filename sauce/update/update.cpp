@@ -56,6 +56,18 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
 
     Cell_Type_Info &cell_info = cell_type_infos[(u16)this_cell_type];
 
+    Cell_Color default_color = {
+        0,    // r_base
+        12,   // r_variety
+        0,    // g_base
+        12,   // g_variety
+        0,    // b_base
+        12,   // b_variety
+        255,  // a_base
+        0,    // a_variety
+        100,  // probability
+    };
+
     // Fill out a default
     cell_info = {
         Cell_State::SOLID,
@@ -65,14 +77,8 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
         -1.0,
         Cell_Type::NONE,  // sublimation_cell
         0,                // viscosity
-        0,                // r_base
-        12,               // r_variety
-        0,
-        12,
-        0,
-        12,
-        255,
-        1,
+        {default_color},  // colors
+        1,                // num_colors
     };
 
     for (auto &cell_item : cell_desc.value.GetObject()) {
@@ -99,24 +105,79 @@ Result init_cell_factory(std::filesystem::path factory_json_path) {
       } else if (cell_item_name == "viscosity") {
         cell_info.viscosity = cell_item.value.GetInt();
       } else if (cell_item_name == "r_base") {
-        cell_info.r_base = cell_item.value.GetInt();
+        cell_info.colors[0].r_base = cell_item.value.GetInt();
       } else if (cell_item_name == "r_variety") {
-        cell_info.r_variety = cell_item.value.GetInt();
+        cell_info.colors[0].r_variety = cell_item.value.GetInt();
       } else if (cell_item_name == "g_base") {
-        cell_info.g_base = cell_item.value.GetInt();
+        cell_info.colors[0].g_base = cell_item.value.GetInt();
       } else if (cell_item_name == "g_variety") {
-        cell_info.g_variety = cell_item.value.GetInt();
+        cell_info.colors[0].g_variety = cell_item.value.GetInt();
       } else if (cell_item_name == "b_base") {
-        cell_info.b_base = cell_item.value.GetInt();
+        cell_info.colors[0].b_base = cell_item.value.GetInt();
       } else if (cell_item_name == "b_variety") {
-        cell_info.b_variety = cell_item.value.GetInt();
+        cell_info.colors[0].b_variety = cell_item.value.GetInt();
       } else if (cell_item_name == "a_base") {
-        cell_info.a_base = cell_item.value.GetInt();
+        cell_info.colors[0].a_base = cell_item.value.GetInt();
       } else if (cell_item_name == "a_variety") {
-        cell_info.a_variety = cell_item.value.GetInt();
-      }
-    }  // Cell item loop
-  }    // Cell loop
+        cell_info.colors[0].a_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "colors") {
+        if (!cell_item.value.IsArray()) {
+          LOG_WARN("Cell colors {} is not an array!",
+                   cell_item.name.GetString());
+          continue;
+        }
+
+        u8 i = 0;
+        for (auto &cell_color_item : cell_item.value.GetArray()) {
+          if (!cell_color_item.IsObject()) {
+            LOG_WARN("Cell colors member is not an object!");
+            continue;
+          }
+          if (i >= MAX_CELL_TYPE_COLORS) {
+            LOG_WARN("Too many cell colors.");
+            continue;
+          }
+          Cell_Color &color = cell_info.colors[i];
+
+          color = default_color;
+
+          for (auto &cell_color_object : cell_color_item.GetObject()) {
+            std::string cell_color_object_desc =
+                cell_color_object.name.GetString();
+
+            if (cell_color_object_desc == "r_base") {
+              color.r_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "r_variety") {
+              color.r_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "g_base") {
+              color.g_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "g_variety") {
+              color.g_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "b_base") {
+              color.b_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "b_variety") {
+              color.b_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "a_base") {
+              color.a_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "a_variety") {
+              color.a_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "probability") {
+              color.probability = cell_color_object.value.GetInt();
+            }
+          }
+
+          i++;
+        }  // Cell color loop
+        LOG_DEBUG("Cell has {} colors", i);
+
+        if (i == 0) {
+          LOG_WARN("Bad color array from cell descriptor. Using default color");
+          i = 1;
+        }
+        cell_info.num_colors = i;
+      }  // Cell else if chain
+    }    // Cell item loop
+  }      // Cell loop
 
   LOG_INFO("Parsed {} cell objects from cell factory file",
            cell_types_processed);
@@ -670,7 +731,7 @@ break;
 
 bool process_fluid_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
   Cell &cell = chunk.cells[cell_index];
-  const Cell_Type_Info &cell_info = cell_type_infos[(u16)cell.type];
+  const Cell_Type_Info &cell_info = *cell.cell_info;
 
   u32 rand_dir = std::rand();
 #ifndef NDEBUG
@@ -765,6 +826,82 @@ bool process_fluid_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
   return false;
 }
 
+bool process_powder_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
+  Cell &cell = chunk.cells[cell_index];
+  const Cell_Type_Info &cell_info = *cell.cell_info;
+
+  // if in first row, the next cell we get needs to be from the chunk below us.
+  Cell *o_cell = nullptr;
+  if (cell_index < CHUNK_CELL_WIDTH) {
+    Chunk_Coord o_cc = {chunk.coord.x, chunk.coord.y - 1};
+    const auto &o_chunk_iter = dim.chunks.find(o_cc);
+    if (o_chunk_iter != dim.chunks.end()) {
+      o_cell = &o_chunk_iter->second
+                    .cells[CHUNK_CELLS - (CHUNK_CELL_WIDTH - cell_index)];
+    }
+  } else {
+    o_cell = &chunk.cells[cell_index - CHUNK_CELL_WIDTH];
+  }
+  if (o_cell != nullptr) {
+    if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
+      std::swap(cell, *o_cell);
+      return true;
+    }
+  }
+
+  // Only check one direction and do so randomly
+  u32 rand_dir = std::rand();
+  if (rand_dir & 1) {  // Move left
+    Cell *o_cell = nullptr;
+    if ((cell_index - 1) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index == 0) {  // We're on the leftmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x - 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index - 1 + CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index - 1 < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index - 1];
+    }
+
+    if (o_cell != nullptr) {
+      if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  } else {  // Move right
+    Cell *o_cell = nullptr;
+    if ((cell_index + 1) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index ==
+            CHUNK_CELLS - 1) {  // We're on the rightmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x + 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index + 1 - CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index + 1 < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index + 1];
+    }
+
+    if (o_cell != nullptr) {
+      if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 void update_all_water_chunk(Dimension &dim, Chunk &chunk) {
   // Iterate over the bottom row of cells in the chunk
   bool still_all_water = true;
@@ -799,7 +936,7 @@ void update_all_water_chunk(Dimension &dim, Chunk &chunk) {
   }
 }
 
-void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
+void update_cells_chunk(Dimension &dim, Chunk &chunk) {
   switch (chunk.all_cell) {
     case (Cell_Type::WATER): {
       update_all_water_chunk(dim, chunk);
@@ -811,44 +948,7 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
 
         switch (cell_info.state) {
           case Cell_State::POWDER: {  // Basic sand movement
-            break;
-            s64 cx = cc.x * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
-            s64 cy = cc.y * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
-
-            Cell *below = get_cell_at_world_pos(dim, cx, cy - 1);
-
-            if (cell_type_infos[(u8)below->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *below);
-              break;
-            }
-
-            // Which side to try first
-            s8 dir = std::rand() % 2;
-            if (dir == 0) {
-              dir = -1;
-            }
-
-            Cell *side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
-            if (cell_type_infos[(u8)side_cell->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *side_cell);
-              break;
-            }
-
-            if (dir == 1) {
-              dir = -1;
-            }
-            if (dir == -1) {
-              dir = 1;
-            }
-
-            side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
-            if (cell_type_infos[(u8)side_cell->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *side_cell);
-              break;
-            }
-
+            process_powder_cell(dim, chunk, cell_index);
             break;
           }
           case Cell_State::LIQUID: {
@@ -939,7 +1039,7 @@ void update_cells(Update_State &update_state) {
           auto chunk_iter = dim.chunks.find(chunk_coord);
           if (chunk_iter !=
               dim.chunks.end()) {  // Double-check in case of race conditions
-            update_cells_chunk(dim, chunk_iter->second, chunk_coord);
+            update_cells_chunk(dim, chunk_iter->second);
           }
           chunk_stack.mark_done(
               chunk_coord);  // Mark this chunk as done processing
@@ -1365,24 +1465,51 @@ Result get_entity_id(std::unordered_set<Entity_ID> &entity_id_pool,
 }
 
 Cell create_cell(Cell_Type type) {
-  const Cell_Type_Info &CELL_INFO = cell_type_infos[(u16)type];
+  const Cell_Type_Info &CELL_INFO = cell_type_infos[static_cast<u16>(type)];
 
-  u8 r = CELL_INFO.r_variety == 0
-             ? CELL_INFO.r_base
-             : CELL_INFO.r_base + std::rand() % CELL_INFO.r_variety;
-  u8 g = CELL_INFO.g_variety == 0
-             ? CELL_INFO.g_base
-             : CELL_INFO.g_base + std::rand() % CELL_INFO.g_variety;
-  u8 b = CELL_INFO.b_variety == 0
-             ? CELL_INFO.b_base
-             : CELL_INFO.b_base + std::rand() % CELL_INFO.b_variety;
-  u8 a = CELL_INFO.a_variety == 0
-             ? CELL_INFO.a_base
-             : CELL_INFO.a_base + std::rand() % CELL_INFO.a_variety;
+  // Ensure there are color configurations available
+  if (CELL_INFO.num_colors == 0) {
+    return {type, &CELL_INFO, 0xff, 0, 0xff, 255};  // Default to magenta
+  }
 
-  Cell ret_cell = {
-      type, &CELL_INFO, r, g, b, a,
-  };
+  const Cell_Color *selected_color = nullptr;
+
+  // Iterate through each color and select based on probability
+  for (u8 i = 0; i < CELL_INFO.num_colors; ++i) {
+    const Cell_Color &color = CELL_INFO.colors[i];
+    int random_value =
+        std::rand() % 100 + 1;  // Generate a number from 1 to 100
+    if (random_value <= color.probability) {
+      selected_color = &color;
+      break;
+    }
+  }
+
+  // If no color was selected by probability, default to the last color
+  if (!selected_color) {
+    selected_color = &CELL_INFO.colors[CELL_INFO.num_colors - 1];
+  }
+
+  // Compute color components with variation
+  u8 r =
+      selected_color->r_variety == 0
+          ? selected_color->r_base
+          : selected_color->r_base + std::rand() % (selected_color->r_variety);
+  u8 g =
+      selected_color->g_variety == 0
+          ? selected_color->g_base
+          : selected_color->g_base + std::rand() % (selected_color->g_variety);
+  u8 b =
+      selected_color->b_variety == 0
+          ? selected_color->b_base
+          : selected_color->b_base + std::rand() % (selected_color->b_variety);
+  u8 a =
+      selected_color->a_variety == 0
+          ? selected_color->a_base
+          : selected_color->a_base + std::rand() % (selected_color->a_variety);
+
+  // Create and return the cell
+  Cell ret_cell = {type, &CELL_INFO, r, g, b, a};
 
   return ret_cell;
 }

@@ -79,6 +79,19 @@ inline Cell_State string_to_cell_state(const char *str) {
   }
 }
 
+struct Cell_Color {
+  u8 r_base;
+  u8 r_variety;
+  u8 g_base;
+  u8 g_variety;
+  u8 b_base;
+  u8 b_variety;
+  u8 a_base;
+  u8 a_variety;
+  u8 probability;
+};
+
+#define MAX_CELL_TYPE_COLORS 8
 struct Cell_Type_Info {
   Cell_State state;
   s16 solidity;  // Used for collisions and cellular automata
@@ -89,14 +102,8 @@ struct Cell_Type_Info {
   Cell_Type sublimation_cell;
   u8 viscosity;
 
-  u8 r_base;
-  u8 r_variety;
-  u8 g_base;
-  u8 g_variety;
-  u8 b_base;
-  u8 b_variety;
-  u8 a_base;
-  u8 a_variety;
+  Cell_Color colors[MAX_CELL_TYPE_COLORS];
+  u8 num_colors;
 };
 
 extern Cell_Type_Info cell_type_infos[MAX_CELL_TYPES];
