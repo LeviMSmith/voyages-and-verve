@@ -21,5 +21,8 @@ enum class Texture_Id : u8 {
   ALASKA_BG = 8,
   AKTREE1 = 9,
   AKTREE2 = 0x0a,
+  AKNEITZSCHE = 0x0b,
+  ECNEITZSCHE = 0x0c,
+  SDNEITZSCHE = 0x0d,
 };
 }  // namespace VV
