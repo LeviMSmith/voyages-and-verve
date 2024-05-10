@@ -34,6 +34,7 @@
     "flipped": true,
     "anim_width": 25,
     "anim_delay": 20,
-    "anim_frames": 2
+    "anim_frames": 2,
+    "ai_id": 0
   }
 }

@@ -7,6 +7,7 @@
 #include "SDL_mouse.h"
 #include "rapidjson/document.h"
 #include "render/texture.h"
+#include "update/ai.h"
 #include "update/entity.h"
 #include "update/world.h"
 #include "utils/config.h"
@@ -230,6 +231,7 @@ Result init_entity_factory(Update_State &us,
 
     // TODO: Warn if we're overwritting an entity of the same name
     Entity_Factory &new_entity_factory = us.entity_factories[entity_type];
+    memset(&new_entity_factory, 0, sizeof(Entity_Factory));
     Entity &new_entity = new_entity_factory.e;
 
     for (auto &entity_item : entity_desc.value.GetObject()) {
@@ -284,6 +286,9 @@ Result init_entity_factory(Update_State &us,
         new_entity.anim_delay = entity_item.value.GetUint();
       } else if (entity_item_name == "anim_frames") {
         new_entity.anim_frames = entity_item.value.GetUint();
+      } else if (entity_item_name == "ai_id") {
+        new_entity.ai_id = static_cast<AI_ID>(entity_item.value.GetUint());
+        new_entity_factory.register_ai = true;
       }
     }
   }
@@ -1062,6 +1067,15 @@ void update_cells(Update_State &update_state) {
   }
 }
 
+void update_ai(Update_State &us) {
+  Entity &active_player = *get_active_player(us);
+  Dimension &dim = *get_active_dimension(us);
+
+  for (Entity_ID e_id : dim.e_ai) {
+    Entity &e = us.entities[e_id];
+  }
+}
+
 void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
   bool all_water = true;
@@ -1539,6 +1553,9 @@ Result create_entity(Update_State &us, DimensionIndex dim,
     }
     if (factory.register_render) {
       dimension_iter->second.e_render.emplace(us.entities[id].zdepth, id);
+    }
+    if (factory.register_ai) {
+      dimension_iter->second.e_ai.insert(id);
     }
   } else {
     LOG_WARN(
