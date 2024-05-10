@@ -962,7 +962,9 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk) {
             break;
           }
           case Cell_State::GAS: {
-            // process_steam_cell(dim, chunk, cell_index);
+            if (chunk.cells[cell_index].type == Cell_Type::STEAM) {
+              process_steam_cell(dim, chunk, cell_index);
+            }
             break;
           }
           default:
