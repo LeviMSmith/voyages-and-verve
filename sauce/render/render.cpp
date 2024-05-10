@@ -340,8 +340,10 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
 
               auto emplace_res = render_state.textures.emplace(id, new_tex);
               if (!emplace_res.second) {
-                LOG_ERROR("Couldn't create texture of id {}. Already exists",
-                          id);
+                LOG_ERROR(
+                    "Couldn't create texture of id {} from texture {}. ID "
+                    "already exists",
+                    id, entry.path().string());
                 SDL_DestroyTexture(new_tex.texture);
                 break;
               }

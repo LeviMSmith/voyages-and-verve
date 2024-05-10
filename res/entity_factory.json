@@ -29,7 +29,7 @@
     "zdepth": -10
   },
   "neitzsche": {
-    "texture": 5,
+    "texture": 11,
     "zdepth": 10,
     "flipped": true,
     "anim_width": 25,

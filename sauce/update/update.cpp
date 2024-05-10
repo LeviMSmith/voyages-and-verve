@@ -364,6 +364,7 @@ Result update(Update_State &update_state) {
     LOG_INFO("Got close from keyboard");
     return res;
   }
+  update_ai(update_state);
   update_kinetic(update_state);
   Chunk_Coord current_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
@@ -1071,8 +1072,45 @@ void update_ai(Update_State &us) {
   Entity &active_player = *get_active_player(us);
   Dimension &dim = *get_active_dimension(us);
 
+  // Coordinates of the player
+  f64 player_x = active_player.coord.x;
+  f64 player_y = active_player.coord.y;
+
   for (Entity_ID e_id : dim.e_ai) {
     Entity &e = us.entities[e_id];
+
+    // Calculate the vector difference between the entity and the player
+    f64 dx = e.coord.x - player_x;
+    f64 dy = e.coord.y - player_y;
+    f64 distance = sqrt(dx * dx + dy * dy);
+
+    if (distance <= AI_CELL_RADIUS &&
+        distance > 0) {  // Ensure distance is not zero
+      switch (e.ai_id) {
+        case AI_ID::FOLLOW_PLAYER_SLOW: {
+          // Normalize the direction vector and scale it by a desired
+          // acceleration amount
+          f64 accel_magnitude = -0.1;  // Set the acceleration magnitude
+          f64 ax = (dx / distance) * accel_magnitude;
+          f64 ay = (dy / distance) * accel_magnitude;
+
+          e.flipped = ax < 0;
+
+          // Apply acceleration to velocity
+          e.vx += ax;
+          e.vy += ay;
+
+          // Optionally apply a damping factor to prevent excessive speeds
+          f64 damping_factor = 0.95;
+          e.vx *= damping_factor;
+          e.vy *= damping_factor;
+
+          // Update the position
+          e.coord.x += e.vx;
+          e.coord.y += e.vy;
+        }
+      }
+    }
   }
 }
 
