@@ -179,7 +179,8 @@ struct Dimension {
   std::set<Entity_ID>
       e_kinetic;  // Entities that should be updated in the kinetic step
   std::set<Entity_ID>
-      e_health;  // Entites that need to have their health checked
+      e_health;              // Entites that need to have their health checked
+  std::set<Entity_ID> e_ai;  // Entities with AI stuff
 };
 
 Cell *get_cell_at_world_pos(Dimension &dim, s64 x, s64 y);

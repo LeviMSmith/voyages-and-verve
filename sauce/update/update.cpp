@@ -7,6 +7,7 @@
 #include "SDL_mouse.h"
 #include "rapidjson/document.h"
 #include "render/texture.h"
+#include "update/ai.h"
 #include "update/entity.h"
 #include "update/world.h"
 #include "utils/config.h"
@@ -230,6 +231,7 @@ Result init_entity_factory(Update_State &us,
 
     // TODO: Warn if we're overwritting an entity of the same name
     Entity_Factory &new_entity_factory = us.entity_factories[entity_type];
+    memset(&new_entity_factory, 0, sizeof(Entity_Factory));
     Entity &new_entity = new_entity_factory.e;
 
     for (auto &entity_item : entity_desc.value.GetObject()) {
@@ -284,6 +286,9 @@ Result init_entity_factory(Update_State &us,
         new_entity.anim_delay = entity_item.value.GetUint();
       } else if (entity_item_name == "anim_frames") {
         new_entity.anim_frames = entity_item.value.GetUint();
+      } else if (entity_item_name == "ai_id") {
+        new_entity.ai_id = static_cast<AI_ID>(entity_item.value.GetUint());
+        new_entity_factory.register_ai = true;
       }
     }
   }
@@ -359,6 +364,7 @@ Result update(Update_State &update_state) {
     LOG_INFO("Got close from keyboard");
     return res;
   }
+  update_ai(update_state);
   update_kinetic(update_state);
   Chunk_Coord current_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
@@ -1062,6 +1068,52 @@ void update_cells(Update_State &update_state) {
   }
 }
 
+void update_ai(Update_State &us) {
+  Entity &active_player = *get_active_player(us);
+  Dimension &dim = *get_active_dimension(us);
+
+  // Coordinates of the player
+  f64 player_x = active_player.coord.x;
+  f64 player_y = active_player.coord.y;
+
+  for (Entity_ID e_id : dim.e_ai) {
+    Entity &e = us.entities[e_id];
+
+    // Calculate the vector difference between the entity and the player
+    f64 dx = e.coord.x - player_x;
+    f64 dy = e.coord.y - player_y;
+    f64 distance = sqrt(dx * dx + dy * dy);
+
+    if (distance <= AI_CELL_RADIUS &&
+        distance > 0) {  // Ensure distance is not zero
+      switch (e.ai_id) {
+        case AI_ID::FOLLOW_PLAYER_SLOW: {
+          // Normalize the direction vector and scale it by a desired
+          // acceleration amount
+          f64 accel_magnitude = -0.1;  // Set the acceleration magnitude
+          f64 ax = (dx / distance) * accel_magnitude;
+          f64 ay = (dy / distance) * accel_magnitude;
+
+          e.flipped = ax < 0;
+
+          // Apply acceleration to velocity
+          e.vx += ax;
+          e.vy += ay;
+
+          // Optionally apply a damping factor to prevent excessive speeds
+          f64 damping_factor = 0.95;
+          e.vx *= damping_factor;
+          e.vy *= damping_factor;
+
+          // Update the position
+          e.coord.x += e.vx;
+          e.coord.y += e.vy;
+        }
+      }
+    }
+  }
+}
+
 void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
   bool all_water = true;
@@ -1539,6 +1591,9 @@ Result create_entity(Update_State &us, DimensionIndex dim,
     }
     if (factory.register_render) {
       dimension_iter->second.e_render.emplace(us.entities[id].zdepth, id);
+    }
+    if (factory.register_ai) {
+      dimension_iter->second.e_ai.insert(id);
     }
   } else {
     LOG_WARN(

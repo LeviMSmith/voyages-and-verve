@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "render/texture.h"
+#include "update/ai.h"
 
 namespace VV {
 constexpr u32 MAX_TOTAL_ENTITIES = 100000;
@@ -76,6 +77,8 @@ struct Entity {
   s64 health;
   s64 max_health;
   Entity_Coord respawn_point;
+
+  AI_ID ai_id;
 };
 
 struct Entity_Factory {
@@ -83,6 +86,7 @@ struct Entity_Factory {
   bool register_kinetic;
   bool register_render;
   bool register_health;
+  bool register_ai;
 };
 
 Entity default_entity();
