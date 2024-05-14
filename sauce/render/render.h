@@ -1,6 +1,9 @@
 #pragma once
 
 #include "SDL_ttf.h"
+#include <SDL_mixer.h> //music library
+#include <thread>
+#include <map>
 #include "core.h"
 #include "update/update.h"
 #include "update/world.h"
@@ -23,6 +26,12 @@ struct Render_State {
   SDL_Surface *surface;
 
   Biome biome;
+
+  Mix_Music *current_music; //stuff for music
+  std::map<Biome, Mix_Music*> music_tracks;
+  std::map<Biome, std::string> music_paths;
+  std::thread music_loader_thread;
+  Biome current_biome;
 
   std::string debug_info;
   TTF_Font *main_font;

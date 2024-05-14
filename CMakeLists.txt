@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set( CMAKE_CXX_COMPILER "g++" )
+set( CMAKE_C_COMPILER "gcc" )
+
 project(voyages-and-verve)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -28,6 +31,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL_ttf)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/spdlog/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/rapidjson/include)
+#target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL_mixer/include) #adding sound mixer directory here
+target_include_directories(${PROJECT_NAME} PRIVATE ${SDL2_INCLUDE_DIRS} vendor/SDL_mixer/include)
 
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
@@ -40,9 +45,19 @@ add_subdirectory(vendor/SDL_ttf)
 
 add_subdirectory(vendor/spdlog)
 
+add_subdirectory(vendor/SDL_mixer) #added subdirectory for sdl_mixer
+
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL2-static)
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL2_ttf)
 target_link_libraries(${PROJECT_NAME} PRIVATE spdlog)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL2_mixer ${SDL2_LIBRARIES}) #linking sound mixer here
+
+#link SDL mixer
+#find_package(SDL2_mixer REQUIRED)
+#if(SDL2_MIXER_FOUND)
+#    include_directories(${SDL2_MIXER_INCLUDE_DIRS})
+#    target_link_libraries(${PROJECT_NAME} ${SDL2_MIXER_LIBRARIES})
+#endif()
 
 # Resource copy
 add_custom_command(
@@ -67,11 +82,13 @@ target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/SDL/include)
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/SDL_ttf)
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/spdlog/include)
 target_include_directories(${PROJECT_NAME}_test PRIVATE vendor/rapidjson/include)
+target_include_directories(${PROJECT_NAME}_test PRIVATE ${SDL2_INCLUDE_DIRS} vendor/SDL_mixer/include) #sdl mixer for test
 
 target_link_libraries(${PROJECT_NAME}_test PRIVATE gtest gtest_main)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE SDL2-static)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE SDL2_ttf)
 target_link_libraries(${PROJECT_NAME}_test PRIVATE spdlog)
+target_link_libraries(${PROJECT_NAME}_test PRIVATE SDL2_mixer ${SDL2_LIBRARIES}) #sdl mixer for test
 
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME}_test)

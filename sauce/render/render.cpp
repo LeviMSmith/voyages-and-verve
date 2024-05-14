@@ -8,6 +8,23 @@
 #include "update/world.h"
 
 namespace VV {
+
+void loadMusic(Render_State &render_state) { //function to load music files when called
+  /*render_state.music_paths[VV::Biome::FOREST] = "res/music/Forest(placeholder).mp3";
+  render_state.music_paths[VV::Biome::OCEAN] = "res/music/Ocean(placeholder).mp3";
+  render_state.music_paths[VV::Biome::ALASKA] = "res/music/Snow(placeholder).mp3";*/
+  render_state.music_tracks[VV::Biome::FOREST] = Mix_LoadMUS("res/music/Forest(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::OCEAN] = Mix_LoadMUS("res/music/Ocean(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::ALASKA] = Mix_LoadMUS("res/music/Snow(placeholder).mp3");
+  for (auto &entry : render_state.music_paths) {
+      render_state.music_tracks[entry.first] = Mix_LoadMUS(entry.second.c_str());
+      if (!render_state.music_tracks[entry.first]) {
+          LOG_ERROR("Failed to load music file {}: {}", entry.second, Mix_GetError());
+      }
+  }
+}
+// load music through config??
+
 Result init_rendering(Render_State &render_state, Update_State &us,
                       Config &config) {
   // SDL init
@@ -22,7 +39,18 @@ Result init_rendering(Render_State &render_state, Update_State &us,
   }
   */
 
-  int sdl_init_flags = SDL_INIT_VIDEO;
+  // loads music in separate thread
+  int mix_flags = MIX_INIT_OGG | MIX_INIT_MP3;  // initting OGG and MP3 support
+  int initted = Mix_Init(mix_flags);
+  if ((initted & mix_flags) != mix_flags) {
+    LOG_ERROR("Mix_Init: Failed to init required ogg and mp3 support! Error: {}", Mix_GetError());
+    Mix_Quit();
+    return Result::SDL_ERROR;
+  }
+
+  //render_state.music_loader_thread = std::thread(loadMusic, std::ref(render_state));
+
+  int sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
 
   SDL_ClearError();
   if (SDL_Init(sdl_init_flags) != 0) {
@@ -31,6 +59,34 @@ Result init_rendering(Render_State &render_state, Update_State &us,
   }
 
   LOG_INFO("SDL initialized");
+
+  //beginning of music stuff
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) { //init sdl mixer
+    LOG_ERROR("SDL_mixer could not initialize! SDL_mixer Error: {}", Mix_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  if (render_state.music_loader_thread.joinable()) { //join music thread before music starts getting loaded
+    render_state.music_loader_thread.join();
+  }
+
+  // Load music files
+  /*render_state.music_paths[VV::Biome::FOREST] = "res/music/Forest(placeholder).mp3";
+  render_state.music_paths[VV::Biome::OCEAN] = "res/music/Ocean(placeholder).mp3";
+  render_state.music_paths[VV::Biome::ALASKA] = "res/music/Snow(placeholder).mp3";*/
+
+  //render_state.music_paths[VV::Biome::FOREST] = "res/music/Forest(placeholder).mp3";
+  //render_state.music_paths[VV::Biome::OCEAN] = "res/music/Ocean(placeholder).mp3";
+  //render_state.music_paths[VV::Biome::ALASKA] = "res/music/Snow(placeholder).mp3";
+
+  /*if (!render_state.music_tracks[VV::Biome::FOREST] || !render_state.music_tracks[VV::Biome::OCEAN] || !render_state.music_tracks[VV::Biome::ALASKA]) {
+    LOG_ERROR("Failed to load music: {}", Mix_GetError());
+    return Result::SDL_ERROR; // IF no music tracks have been loaded, output to console and throw error
+  }*/
+  render_state.current_biome = VV::Biome::FOREST;  // Default biome
+  render_state.current_music = render_state.music_tracks[render_state.current_biome]; // switch current song to song for current biome
+  Mix_PlayMusic(render_state.current_music, -1); // play song indefinitely
+  //end of music stuff
 
   LOG_DEBUG("Config window values: {}, {}", config.window_width,
             config.window_height);
@@ -135,6 +191,20 @@ Result render(Render_State &render_state, Update_State &update_state,
       render_state.biome = Biome::FOREST;
     }
   }
+
+  //music stuff
+  if (render_state.biome != render_state.current_biome) {
+    render_state.current_biome = render_state.biome; // if changed biome, switch current biome, and run code to change music
+    Mix_Music *new_music = render_state.music_tracks[render_state.current_biome]; // set new music to the music for whatever biome was just entered
+    if (new_music != render_state.current_music) { // if the music tracks for the two biomes are different continue w/ changing
+        Mix_FadeOutMusic(500); // Fade out current track
+        render_state.current_music = new_music;
+        if (Mix_PlayMusic(render_state.current_music, -1) == -1) { // play new track indefinitely
+            LOG_ERROR("Failed to play music: {}", Mix_GetError());
+        }
+    }
+  }
+  //end music stuff
 
   SDL_RenderClear(render_state.renderer);
 
@@ -242,6 +312,18 @@ void destroy_rendering(Render_State &render_state) {
     SDL_DestroyWindow(render_state.window);
     LOG_INFO("Destroyed SDL window");
   }
+
+  //check to make sure you're not going to play unloaded music
+  if (render_state.music_loader_thread.joinable()) {
+    render_state.music_loader_thread.join();
+  }
+
+  //beginning of music cleanup
+  for (auto &music_pair : render_state.music_tracks) {
+    Mix_FreeMusic(music_pair.second);
+  }
+  Mix_CloseAudio();
+  //ending of music cleanup
 
   SDL_Quit();
   LOG_INFO("Quit SDL");
