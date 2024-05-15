@@ -24,5 +24,8 @@ enum class Texture_Id : u8 {
   AKNEITZSCHE = 0x0b,
   ECNEITZSCHE = 0x0c,
   SDNEITZSCHE = 0x0d,
+  JELLYFISH = 0x0e,
+  SEAWEED = 0x0f,
+  FISH = 0x10,
 };
 }  // namespace VV

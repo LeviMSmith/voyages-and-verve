@@ -33,6 +33,9 @@ enum class Entity_Factory_Type : u16 {
   AKNIETZSCHE,
   ECNIETZSCHE,
   SDNIETZSCHE,
+  JELLYFISH,
+  SEAWEED,
+  FISH,
 };
 
 // Monolithic Entity struct. Every entity possess every possible

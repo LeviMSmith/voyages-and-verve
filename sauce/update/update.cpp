@@ -1379,18 +1379,7 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
   if (chunk_coord.y < SEA_LEVEL) {
     for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
       chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
-
-      // Electric Nietzsche spawner
-      /* if (abs_x == 250 && SEA_LEVEL > chunk_coord.y * CHUNK_CELL_WIDTH &&
-          SEA_LEVEL < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
-        Entity_ID id;
-        create_entity(update_state, update_state.active_dimension,
-                      Entity_Factory_Type::ECNIETZSCHE, id);
-
-        Entity &ecneitzsche = update_state.entities[id];
-        ecneitzsche.coord.x = abs_x;
-        ecneitzsche.coord.y = SEA_LEVEL - 85.0f;
-      } */
+      // Spawn in electric nietzche and fish/seaweed here?
     }
 
     chunk.all_cell = Cell_Type::WATER;
