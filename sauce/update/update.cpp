@@ -1080,6 +1080,8 @@ void update_ai(Update_State &us) {
   Entity &active_player = *get_active_player(us);
   Dimension &dim = *get_active_dimension(us);
 
+  static u64 ai_frame = 0;
+
   // Coordinates of the player
   f64 player_x = active_player.coord.x;
   f64 player_y = active_player.coord.y;
@@ -1116,10 +1118,52 @@ void update_ai(Update_State &us) {
           // Update the position
           e.coord.x += e.vx;
           e.coord.y += e.vy;
+
+          break;
+        }
+        case AI_ID::WANDER_IN_PLACE: {
+          // Check if it's time to pick a new target position
+          if (e.wander_target_frame <= ai_frame) {
+            // Set a new target frame count and position
+            int random_frame_count =
+                60 + rand() % 120;  // 1 to 3 seconds at 60 FPS
+            e.wander_target_frame = ai_frame + random_frame_count;
+
+            // Choose a random position within a 50 units radius
+            double angle = ((double)rand() / RAND_MAX) * 2 * M_PI;
+            double radius = ((double)rand() / RAND_MAX) * 50;
+            e.wander_target.x = e.coord.x + radius * cos(angle);
+            e.wander_target.y = e.coord.y + radius * sin(angle);
+          }
+
+          // Compute vector to target
+          double tx = e.wander_target.x - e.coord.x;
+          double ty = e.wander_target.y - e.coord.y;
+          double to_target_dist = sqrt(tx * tx + ty * ty);
+
+          // Calculate normalized vector and scale by max speed
+          double max_speed = 1.0;  // Can be adjusted
+          double norm_factor =
+              (to_target_dist > 0) ? max_speed / to_target_dist : 0;
+          double target_vx = tx * norm_factor;
+          double target_vy = ty * norm_factor;
+
+          // Smooth velocity change with ease-in-out
+          double blend_factor = 0.1;  // Smoothing factor
+          e.vx = (e.vx * (1 - blend_factor)) + (target_vx * blend_factor);
+          e.vy = (e.vy * (1 - blend_factor)) + (target_vy * blend_factor);
+
+          // Update position
+          e.coord.x += e.vx;
+          e.coord.y += e.vy;
+
+          break;
         }
       }
     }
   }
+
+  ai_frame++;
 }
 
 void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,

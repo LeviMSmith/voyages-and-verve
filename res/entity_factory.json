@@ -71,7 +71,7 @@
     "anim_width": 50,
     "anim_delay": 20,
     "anim_frames": 2,
-    "ai_id": 0
+    "ai_id": 1
   },
   "seaweed": {
     "texture": 15,
@@ -87,6 +87,7 @@
     "flipped": true,
     "anim_width": 100,
     "anim_delay": 20,
-    "anim_frames": 2
+    "anim_frames": 2,
+    "ai_id": 1
   }
 }

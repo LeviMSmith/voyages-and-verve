@@ -3,5 +3,5 @@
 #include "core.h"
 
 namespace VV {
-enum class AI_ID : u8 { FOLLOW_PLAYER_SLOW = 0 };
+enum class AI_ID : u8 { FOLLOW_PLAYER_SLOW = 0, WANDER_IN_PLACE };
 }

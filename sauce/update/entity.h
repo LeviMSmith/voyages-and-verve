@@ -85,6 +85,9 @@ struct Entity {
   Entity_Coord respawn_point;
 
   AI_ID ai_id;
+
+  Entity_Coord wander_target;
+  u64 wander_target_frame;
 };
 
 struct Entity_Factory {
