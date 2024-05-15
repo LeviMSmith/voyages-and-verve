@@ -506,31 +506,24 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
           const Cell &cell = chunk.cells[cell_index];
 
-          if (cell.type == Cell_Type::WATER) {
-            cr = cell.cr;
-            cg = cell.cg;
-            cb = cell.cb;
-            ca = cell.ca;
+          cr = cell.cr;
+          cg = cell.cg;
+          cb = cell.cb;
+          ca = cell.ca;
 
-            if (ic.x >= ALASKA_EAST_BORDER_CHUNK) {
-              const s64 BONUS_DEEP_OCEAN_DEPTH = -30 * CHUNK_CELL_WIDTH;
-              f32 t =
-                  1.0f -
-                  std::max(
-                      std::min(((ic.y * CHUNK_CELL_WIDTH) + cell_y -
-                                DEEP_SEA_LEVEL_CELL - BONUS_DEEP_OCEAN_DEPTH) /
-                                   static_cast<f32>(SEA_LEVEL_CELL -
-                                                    (DEEP_SEA_LEVEL_CELL +
-                                                     BONUS_DEEP_OCEAN_DEPTH)),
-                               1.0f),
-                      0.0f);
-              lerp(cr, cg, cb, ca, 0, 0, 0, 240, t);
-            }
-          } else {
-            cr = cell.cr;
-            cg = cell.cg;
-            cb = cell.cb;
-            ca = cell.ca;
+          if (ic.x >= ALASKA_EAST_BORDER_CHUNK) {
+            const s64 BONUS_DEEP_OCEAN_DEPTH = -30 * CHUNK_CELL_WIDTH;
+            f32 t =
+                1.0f -
+                std::max(
+                    std::min(((ic.y * CHUNK_CELL_WIDTH) + cell_y -
+                              DEEP_SEA_LEVEL_CELL - BONUS_DEEP_OCEAN_DEPTH) /
+                                 static_cast<f32>(SEA_LEVEL_CELL -
+                                                  (DEEP_SEA_LEVEL_CELL +
+                                                   BONUS_DEEP_OCEAN_DEPTH)),
+                             1.0f),
+                    0.0f);
+            lerp(cr, cg, cb, ca, 0, 0, 0, 240, t);
           }
 
           if (config.debug_overlay) {
@@ -766,10 +759,15 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
           }
         }
 
-        if (entity.anim_timer > entity.anim_delay) {
+        if (entity.anim_timer >
+            entity.anim_delay + entity.anim_delay_current_spice) {
           entity.anim_current_frame = (entity.anim_current_frame + 1) %
                                       (texture.width / entity.anim_width);
           entity.anim_timer = 0;
+          if (entity.anim_delay_variety > 0) {
+            entity.anim_delay_current_spice =
+                rand() % entity.anim_delay_variety;
+          }
         }
         entity.anim_timer++;
       } else {

@@ -35,7 +35,7 @@
     "anim_width": 25,
     "anim_delay": 20,
     "anim_frames": 2,
-    "ai_id": 0
+    "ai_id": 1
   },
   "aknietzsche": {
     "texture": 11,
@@ -75,10 +75,10 @@
   },
   "seaweed": {
     "texture": 15,
-    "zdepth": 10,
-    "flipped": true,
-    "anim_width": 50,
-    "anim_delay": 20,
+    "zdepth": -10,
+    "anim_width": 35,
+    "anim_delay": 30,
+    "anim_delay_variety": 10,
     "anim_frames": 2
   },
   "fish": {
