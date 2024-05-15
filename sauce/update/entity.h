@@ -30,6 +30,9 @@ enum class Entity_Factory_Type : u16 {
   BUSH,
   GRASS,
   NIETZSCHE,
+  AKNIETZSCHE,
+  ECNIETZSCHE,
+  SDNIETZSCHE,
 };
 
 // Monolithic Entity struct. Every entity possess every possible

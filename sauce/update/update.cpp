@@ -222,8 +222,14 @@ Result init_entity_factory(Update_State &us,
       entity_type = Entity_Factory_Type::BUSH;
     } else if (entity_name == "grass") {
       entity_type = Entity_Factory_Type::GRASS;
-    } else if (entity_name == "neitzsche") {
+    } else if (entity_name == "nietzsche") {
       entity_type = Entity_Factory_Type::NIETZSCHE;
+    } else if (entity_name == "aknietzsche") {
+      entity_type = Entity_Factory_Type::AKNIETZSCHE;
+    } else if (entity_name == "ecnietzsche") {
+      entity_type = Entity_Factory_Type::ECNIETZSCHE;
+    }else if (entity_name == "sdnietzsche") {
+      entity_type = Entity_Factory_Type::SDNIETZSCHE;
     } else {
       LOG_WARN("Unknown entity in descriptor file: {}", entity_name);
       continue;
@@ -1345,6 +1351,18 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
         tree.coord.x = abs_x;
       }
     }
+
+    // Alaska Nietzsche spawner
+    if (abs_x == 250 && height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+      Entity_ID id;
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::AKNIETZSCHE, id);
+
+      Entity &akneitzsche = update_state.entities[id];
+      akneitzsche.coord.x = abs_x;
+      akneitzsche.coord.y = height + 85.0f;
+    }
   }
 
   if (all_air) {
@@ -1361,6 +1379,18 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
   if (chunk_coord.y < SEA_LEVEL) {
     for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
       chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
+
+      // Electric Nietzsche spawner
+      /* if (abs_x == 250 && SEA_LEVEL > chunk_coord.y * CHUNK_CELL_WIDTH &&
+          SEA_LEVEL < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+        Entity_ID id;
+        create_entity(update_state, update_state.active_dimension,
+                      Entity_Factory_Type::ECNIETZSCHE, id);
+
+        Entity &ecneitzsche = update_state.entities[id];
+        ecneitzsche.coord.x = abs_x;
+        ecneitzsche.coord.y = SEA_LEVEL - 85.0f;
+      } */
     }
 
     chunk.all_cell = Cell_Type::WATER;
@@ -1395,6 +1425,18 @@ void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
       } else {
         chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
       }
+    }
+
+    // Sand Nietzsche spawner
+    if (abs_x == 250 && height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+      Entity_ID id;
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::SDNIETZSCHE, id);
+
+      Entity &sdneitzsche = update_state.entities[id];
+      sdneitzsche.coord.x = abs_x;
+      sdneitzsche.coord.y = height + 85.0f;
     }
   }
 

@@ -15,7 +15,7 @@ enum class Texture_Id : u8 {
   SKY = 2,
   TREE = 3,
   MOUNTAINS = 4,
-  NEITZSCHE = 5,
+  NIETZSCHE = 5,
   BUSH = 6,
   GRASS = 7,
   ALASKA_BG = 8,
