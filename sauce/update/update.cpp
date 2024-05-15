@@ -1418,23 +1418,57 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
 
 void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
                         const Chunk_Coord &chunk_coord) {
-  // void cast these to promise the compiler we're going to use them in this
-  // function eventually
-  (void)update_state;
+  bool all_water = true;
+  bool all_air = true;
+  bool all_sand = true;
 
-  if (chunk_coord.y < SEA_LEVEL) {
-    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-      chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
-      // Spawn in electric nietzche and fish/seaweed here?
+  s32 off_shore_chunk = chunk_coord.x - ALASKA_EAST_BORDER_CHUNK;
+  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+    f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
+    s32 height_offset =
+        static_cast<s32>(surface_height(abs_x, 64, update_state.world_seed));
+
+    f64 height_lerp_t =
+        static_cast<f64>(x) / static_cast<f64>(CHUNK_CELL_WIDTH);
+    // Modify height_lerp to include both chunk-wide and x-dependent components
+    f64 height_lerp =
+        height_lerp_t +
+        1.0 * abs(off_shore_chunk);  // Adjust the 0.5 scaling factor based on
+                                     // desired slope
+
+    s64 height = height_offset + (SURFACE_Y_MIN * CHUNK_CELL_WIDTH) -
+                 static_cast<s64>(height_lerp * CHUNK_CELL_WIDTH *
+                                  1);  // Scale the decrease
+
+    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+
+      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+
+      if (our_height >= SEA_LEVEL_CELL) {
+        chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
+        all_water = false;
+        all_sand = false;
+      } else if (our_height > height) {
+        chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
+        all_air = false;
+        all_sand = false;
+      } else {
+        chunk.cells[cell_index] = create_cell(Cell_Type::SAND);
+        all_air = false;
+        all_water = false;
+      }
     }
+  }
 
+  if (all_water) {
     chunk.all_cell = Cell_Type::WATER;
-  } else {
-    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-      chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
-    }
-
+  }
+  if (all_air) {
     chunk.all_cell = Cell_Type::AIR;
+  }
+  if (all_sand) {
+    chunk.all_cell = Cell_Type::SAND;
   }
 }
 
