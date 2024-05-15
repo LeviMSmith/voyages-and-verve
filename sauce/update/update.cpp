@@ -230,6 +230,12 @@ Result init_entity_factory(Update_State &us,
       entity_type = Entity_Factory_Type::ECNIETZSCHE;
     } else if (entity_name == "sdnietzsche") {
       entity_type = Entity_Factory_Type::SDNIETZSCHE;
+    } else if (entity_name == "jellyfish") {
+      entity_type = Entity_Factory_Type::JELLYFISH;
+    } else if (entity_name == "seaweed") {
+      entity_type = Entity_Factory_Type::SEAWEED;
+    } else if (entity_name == "fish") {
+      entity_type = Entity_Factory_Type::FISH;
     } else {
       LOG_WARN("Unknown entity in descriptor file: {}", entity_name);
       continue;
@@ -290,6 +296,8 @@ Result init_entity_factory(Update_State &us,
         new_entity.status |= (u16)Entity_Status::ANIMATED;
       } else if (entity_item_name == "anim_delay") {
         new_entity.anim_delay = entity_item.value.GetUint();
+      } else if (entity_item_name == "anim_delay_variety") {
+        new_entity.anim_delay_variety = entity_item.value.GetUint();
       } else if (entity_item_name == "anim_frames") {
         new_entity.anim_frames = entity_item.value.GetUint();
       } else if (entity_item_name == "ai_id") {
@@ -1430,11 +1438,7 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
 
     f64 height_lerp_t =
         static_cast<f64>(x) / static_cast<f64>(CHUNK_CELL_WIDTH);
-    // Modify height_lerp to include both chunk-wide and x-dependent components
-    f64 height_lerp =
-        height_lerp_t +
-        1.0 * abs(off_shore_chunk);  // Adjust the 0.5 scaling factor based on
-                                     // desired slope
+    f64 height_lerp = height_lerp_t + 1.0 * off_shore_chunk;
 
     s64 height = height_offset + (SURFACE_Y_MIN * CHUNK_CELL_WIDTH) -
                  static_cast<s64>(height_lerp * CHUNK_CELL_WIDTH *
@@ -1458,8 +1462,24 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
         all_air = false;
         all_water = false;
       }
-    }
-  }
+
+      // Spawn some flora
+      if (our_height == height) {
+        u32 entity_rand = surface_det_rand(height);
+        if (entity_rand % 300 < 10) {
+          Entity_ID fauna_id;
+          Result fauna_create_res =
+              create_entity(update_state, DimensionIndex::OVERWORLD,
+                            Entity_Factory_Type::SEAWEED, fauna_id);
+          if (fauna_create_res == Result::SUCCESS) {
+            Entity &e = update_state.entities[fauna_id];
+            e.coord.x = abs_x;
+            e.coord.y = our_height + 50;
+          }
+        }
+      }  // Flora
+    }    // y loop
+  }      // x loop
 
   if (all_water) {
     chunk.all_cell = Cell_Type::WATER;

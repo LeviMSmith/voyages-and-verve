@@ -759,10 +759,15 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
           }
         }
 
-        if (entity.anim_timer > entity.anim_delay) {
+        if (entity.anim_timer >
+            entity.anim_delay + entity.anim_delay_current_spice) {
           entity.anim_current_frame = (entity.anim_current_frame + 1) %
                                       (texture.width / entity.anim_width);
           entity.anim_timer = 0;
+          if (entity.anim_delay_variety > 0) {
+            entity.anim_delay_current_spice =
+                rand() % entity.anim_delay_variety;
+          }
         }
         entity.anim_timer++;
       } else {
