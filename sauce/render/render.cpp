@@ -9,46 +9,22 @@
 
 namespace VV {
 
-void loadMusic(Render_State &render_state) { //function to load music files when called
-  /*render_state.music_paths[VV::Biome::FOREST] = "res/music/Forest(placeholder).mp3";
-  render_state.music_paths[VV::Biome::OCEAN] = "res/music/Ocean(placeholder).mp3";
-  render_state.music_paths[VV::Biome::ALASKA] = "res/music/Snow(placeholder).mp3";*/
-  render_state.music_tracks[VV::Biome::FOREST] = Mix_LoadMUS("res/music/Forest(placeholder).mp3");
-  render_state.music_tracks[VV::Biome::OCEAN] = Mix_LoadMUS("res/music/Ocean(placeholder).mp3");
-  render_state.music_tracks[VV::Biome::ALASKA] = Mix_LoadMUS("res/music/Snow(placeholder).mp3");
-  for (auto &entry : render_state.music_paths) {
-      render_state.music_tracks[entry.first] = Mix_LoadMUS(entry.second.c_str());
-      if (!render_state.music_tracks[entry.first]) {
-          LOG_ERROR("Failed to load music file {}: {}", entry.second, Mix_GetError());
-      }
-  }
+void playMusic(Render_State &render_state) {
+  Mix_PlayMusic(render_state.current_music, -1); // Play the music indefinitely
 }
-// load music through config??
 
 Result init_rendering(Render_State &render_state, Update_State &us,
                       Config &config) {
   // SDL init
 
-  // I think this was just because I forgot break statements in the switch.
-  /*
-  // For some reason SDL_QUIT is triggered randomly on my (Levi's) system, so
-  // we're not quiting on that. If SDL holds on to the handlers, we can't exit
-  // with a break otherwise.
-  if (!SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1")) {
-    LOG_WARN("SDL didn't relinquish the signal handlers. Good luck quiting.");
-  }
-  */
-
-  // loads music in separate thread
-  int mix_flags = MIX_INIT_OGG | MIX_INIT_MP3;  // initting OGG and MP3 support
+  // Initting OGG and MP3 support
+  int mix_flags = MIX_INIT_OGG | MIX_INIT_MP3;
   int initted = Mix_Init(mix_flags);
   if ((initted & mix_flags) != mix_flags) {
     LOG_ERROR("Mix_Init: Failed to init required ogg and mp3 support! Error: {}", Mix_GetError());
     Mix_Quit();
     return Result::SDL_ERROR;
   }
-
-  //render_state.music_loader_thread = std::thread(loadMusic, std::ref(render_state));
 
   int sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
 
@@ -58,38 +34,28 @@ Result init_rendering(Render_State &render_state, Update_State &us,
     return Result::SDL_ERROR;
   }
 
+  // Start the music playback thread
+  render_state.music_loader_thread = std::thread(playMusic, std::ref(render_state));
+
   LOG_INFO("SDL initialized");
 
-  //beginning of music stuff
-  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) { //init sdl mixer
+  // Initialize SDL_mixer
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
     LOG_ERROR("SDL_mixer could not initialize! SDL_mixer Error: {}", Mix_GetError());
     return Result::SDL_ERROR;
   }
 
-  if (render_state.music_loader_thread.joinable()) { //join music thread before music starts getting loaded
-    render_state.music_loader_thread.join();
+  // Load the music file
+  render_state.current_music = Mix_LoadMUS("res/music/Forest(placeholder).mp3");
+  if (!render_state.current_music) {
+    LOG_ERROR("Failed to load music file: {}", Mix_GetError());
+    return Result::SDL_ERROR;
   }
 
-  // Load music files
-  /*render_state.music_paths[VV::Biome::FOREST] = "res/music/Forest(placeholder).mp3";
-  render_state.music_paths[VV::Biome::OCEAN] = "res/music/Ocean(placeholder).mp3";
-  render_state.music_paths[VV::Biome::ALASKA] = "res/music/Snow(placeholder).mp3";*/
+  // Play the music indefinitely
+  Mix_PlayMusic(render_state.current_music, -1);
 
-  //render_state.music_paths[VV::Biome::FOREST] = "res/music/Forest(placeholder).mp3";
-  //render_state.music_paths[VV::Biome::OCEAN] = "res/music/Ocean(placeholder).mp3";
-  //render_state.music_paths[VV::Biome::ALASKA] = "res/music/Snow(placeholder).mp3";
-
-  /*if (!render_state.music_tracks[VV::Biome::FOREST] || !render_state.music_tracks[VV::Biome::OCEAN] || !render_state.music_tracks[VV::Biome::ALASKA]) {
-    LOG_ERROR("Failed to load music: {}", Mix_GetError());
-    return Result::SDL_ERROR; // IF no music tracks have been loaded, output to console and throw error
-  }*/
-  render_state.current_biome = VV::Biome::FOREST;  // Default biome
-  render_state.current_music = render_state.music_tracks[render_state.current_biome]; // switch current song to song for current biome
-  Mix_PlayMusic(render_state.current_music, -1); // play song indefinitely
-  //end of music stuff
-
-  LOG_DEBUG("Config window values: {}, {}", config.window_width,
-            config.window_height);
+  LOG_DEBUG("Config window values: {}, {}", config.window_width, config.window_height);
 
   // Window
   SDL_ClearError();
@@ -114,8 +80,7 @@ Result init_rendering(Render_State &render_state, Update_State &us,
   // Renderer
   SDL_ClearError();
   int renderer_flags = SDL_RENDERER_ACCELERATED;
-  render_state.renderer =
-      SDL_CreateRenderer(render_state.window, -1, renderer_flags);
+  render_state.renderer = SDL_CreateRenderer(render_state.window, -1, renderer_flags);
   if (render_state.renderer == nullptr) {
     LOG_ERROR("Failed to create sdl renderer: {}", SDL_GetError());
     return Result::SDL_ERROR;
@@ -123,12 +88,10 @@ Result init_rendering(Render_State &render_state, Update_State &us,
 
   SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_BLEND);
 
-  // Do an initial resize to get all the base info from the screen loading
-  // into the state
+  // Do an initial resize to get all the base info from the screen loading into the state
   Result resize_res = handle_window_resize(render_state, us);
   if (resize_res != Result::SUCCESS) {
-    LOG_WARN("Failed to handle window resize! EC: {}",
-             static_cast<s32>(resize_res));
+    LOG_WARN("Failed to handle window resize! EC: {}", static_cast<s32>(resize_res));
   }
 
   // Create the world cell texture
@@ -193,6 +156,9 @@ Result render(Render_State &render_state, Update_State &update_state,
   }
 
   //music stuff
+  render_state.music_tracks[VV::Biome::FOREST] = Mix_LoadMUS("res/music/Forest(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::OCEAN] = Mix_LoadMUS("res/music/Ocean(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::ALASKA] = Mix_LoadMUS("res/music/Snow(placeholder).mp3");
   if (render_state.biome != render_state.current_biome) {
     render_state.current_biome = render_state.biome; // if changed biome, switch current biome, and run code to change music
     Mix_Music *new_music = render_state.music_tracks[render_state.current_biome]; // set new music to the music for whatever biome was just entered
@@ -313,17 +279,16 @@ void destroy_rendering(Render_State &render_state) {
     LOG_INFO("Destroyed SDL window");
   }
 
-  //check to make sure you're not going to play unloaded music
+  // Ensure the music playback thread is joined before cleaning up
   if (render_state.music_loader_thread.joinable()) {
     render_state.music_loader_thread.join();
   }
 
-  //beginning of music cleanup
-  for (auto &music_pair : render_state.music_tracks) {
-    Mix_FreeMusic(music_pair.second);
+  // Free the music and close SDL_mixer
+  if (render_state.current_music != nullptr) {
+    Mix_FreeMusic(render_state.current_music);
   }
   Mix_CloseAudio();
-  //ending of music cleanup
 
   SDL_Quit();
   LOG_INFO("Quit SDL");
