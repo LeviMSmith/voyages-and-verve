@@ -52,21 +52,24 @@ Result init_rendering(Render_State &render_state, Update_State &us,
     return Result::SDL_ERROR;
   }
 
-  // Load the music file
-
+  // Load the music files, set current music to forest music
   render_state.music_tracks[VV::Biome::FOREST] =
       Mix_LoadMUS("res/music/Forest(placeholder).mp3");
   render_state.music_tracks[VV::Biome::OCEAN] =
       Mix_LoadMUS("res/music/Ocean(placeholder).mp3");
   render_state.music_tracks[VV::Biome::ALASKA] =
       Mix_LoadMUS("res/music/Snow(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::NICARAGUA] =
+      Mix_LoadMUS("res/music/Lava(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::DEEP_OCEAN] =
+      Mix_LoadMUS("res/music/DeepOcean(placeholder).mp3");
   render_state.current_music = render_state.music_tracks[Biome::FOREST];
   if (!render_state.current_music) {
     LOG_ERROR("Failed to load music file: {}", Mix_GetError());
     return Result::SDL_ERROR;
   }
 
-  // Play the music indefinitely
+  // Play forest theme indefinitely
   Mix_PlayMusic(render_state.current_music, -1);
 
   LOG_DEBUG("Config window values: {}, {}", config.window_width,
