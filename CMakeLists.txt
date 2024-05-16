@@ -4,9 +4,6 @@ option(ENABLE_PROFILING "Enable profiling with gprof" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set( CMAKE_CXX_COMPILER "g++" )
-set( CMAKE_C_COMPILER "gcc" )
-
 project(voyages-and-verve)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -38,7 +35,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL_ttf)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/spdlog/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/rapidjson/include)
-#target_include_directories(${PROJECT_NAME} PRIVATE vendor/SDL_mixer/include) #adding sound mixer directory here
 target_include_directories(${PROJECT_NAME} PRIVATE ${SDL2_INCLUDE_DIRS} vendor/SDL_mixer/include)
 
 set(SDL_STATIC ON)
@@ -48,6 +44,8 @@ add_subdirectory(vendor/SDL)
 
 set(SDL2TTF_BUILD_SHARED_LIBS OFF)
 set(BUILD_SHARED_LIBS OFF)
+set(SDL2MIXER_MOD OFF)
+set(SDL2MIXER_MIDI OFF)
 add_subdirectory(vendor/SDL_ttf)
 
 add_subdirectory(vendor/spdlog)
