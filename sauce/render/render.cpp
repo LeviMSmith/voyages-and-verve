@@ -191,7 +191,10 @@ Result render(Render_State &render_state, Update_State &update_state,
     if (new_music !=
         render_state.current_music) {  // if the music tracks for the two biomes
                                        // are different continue w/ changing
-      Mix_FadeOutMusic(500);           // Fade out current track
+
+      // NOTE (Levi): This call blocks execution, so should be called in another
+      // thread.
+      // Mix_FadeOutMusic(500);
       render_state.current_music = new_music;
       if (Mix_PlayMusic(render_state.current_music, -1) ==
           -1) {  // play new track indefinitely
@@ -601,7 +604,7 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
                                                    BONUS_DEEP_OCEAN_DEPTH)),
                              1.0f),
                     0.0f);
-            lerp(cr, cg, cb, ca, 0, 0, 0, 240, t);
+            lerp(cr, cg, cb, ca, 0, 0, 0, 255, t);
           }
 
           if (config.debug_overlay) {
