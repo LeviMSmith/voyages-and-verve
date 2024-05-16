@@ -1112,11 +1112,11 @@ void update_ai(Update_State &us) {
           f64 ax = (dx / distance) * accel_magnitude;
           f64 ay = (dy / distance) * accel_magnitude;
 
-          e.flipped = ax < 0;
-
           // Apply acceleration to velocity
           e.vx += ax;
           e.vy += ay;
+
+          e.flipped = e.vx < 0;
 
           // Optionally apply a damping factor to prevent excessive speeds
           f64 damping_factor = 0.95;
@@ -1464,22 +1464,59 @@ void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
       }
 
       // Spawn some flora
+      u32 entity_rand = surface_det_rand(height);
       if (our_height == height) {
-        u32 entity_rand = surface_det_rand(height);
         if (entity_rand % 300 < 10) {
-          Entity_ID fauna_id;
-          Result fauna_create_res =
+          Entity_ID flora_id;
+          Result flora_create_res =
               create_entity(update_state, DimensionIndex::OVERWORLD,
-                            Entity_Factory_Type::SEAWEED, fauna_id);
-          if (fauna_create_res == Result::SUCCESS) {
-            Entity &e = update_state.entities[fauna_id];
+                            Entity_Factory_Type::SEAWEED, flora_id);
+          if (flora_create_res == Result::SUCCESS) {
+            Entity &e = update_state.entities[flora_id];
             e.coord.x = abs_x;
             e.coord.y = our_height + 50;
           }
         }
       }  // Flora
-    }    // y loop
-  }      // x loop
+
+    }  // y loop
+
+  }  // x loop
+
+  // Spawn some fauna
+  // We really really need a unified entity spawner.
+  u32 entity_rand =
+      surface_det_rand(chunk_coord.y) - surface_det_rand(chunk_coord.x);
+
+  // Fosh
+  if (surface_det_rand(entity_rand) % 10000 < 150 &&
+      chunk_coord.y < SEA_LEVEL) {
+    Entity_ID fauna_id;
+    Result fauna_create_res =
+        create_entity(update_state, DimensionIndex::OVERWORLD,
+                      Entity_Factory_Type::JELLYFISH, fauna_id);
+    if (fauna_create_res == Result::SUCCESS) {
+      Entity &e = update_state.entities[fauna_id];
+      e.coord.x = chunk_coord.x * CHUNK_CELL_WIDTH + rand() % 20;
+      e.coord.y = chunk_coord.y * CHUNK_CELL_WIDTH + rand() % 20;
+      // LOG_DEBUG("Spawned jellyfish: {} {}", e.coord.x, e.coord.y);
+    } else {
+      LOG_WARN("Failed to spawn jellyfish: {}", (u16)fauna_create_res);
+    }
+  } else if (entity_rand % 100000 < 150 && chunk_coord.y < SEA_LEVEL) {
+    Entity_ID fauna_id;
+    Result fauna_create_res =
+        create_entity(update_state, DimensionIndex::OVERWORLD,
+                      Entity_Factory_Type::FISH, fauna_id);
+    if (fauna_create_res == Result::SUCCESS) {
+      Entity &e = update_state.entities[fauna_id];
+      e.coord.x = chunk_coord.x * CHUNK_CELL_WIDTH + rand() % 20;
+      e.coord.y = chunk_coord.y * CHUNK_CELL_WIDTH + rand() % 20;
+      // LOG_DEBUG("Spawned fish: {} {}", e.coord.x, e.coord.y);
+    } else {
+      LOG_WARN("Failed to spawn fish: {}", (u16)fauna_create_res);
+    }
+  }
 
   if (all_water) {
     chunk.all_cell = Cell_Type::WATER;
