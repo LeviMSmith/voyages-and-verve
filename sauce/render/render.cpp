@@ -11,10 +11,25 @@
 #include "update/world.h"
 
 namespace VV {
+
+void playMusic(Render_State &render_state) {
+  Mix_PlayMusic(render_state.current_music, -1); // Play the music indefinitely
+}
+
 Result init_rendering(Render_State &render_state, Update_State &us,
                       Config &config) {
   // SDL init
-  int sdl_init_flags = SDL_INIT_VIDEO;
+
+  // Initting OGG and MP3 support
+  int mix_flags = MIX_INIT_OGG | MIX_INIT_MP3;
+  int initted = Mix_Init(mix_flags);
+  if ((initted & mix_flags) != mix_flags) {
+    LOG_ERROR("Mix_Init: Failed to init required ogg and mp3 support! Error: {}", Mix_GetError());
+    Mix_Quit();
+    return Result::SDL_ERROR;
+  }
+
+  int sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
 
   SDL_ClearError();
   if (SDL_Init(sdl_init_flags) != 0) {
@@ -22,10 +37,28 @@ Result init_rendering(Render_State &render_state, Update_State &us,
     return Result::SDL_ERROR;
   }
 
+  // Start the music playback thread
+  render_state.music_loader_thread = std::thread(playMusic, std::ref(render_state));
+
   LOG_INFO("SDL initialized");
 
-  LOG_DEBUG("Config window values: {}, {}", config.window_width,
-            config.window_height);
+  // Initialize SDL_mixer
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    LOG_ERROR("SDL_mixer could not initialize! SDL_mixer Error: {}", Mix_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  // Load the music file
+  render_state.current_music = Mix_LoadMUS("res/music/Forest(placeholder).mp3");
+  if (!render_state.current_music) {
+    LOG_ERROR("Failed to load music file: {}", Mix_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  // Play the music indefinitely
+  Mix_PlayMusic(render_state.current_music, -1);
+
+  LOG_DEBUG("Config window values: {}, {}", config.window_width, config.window_height);
 
   // Window
   SDL_ClearError();
@@ -50,8 +83,7 @@ Result init_rendering(Render_State &render_state, Update_State &us,
   // Renderer
   SDL_ClearError();
   int renderer_flags = SDL_RENDERER_ACCELERATED;
-  render_state.renderer =
-      SDL_CreateRenderer(render_state.window, -1, renderer_flags);
+  render_state.renderer = SDL_CreateRenderer(render_state.window, -1, renderer_flags);
   if (render_state.renderer == nullptr) {
     LOG_ERROR("Failed to create sdl renderer: {}", SDL_GetError());
     return Result::SDL_ERROR;
@@ -59,12 +91,10 @@ Result init_rendering(Render_State &render_state, Update_State &us,
 
   SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_BLEND);
 
-  // Do an initial resize to get all the base info from the screen loading
-  // into the state
+  // Do an initial resize to get all the base info from the screen loading into the state
   Result resize_res = handle_window_resize(render_state, us);
   if (resize_res != Result::SUCCESS) {
-    LOG_WARN("Failed to handle window resize! EC: {}",
-             static_cast<s32>(resize_res));
+    LOG_WARN("Failed to handle window resize! EC: {}", static_cast<s32>(resize_res));
   }
 
   // Create the world cell texture
@@ -133,6 +163,23 @@ Result render(Render_State &render_state, Update_State &update_state,
       }
     }
   }
+
+  //music stuff
+  render_state.music_tracks[VV::Biome::FOREST] = Mix_LoadMUS("res/music/Forest(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::OCEAN] = Mix_LoadMUS("res/music/Ocean(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::ALASKA] = Mix_LoadMUS("res/music/Snow(placeholder).mp3");
+  if (render_state.biome != render_state.current_biome) {
+    render_state.current_biome = render_state.biome; // if changed biome, switch current biome, and run code to change music
+    Mix_Music *new_music = render_state.music_tracks[render_state.current_biome]; // set new music to the music for whatever biome was just entered
+    if (new_music != render_state.current_music) { // if the music tracks for the two biomes are different continue w/ changing
+        Mix_FadeOutMusic(500); // Fade out current track
+        render_state.current_music = new_music;
+        if (Mix_PlayMusic(render_state.current_music, -1) == -1) { // play new track indefinitely
+            LOG_ERROR("Failed to play music: {}", Mix_GetError());
+        }
+    }
+  }
+  //end music stuff
 
   SDL_RenderClear(render_state.renderer);
 
@@ -248,6 +295,17 @@ void destroy_rendering(Render_State &render_state) {
     SDL_DestroyWindow(render_state.window);
     LOG_INFO("Destroyed SDL window");
   }
+
+  // Ensure the music playback thread is joined before cleaning up
+  if (render_state.music_loader_thread.joinable()) {
+    render_state.music_loader_thread.join();
+  }
+
+  // Free the music and close SDL_mixer
+  if (render_state.current_music != nullptr) {
+    Mix_FreeMusic(render_state.current_music);
+  }
+  Mix_CloseAudio();
 
   SDL_Quit();
   LOG_INFO("Quit SDL");
