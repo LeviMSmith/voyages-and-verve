@@ -7,6 +7,7 @@
 #include "SDL_mouse.h"
 #include "rapidjson/document.h"
 #include "render/texture.h"
+#include "update/ai.h"
 #include "update/entity.h"
 #include "update/world.h"
 #include "utils/config.h"
@@ -221,8 +222,20 @@ Result init_entity_factory(Update_State &us,
       entity_type = Entity_Factory_Type::BUSH;
     } else if (entity_name == "grass") {
       entity_type = Entity_Factory_Type::GRASS;
-    } else if (entity_name == "neitzsche") {
+    } else if (entity_name == "nietzsche") {
       entity_type = Entity_Factory_Type::NIETZSCHE;
+    } else if (entity_name == "aknietzsche") {
+      entity_type = Entity_Factory_Type::AKNIETZSCHE;
+    } else if (entity_name == "ecnietzsche") {
+      entity_type = Entity_Factory_Type::ECNIETZSCHE;
+    } else if (entity_name == "sdnietzsche") {
+      entity_type = Entity_Factory_Type::SDNIETZSCHE;
+    } else if (entity_name == "jellyfish") {
+      entity_type = Entity_Factory_Type::JELLYFISH;
+    } else if (entity_name == "seaweed") {
+      entity_type = Entity_Factory_Type::SEAWEED;
+    } else if (entity_name == "fish") {
+      entity_type = Entity_Factory_Type::FISH;
     } else {
       LOG_WARN("Unknown entity in descriptor file: {}", entity_name);
       continue;
@@ -230,6 +243,7 @@ Result init_entity_factory(Update_State &us,
 
     // TODO: Warn if we're overwritting an entity of the same name
     Entity_Factory &new_entity_factory = us.entity_factories[entity_type];
+    memset(&new_entity_factory, 0, sizeof(Entity_Factory));
     Entity &new_entity = new_entity_factory.e;
 
     for (auto &entity_item : entity_desc.value.GetObject()) {
@@ -282,8 +296,13 @@ Result init_entity_factory(Update_State &us,
         new_entity.status |= (u16)Entity_Status::ANIMATED;
       } else if (entity_item_name == "anim_delay") {
         new_entity.anim_delay = entity_item.value.GetUint();
+      } else if (entity_item_name == "anim_delay_variety") {
+        new_entity.anim_delay_variety = entity_item.value.GetUint();
       } else if (entity_item_name == "anim_frames") {
         new_entity.anim_frames = entity_item.value.GetUint();
+      } else if (entity_item_name == "ai_id") {
+        new_entity.ai_id = static_cast<AI_ID>(entity_item.value.GetUint());
+        new_entity_factory.register_ai = true;
       }
     }
   }
@@ -359,6 +378,7 @@ Result update(Update_State &update_state) {
     LOG_INFO("Got close from keyboard");
     return res;
   }
+  update_ai(update_state);
   update_kinetic(update_state);
   Chunk_Coord current_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
@@ -956,7 +976,9 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk) {
             break;
           }
           case Cell_State::GAS: {
-            // process_steam_cell(dim, chunk, cell_index);
+            if (chunk.cells[cell_index].type == Cell_Type::STEAM) {
+              process_steam_cell(dim, chunk, cell_index);
+            }
             break;
           }
           default:
@@ -1060,6 +1082,96 @@ void update_cells(Update_State &update_state) {
   for (auto &future : futures) {
     future.wait();
   }
+}
+
+void update_ai(Update_State &us) {
+  Entity &active_player = *get_active_player(us);
+  Dimension &dim = *get_active_dimension(us);
+
+  static u64 ai_frame = 0;
+
+  // Coordinates of the player
+  f64 player_x = active_player.coord.x;
+  f64 player_y = active_player.coord.y;
+
+  for (Entity_ID e_id : dim.e_ai) {
+    Entity &e = us.entities[e_id];
+
+    // Calculate the vector difference between the entity and the player
+    f64 dx = e.coord.x - player_x;
+    f64 dy = e.coord.y - player_y;
+    f64 distance = sqrt(dx * dx + dy * dy);
+
+    if (distance <= AI_CELL_RADIUS &&
+        distance > 0) {  // Ensure distance is not zero
+      switch (e.ai_id) {
+        case AI_ID::FOLLOW_PLAYER_SLOW: {
+          // Normalize the direction vector and scale it by a desired
+          // acceleration amount
+          f64 accel_magnitude = -0.1;  // Set the acceleration magnitude
+          f64 ax = (dx / distance) * accel_magnitude;
+          f64 ay = (dy / distance) * accel_magnitude;
+
+          // Apply acceleration to velocity
+          e.vx += ax;
+          e.vy += ay;
+
+          e.flipped = e.vx < 0;
+
+          // Optionally apply a damping factor to prevent excessive speeds
+          f64 damping_factor = 0.95;
+          e.vx *= damping_factor;
+          e.vy *= damping_factor;
+
+          // Update the position
+          e.coord.x += e.vx;
+          e.coord.y += e.vy;
+
+          break;
+        }
+        case AI_ID::WANDER_IN_PLACE: {
+          // Check if it's time to pick a new target position
+          if (e.wander_target_frame <= ai_frame) {
+            // Set a new target frame count and position
+            int random_frame_count =
+                60 + rand() % 120;  // 1 to 3 seconds at 60 FPS
+            e.wander_target_frame = ai_frame + random_frame_count;
+
+            // Choose a random position within a 50 units radius
+            double angle = ((double)rand() / RAND_MAX) * 2 * M_PI;
+            double radius = ((double)rand() / RAND_MAX) * 50;
+            e.wander_target.x = e.coord.x + radius * cos(angle);
+            e.wander_target.y = e.coord.y + radius * sin(angle);
+          }
+
+          // Compute vector to target
+          double tx = e.wander_target.x - e.coord.x;
+          double ty = e.wander_target.y - e.coord.y;
+          double to_target_dist = sqrt(tx * tx + ty * ty);
+
+          // Calculate normalized vector and scale by max speed
+          double max_speed = 1.0;  // Can be adjusted
+          double norm_factor =
+              (to_target_dist > 0) ? max_speed / to_target_dist : 0;
+          double target_vx = tx * norm_factor;
+          double target_vy = ty * norm_factor;
+
+          // Smooth velocity change with ease-in-out
+          double blend_factor = 0.1;  // Smoothing factor
+          e.vx = (e.vx * (1 - blend_factor)) + (target_vx * blend_factor);
+          e.vy = (e.vy * (1 - blend_factor)) + (target_vy * blend_factor);
+
+          // Update position
+          e.coord.x += e.vx;
+          e.coord.y += e.vy;
+
+          break;
+        }
+      }
+    }
+  }
+
+  ai_frame++;
 }
 
 void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
@@ -1291,6 +1403,20 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
         tree.coord.x = abs_x;
       }
     }
+
+    // Alaska Nietzsche spawner
+    if (abs_x == 250 + FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH &&
+        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+      Entity_ID id;
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::AKNIETZSCHE, id);
+
+      Entity &akneitzsche = update_state.entities[id];
+      akneitzsche.coord.x = abs_x;
+      akneitzsche.coord.y = height + 85.0f;
+      LOG_DEBUG("AKNIETZSCHE spawned at {}, {}", abs_x, akneitzsche.coord.y);
+    }
   }
 
   if (all_air) {
@@ -1300,22 +1426,106 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
 
 void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
                         const Chunk_Coord &chunk_coord) {
-  // void cast these to promise the compiler we're going to use them in this
-  // function eventually
-  (void)update_state;
+  bool all_water = true;
+  bool all_air = true;
+  bool all_sand = true;
 
-  if (chunk_coord.y < SEA_LEVEL) {
-    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-      chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
+  s32 off_shore_chunk = chunk_coord.x - ALASKA_EAST_BORDER_CHUNK;
+  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+    f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
+    s32 height_offset =
+        static_cast<s32>(surface_height(abs_x, 64, update_state.world_seed));
+
+    f64 height_lerp_t =
+        static_cast<f64>(x) / static_cast<f64>(CHUNK_CELL_WIDTH);
+    f64 height_lerp = height_lerp_t + 1.0 * off_shore_chunk;
+
+    s64 height = height_offset + (SURFACE_Y_MIN * CHUNK_CELL_WIDTH) -
+                 static_cast<s64>(height_lerp * CHUNK_CELL_WIDTH *
+                                  1);  // Scale the decrease
+
+    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+
+      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+
+      if (our_height >= SEA_LEVEL_CELL) {
+        chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
+        all_water = false;
+        all_sand = false;
+      } else if (our_height > height) {
+        chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
+        all_air = false;
+        all_sand = false;
+      } else {
+        chunk.cells[cell_index] = create_cell(Cell_Type::SAND);
+        all_air = false;
+        all_water = false;
+      }
+
+      // Spawn some flora
+      u32 entity_rand = surface_det_rand(height);
+      if (our_height == height) {
+        if (entity_rand % 300 < 10) {
+          Entity_ID flora_id;
+          Result flora_create_res =
+              create_entity(update_state, DimensionIndex::OVERWORLD,
+                            Entity_Factory_Type::SEAWEED, flora_id);
+          if (flora_create_res == Result::SUCCESS) {
+            Entity &e = update_state.entities[flora_id];
+            e.coord.x = abs_x;
+            e.coord.y = our_height + 50;
+          }
+        }
+      }  // Flora
+
+    }  // y loop
+
+  }  // x loop
+
+  // Spawn some fauna
+  // We really really need a unified entity spawner.
+  u32 entity_rand =
+      surface_det_rand(chunk_coord.y) - surface_det_rand(chunk_coord.x);
+
+  // Fosh
+  if (surface_det_rand(entity_rand) % 10000 < 150 &&
+      chunk_coord.y < SEA_LEVEL) {
+    Entity_ID fauna_id;
+    Result fauna_create_res =
+        create_entity(update_state, DimensionIndex::OVERWORLD,
+                      Entity_Factory_Type::JELLYFISH, fauna_id);
+    if (fauna_create_res == Result::SUCCESS) {
+      Entity &e = update_state.entities[fauna_id];
+      e.coord.x = chunk_coord.x * CHUNK_CELL_WIDTH + rand() % 20;
+      e.coord.y = chunk_coord.y * CHUNK_CELL_WIDTH + rand() % 20;
+      // LOG_DEBUG("Spawned jellyfish: {} {}", e.coord.x, e.coord.y);
+    } else {
+      LOG_WARN("Failed to spawn jellyfish: {}", (u16)fauna_create_res);
     }
+  } else if (entity_rand % 100000 < 150 && chunk_coord.y < SEA_LEVEL) {
+    Entity_ID fauna_id;
+    Result fauna_create_res =
+        create_entity(update_state, DimensionIndex::OVERWORLD,
+                      Entity_Factory_Type::FISH, fauna_id);
+    if (fauna_create_res == Result::SUCCESS) {
+      Entity &e = update_state.entities[fauna_id];
+      e.coord.x = chunk_coord.x * CHUNK_CELL_WIDTH + rand() % 20;
+      e.coord.y = chunk_coord.y * CHUNK_CELL_WIDTH + rand() % 20;
+      // LOG_DEBUG("Spawned fish: {} {}", e.coord.x, e.coord.y);
+    } else {
+      LOG_WARN("Failed to spawn fish: {}", (u16)fauna_create_res);
+    }
+  }
 
+  if (all_water) {
     chunk.all_cell = Cell_Type::WATER;
-  } else {
-    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-      chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
-    }
-
+  }
+  if (all_air) {
     chunk.all_cell = Cell_Type::AIR;
+  }
+  if (all_sand) {
+    chunk.all_cell = Cell_Type::SAND;
   }
 }
 
@@ -1341,6 +1551,19 @@ void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
       } else {
         chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
       }
+    }
+
+    // Sand Nietzsche spawner
+    if (abs_x == NICARAGUA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH - 250 &&
+        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+      Entity_ID id;
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::SDNIETZSCHE, id);
+
+      Entity &sdneitzsche = update_state.entities[id];
+      sdneitzsche.coord.x = abs_x;
+      sdneitzsche.coord.y = height + 85.0f + chunk_coord.y * CHUNK_CELL_WIDTH;
     }
   }
 
@@ -1539,6 +1762,9 @@ Result create_entity(Update_State &us, DimensionIndex dim,
     }
     if (factory.register_render) {
       dimension_iter->second.e_render.emplace(us.entities[id].zdepth, id);
+    }
+    if (factory.register_ai) {
+      dimension_iter->second.e_ai.insert(id);
     }
   } else {
     LOG_WARN(

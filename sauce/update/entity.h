@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "render/texture.h"
+#include "update/ai.h"
 
 namespace VV {
 constexpr u32 MAX_TOTAL_ENTITIES = 100000;
@@ -29,6 +30,12 @@ enum class Entity_Factory_Type : u16 {
   BUSH,
   GRASS,
   NIETZSCHE,
+  AKNIETZSCHE,
+  ECNIETZSCHE,
+  SDNIETZSCHE,
+  JELLYFISH,
+  SEAWEED,
+  FISH,
 };
 
 // Monolithic Entity struct. Every entity possess every possible
@@ -71,11 +78,19 @@ struct Entity {
   u8 anim_frames;
   u8 anim_current_frame;
   u16 anim_delay;
+  u16 anim_delay_variety;
+
   u16 anim_timer;
+  u16 anim_delay_current_spice;
 
   s64 health;
   s64 max_health;
   Entity_Coord respawn_point;
+
+  AI_ID ai_id;
+
+  Entity_Coord wander_target;
+  u64 wander_target_frame;
 };
 
 struct Entity_Factory {
@@ -83,6 +98,7 @@ struct Entity_Factory {
   bool register_kinetic;
   bool register_render;
   bool register_health;
+  bool register_ai;
 };
 
 Entity default_entity();

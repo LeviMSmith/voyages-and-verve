@@ -11,10 +11,27 @@
 #include "update/world.h"
 
 namespace VV {
+
+void playMusic(Render_State &render_state) {
+  Mix_PlayMusic(render_state.current_music, -1);  // Play the music indefinitely
+}
+
 Result init_rendering(Render_State &render_state, Update_State &us,
                       Config &config) {
   // SDL init
-  int sdl_init_flags = SDL_INIT_VIDEO;
+
+  // Initting OGG and MP3 support
+  int mix_flags = MIX_INIT_OGG | MIX_INIT_MP3;
+  int initted = Mix_Init(mix_flags);
+  if ((initted & mix_flags) != mix_flags) {
+    LOG_ERROR(
+        "Mix_Init: Failed to init required ogg and mp3 support! Error: {}",
+        Mix_GetError());
+    Mix_Quit();
+    return Result::SDL_ERROR;
+  }
+
+  int sdl_init_flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
 
   SDL_ClearError();
   if (SDL_Init(sdl_init_flags) != 0) {
@@ -22,7 +39,35 @@ Result init_rendering(Render_State &render_state, Update_State &us,
     return Result::SDL_ERROR;
   }
 
+  // Start the music playback thread
+  render_state.music_loader_thread =
+      std::thread(playMusic, std::ref(render_state));
+
   LOG_INFO("SDL initialized");
+
+  // Initialize SDL_mixer
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    LOG_ERROR("SDL_mixer could not initialize! SDL_mixer Error: {}",
+              Mix_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  // Load the music file
+
+  render_state.music_tracks[VV::Biome::FOREST] =
+      Mix_LoadMUS("res/music/Forest(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::OCEAN] =
+      Mix_LoadMUS("res/music/Ocean(placeholder).mp3");
+  render_state.music_tracks[VV::Biome::ALASKA] =
+      Mix_LoadMUS("res/music/Snow(placeholder).mp3");
+  render_state.current_music = render_state.music_tracks[Biome::FOREST];
+  if (!render_state.current_music) {
+    LOG_ERROR("Failed to load music file: {}", Mix_GetError());
+    return Result::SDL_ERROR;
+  }
+
+  // Play the music indefinitely
+  Mix_PlayMusic(render_state.current_music, -1);
 
   LOG_DEBUG("Config window values: {}, {}", config.window_width,
             config.window_height);
@@ -59,8 +104,8 @@ Result init_rendering(Render_State &render_state, Update_State &us,
 
   SDL_SetRenderDrawBlendMode(render_state.renderer, SDL_BLENDMODE_BLEND);
 
-  // Do an initial resize to get all the base info from the screen loading
-  // into the state
+  // Do an initial resize to get all the base info from the screen loading into
+  // the state
   Result resize_res = handle_window_resize(render_state, us);
   if (resize_res != Result::SUCCESS) {
     LOG_WARN("Failed to handle window resize! EC: {}",
@@ -133,6 +178,31 @@ Result render(Render_State &render_state, Update_State &update_state,
       }
     }
   }
+
+  // music stuff
+  if (render_state.biome != render_state.current_biome) {
+    render_state.current_biome =
+        render_state.biome;  // if changed biome, switch current biome, and run
+                             // code to change music
+    Mix_Music *new_music =
+        render_state.music_tracks
+            [render_state.current_biome];  // set new music to the music for
+                                           // whatever biome was just entered
+    if (new_music !=
+        render_state.current_music) {  // if the music tracks for the two biomes
+                                       // are different continue w/ changing
+
+      // NOTE (Levi): This call blocks execution, so should be called in another
+      // thread.
+      // Mix_FadeOutMusic(500);
+      render_state.current_music = new_music;
+      if (Mix_PlayMusic(render_state.current_music, -1) ==
+          -1) {  // play new track indefinitely
+        LOG_ERROR("Failed to play music: {}", Mix_GetError());
+      }
+    }
+  }
+  // end music stuff
 
   SDL_RenderClear(render_state.renderer);
 
@@ -249,6 +319,17 @@ void destroy_rendering(Render_State &render_state) {
     LOG_INFO("Destroyed SDL window");
   }
 
+  // Ensure the music playback thread is joined before cleaning up
+  if (render_state.music_loader_thread.joinable()) {
+    render_state.music_loader_thread.join();
+  }
+
+  // Free the music and close SDL_mixer
+  if (render_state.current_music != nullptr) {
+    Mix_FreeMusic(render_state.current_music);
+  }
+  Mix_CloseAudio();
+
   SDL_Quit();
   LOG_INFO("Quit SDL");
 }
@@ -340,8 +421,10 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
 
               auto emplace_res = render_state.textures.emplace(id, new_tex);
               if (!emplace_res.second) {
-                LOG_ERROR("Couldn't create texture of id {}. Already exists",
-                          id);
+                LOG_ERROR(
+                    "Couldn't create texture of id {} from texture {}. ID "
+                    "already exists",
+                    id, entry.path().string());
                 SDL_DestroyTexture(new_tex.texture);
                 break;
               }
@@ -504,31 +587,24 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
           const Cell &cell = chunk.cells[cell_index];
 
-          if (cell.type == Cell_Type::WATER) {
-            cr = cell.cr;
-            cg = cell.cg;
-            cb = cell.cb;
-            ca = cell.ca;
+          cr = cell.cr;
+          cg = cell.cg;
+          cb = cell.cb;
+          ca = cell.ca;
 
-            if (ic.x >= ALASKA_EAST_BORDER_CHUNK) {
-              const s64 BONUS_DEEP_OCEAN_DEPTH = -30 * CHUNK_CELL_WIDTH;
-              f32 t =
-                  1.0f -
-                  std::max(
-                      std::min(((ic.y * CHUNK_CELL_WIDTH) + cell_y -
-                                DEEP_SEA_LEVEL_CELL - BONUS_DEEP_OCEAN_DEPTH) /
-                                   static_cast<f32>(SEA_LEVEL_CELL -
-                                                    (DEEP_SEA_LEVEL_CELL +
-                                                     BONUS_DEEP_OCEAN_DEPTH)),
-                               1.0f),
-                      0.0f);
-              lerp(cr, cg, cb, ca, 0, 0, 0, 240, t);
-            }
-          } else {
-            cr = cell.cr;
-            cg = cell.cg;
-            cb = cell.cb;
-            ca = cell.ca;
+          if (ic.x >= ALASKA_EAST_BORDER_CHUNK) {
+            const s64 BONUS_DEEP_OCEAN_DEPTH = -30 * CHUNK_CELL_WIDTH;
+            f32 t =
+                1.0f -
+                std::max(
+                    std::min(((ic.y * CHUNK_CELL_WIDTH) + cell_y -
+                              DEEP_SEA_LEVEL_CELL - BONUS_DEEP_OCEAN_DEPTH) /
+                                 static_cast<f32>(SEA_LEVEL_CELL -
+                                                  (DEEP_SEA_LEVEL_CELL +
+                                                   BONUS_DEEP_OCEAN_DEPTH)),
+                             1.0f),
+                    0.0f);
+            lerp(cr, cg, cb, ca, 0, 0, 0, 255, t);
           }
 
           if (config.debug_overlay) {
@@ -764,10 +840,15 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
           }
         }
 
-        if (entity.anim_timer > entity.anim_delay) {
+        if (entity.anim_timer >
+            entity.anim_delay + entity.anim_delay_current_spice) {
           entity.anim_current_frame = (entity.anim_current_frame + 1) %
                                       (texture.width / entity.anim_width);
           entity.anim_timer = 0;
+          if (entity.anim_delay_variety > 0) {
+            entity.anim_delay_current_spice =
+                rand() % entity.anim_delay_variety;
+          }
         }
         entity.anim_timer++;
       } else {

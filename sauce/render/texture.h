@@ -15,11 +15,17 @@ enum class Texture_Id : u8 {
   SKY = 2,
   TREE = 3,
   MOUNTAINS = 4,
-  NEITZSCHE = 5,
+  NIETZSCHE = 5,
   BUSH = 6,
   GRASS = 7,
   ALASKA_BG = 8,
   AKTREE1 = 9,
   AKTREE2 = 0x0a,
+  AKNEITZSCHE = 0x0b,
+  ECNEITZSCHE = 0x0c,
+  SDNEITZSCHE = 0x0d,
+  JELLYFISH = 0x0e,
+  SEAWEED = 0x0f,
+  FISH = 0x10,
 };
 }  // namespace VV

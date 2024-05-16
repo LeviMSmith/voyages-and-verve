@@ -15,3 +15,7 @@
 [submodule "vendor/rapidjson"]
 	path = vendor/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
+[submodule "SDL_mixer"]
+	path = SDL_mixer
+	url = https://github.com/libsdl-org/SDL_mixer
+	branch = SDL2

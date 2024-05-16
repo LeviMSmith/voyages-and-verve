@@ -1,3 +1,5 @@
+system = $(shell uname -s)
+
 .PHONY: all configure build run
 
 # Default target executed when no arguments are given to make.
@@ -13,7 +15,7 @@ build:
 
 # Target for running the executable.
 run: build
-	./build/darwin/Debug/./voyages-and-verve
+	./build/$(system)/Debug/./voyages-and-verve
 
 # Optionally, you can include a clean target to remove build artifacts.
 clean:
