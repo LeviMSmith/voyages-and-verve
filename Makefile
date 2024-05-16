@@ -1,5 +1,4 @@
-#CXXFLAGS := -g -IC:msys64\mingw64\include\SDL2
-#LDFLAGS := -LC:msys64\mingw64\lib -lSDL2_mixer
+system = $(shell uname -s)
 
 .PHONY: all configure build run
 
@@ -8,8 +7,7 @@ all: configure build run
 
 # Target for configuring the project with CMake.
 configure:
-	cmake -S . -B ./build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
-# Can change Debug to Release
+	cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Debug
 
 # Target for building the project using the previously generated CMake configuration.
 build:
@@ -17,8 +15,7 @@ build:
 
 # Target for running the executable.
 run: build
-	./build/Windows/Release/./voyages-and-verve
-# Can change Debug to Release
+	./build/$(system)/Debug/./voyages-and-verve
 
 # Optionally, you can include a clean target to remove build artifacts.
 clean:

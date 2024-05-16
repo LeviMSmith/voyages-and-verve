@@ -47,6 +47,7 @@ struct Update_State {
 
 int update_worker_thread(void *update_state);
 
+Result init_cell_factory(std::filesystem::path factory_json_path);
 Result init_entity_factory(Update_State &us,
                            std::filesystem::path factory_json);
 Result init_updating(Update_State &update_state, const Config &config,
@@ -65,12 +66,12 @@ void update_health(Update_State &us);
 
 constexpr u8 CHUNK_CELL_SIM_RADIUS = (8 / 2) + 2;
 
-void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc);
+void update_cells_chunk(Dimension &dim, Chunk &chunk);
 void update_cells(Update_State &update_state);
 
-constexpr s64 NICARAGUA_EAST_BORDER_CHUNK = -25;
-constexpr s64 FOREST_EAST_BORDER_CHUNK = 25;
-constexpr s64 ALASKA_EAST_BORDER_CHUNK = 50;
+constexpr u8 AI_CHUNK_RADIUS = 20;
+constexpr u32 AI_CELL_RADIUS = AI_CHUNK_RADIUS * CHUNK_CELL_WIDTH;
+void update_ai(Update_State &us);
 
 void gen_overworld_chunk(Update_State &update_state, DimensionIndex dim,
                          Chunk &chunk, const Chunk_Coord &chunk_coord);
@@ -84,6 +85,8 @@ Result load_chunks_square(Update_State &update_state, DimensionIndex dimid,
 
 // This can fail! Check the result.
 Result get_entity_id(Entity_ID &id);
+
+Cell create_cell(Cell_Type type);
 
 // Factory functions. These should be used over default_entity.
 Result create_entity(Update_State &us, DimensionIndex dim,

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
+option(ENABLE_PROFILING "Enable profiling with gprof" OFF)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set( CMAKE_CXX_COMPILER "g++" )
@@ -20,6 +22,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_SYSTEM_NAME}/${CM
 file(GLOB_RECURSE SOURCES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+if(ENABLE_PROFILING)
+  target_compile_options(${PROJECT_NAME} PRIVATE -pg)
+  target_link_options(${PROJECT_NAME} PRIVATE -pg)
+endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>

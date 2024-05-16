@@ -9,8 +9,8 @@
       "y": 28
     },
     "texture": 1,
-    "max_health": 200,
-    "starting_health": 200,
+    "max_health": 20000,
+    "starting_health": 20000,
     "zdepth": 9,
     "kinetic": true,
     "bouyancy": 0.01,
@@ -28,12 +28,66 @@
     "texture": 7,
     "zdepth": -10
   },
-  "neitzsche": {
+  "nietzsche": {
     "texture": 5,
     "zdepth": 10,
     "flipped": true,
     "anim_width": 25,
     "anim_delay": 20,
+    "anim_frames": 2,
+    "ai_id": 1
+  },
+  "aknietzsche": {
+    "texture": 11,
+    "zdepth": 10,
+    "flipped": true,
+    "anim_width": 25,
+    "anim_delay": 20,
+    "anim_frames": 2,
+    "ai_id": 0
+  },
+  "ecnietzsche": {
+    "texture": 12,
+    "zdepth": 10,
+    "flipped": true,
+    "anim_width": 25,
+    "anim_delay": 20,
+    "anim_frames": 2,
+    "ai_id": 0
+  },
+  "sdnietzsche": {
+    "texture": 13,
+    "zdepth": 10,
+    "flipped": true,
+    "anim_width": 25,
+    "anim_delay": 20,
+    "anim_frames": 2,
+    "ai_id": 0
+  },
+  "jellyfish": {
+    "texture": 14,
+    "zdepth": 10,
+    "flipped": true,
+    "anim_width": 50,
+    "anim_delay": 20,
+    "anim_frames": 2,
+    "ai_id": 1
+  },
+  "seaweed": {
+    "texture": 15,
+    "zdepth": -10,
+    "anim_width": 35,
+    "anim_delay": 30,
+    "anim_delay_variety": 10,
     "anim_frames": 2
+  },
+  "fish": {
+    "texture": 16,
+    "zdepth": 10,
+    "flipped": true,
+    "anim_width": 100,
+    "anim_delay": 20,
+    "anim_frames": 2,
+    "ai_id": 1
   }
 }

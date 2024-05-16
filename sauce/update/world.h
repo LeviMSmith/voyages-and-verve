@@ -16,7 +16,10 @@ struct Chunk_Coord {
 };
 
 /// Cell ///
-enum class Cell_Type : u8 {
+
+// You can increase this as you please as long as it is under 2^16
+#define MAX_CELL_TYPES 1000
+enum class Cell_Type : u16 {
   DIRT,
   AIR,
   WATER,
@@ -24,19 +27,86 @@ enum class Cell_Type : u8 {
   SNOW,
   NONE,
   STEAM,
-  NICARAGUA
+  NICARAGUA,
+  LAVA,
+  SAND,
+  GRASS
 };
-#define CELL_TYPE_NUM 8
 
+inline Cell_Type string_to_cell_type(const char *str) {
+  if (strcmp(str, "DIRT") == 0) {
+    return Cell_Type::DIRT;
+  } else if (strcmp(str, "AIR") == 0) {
+    return Cell_Type::AIR;
+  } else if (strcmp(str, "WATER") == 0) {
+    return Cell_Type::WATER;
+  } else if (strcmp(str, "GOLD") == 0) {
+    return Cell_Type::GOLD;
+  } else if (strcmp(str, "SNOW") == 0) {
+    return Cell_Type::SNOW;
+  } else if (strcmp(str, "NONE") == 0) {
+    return Cell_Type::NONE;
+  } else if (strcmp(str, "STEAM") == 0) {
+    return Cell_Type::STEAM;
+  } else if (strcmp(str, "NICARAGUA") == 0) {
+    return Cell_Type::NICARAGUA;
+  } else if (strcmp(str, "LAVA") == 0) {
+    return Cell_Type::LAVA;
+  } else if (strcmp(str, "SAND") == 0) {
+    return Cell_Type::SAND;
+  } else if (strcmp(str, "GRASS") == 0) {
+    return Cell_Type::GRASS;
+  } else {
+    LOG_WARN("Uknown cell type: {}", str);
+    return Cell_Type::NONE;
+  }
+}
+
+enum Cell_State : u8 { SOLID, LIQUID, GAS, POWDER };
+
+inline Cell_State string_to_cell_state(const char *str) {
+  if (strcmp(str, "SOLID") == 0) {
+    return Cell_State::SOLID;
+  } else if (strcmp(str, "LIQUID") == 0) {
+    return Cell_State::LIQUID;
+  } else if (strcmp(str, "GAS") == 0) {
+    return Cell_State::GAS;
+  } else if (strcmp(str, "POWDER") == 0) {
+    return Cell_State::POWDER;
+  } else {
+    LOG_WARN("Unknown cell state: {}", str);
+    return Cell_State::SOLID;
+  }
+}
+
+struct Cell_Color {
+  u8 r_base;
+  u8 r_variety;
+  u8 g_base;
+  u8 g_variety;
+  u8 b_base;
+  u8 b_variety;
+  u8 a_base;
+  u8 a_variety;
+  u8 probability;
+};
+
+#define MAX_CELL_TYPE_COLORS 8
 struct Cell_Type_Info {
+  Cell_State state;
   s16 solidity;  // Used for collisions and cellular automata
   f32 friction;  // Used for slowing down an entity as it moves through or on
                  // that cell
   f32 passive_heat;
   f32 sublimation_point;
+  Cell_Type sublimation_cell;
+  u8 viscosity;
+
+  Cell_Color colors[MAX_CELL_TYPE_COLORS];
+  u8 num_colors;
 };
 
-extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
+extern Cell_Type_Info cell_type_infos[MAX_CELL_TYPES];
 
 // Monolithic cell struct. Everything the cell does should be put in here.
 // There should be support for millions of cells, so avoid putting too much here
@@ -44,132 +114,9 @@ extern const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM];
 // info or static.
 struct Cell {
   Cell_Type type;
+  const Cell_Type_Info *cell_info;
   u8 cr, cg, cb, ca;  // Color rgba8
-  s16 density;        // Used in fluid dynamics for fluids
-  // s16 vx, vy;
 };
-
-// Factory cell functions
-inline Cell default_dirt_cell() {
-  Cell cell;
-  cell.type = Cell_Type::DIRT;
-  cell.cr = 99 + std::rand() % 12;
-  cell.cg = 80 + std::rand() % 12;
-  cell.cb = 79 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_air_cell() {
-  return {
-      Cell_Type::AIR,  // type
-      255,             // cr
-      255,             // cg
-      255,             // cb
-      0,               // ca
-      0,               // density
-  };
-}
-
-inline Cell default_water_cell() {
-  return {
-      Cell_Type::WATER,  // type
-      0,                 // cr
-      0,                 // cg
-      255,               // cb
-      200,               // ca
-      10                 // density
-  };
-}
-
-inline Cell default_gold_cell() {
-  Cell cell;
-  cell.type = Cell_Type::GOLD;
-  cell.cr = 237 + std::rand() % 18;
-  cell.cg = 220 + std::rand() % 20;
-  cell.cb = 43 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_snow_cell() {
-  Cell cell;
-  cell.type = Cell_Type::SNOW;
-  cell.cr = 230 + std::rand() % 12;
-  cell.cg = 230 + std::rand() % 12;
-  cell.cb = 230 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_steam_cell() {
-  Cell cell;
-  cell.type = Cell_Type::STEAM;
-  cell.cr = 0xaf + std::rand() % 12;
-  cell.cg = 0xaf + std::rand() % 12;
-  cell.cb = 0xaf + std::rand() % 12;
-  cell.ca = 0x33 + std::rand() % 12;
-
-  return cell;
-}
-
-// 540f0f
-inline Cell default_nicaragua_cell(int y, int max_y) {
-  Cell cell;
-  cell.type = Cell_Type::NICARAGUA;
-
-  // Base color adjusted by position to create a vertical gradient
-  float factor = static_cast<float>(y) / max_y;
-  int base_red =
-      0x54 + static_cast<int>(11 * factor);  // Gradient effect on red
-
-  // Random variation around the base color
-  cell.cr =
-      base_red + std::rand() % 6 - 3;  // Random perturbation around base_red
-  cell.cg = 0x0f + std::rand() % 12;   // Green stays fully random
-  cell.cb = 0x0f + std::rand() % 12;   // Blue stays fully random
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_grass_cell() {
-  Cell cell;
-  cell.type = Cell_Type::DIRT;
-  cell.cr = 8 + std::rand() % 12;
-  cell.cg = 94 + std::rand() % 12;
-  cell.cb = 11 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-inline Cell default_sand_cell() {
-  Cell cell;
-  cell.type = Cell_Type::DIRT;
-  cell.cr = 214 + std::rand() % 12;
-  cell.cg = 185 + std::rand() % 12;
-  cell.cb = 105 + std::rand() % 12;
-  cell.ca = 255;
-
-  return cell;
-}
-
-/*
-inline Cell default_snowy_air_cell() {
-  Cell cell;
-  cell.type = Cell_Type::AIR;
-  cell.cr = 255;
-  cell.cg = 255;
-  cell.cb = 255;
-  cell.ca = 100;
-
-  return cell;
-}
-*/
 
 /// Chunk ///
 // All cell interactions are done in chunks. This is how they're simulated,
@@ -183,7 +130,7 @@ struct Chunk {
   Cell_Type all_cell;
 };
 
-enum class Biome : u8 { FOREST, ALASKA, OCEAN };
+enum class Biome : u8 { FOREST, ALASKA, OCEAN, NICARAGUA, DEEP_OCEAN };
 
 /// Surface generation ///
 constexpr s32 SURFACE_Y_MAX = 7;
@@ -194,9 +141,15 @@ constexpr u16 FOREST_CELL_RANGE =
 constexpr s32 SEA_WEST = -16;
 constexpr s32 SEA_LEVEL = 0;
 constexpr f64 SEA_LEVEL_CELL = SEA_LEVEL * CHUNK_CELL_WIDTH;
+constexpr s32 DEEP_SEA_LEVEL = -5;
+constexpr s64 DEEP_SEA_LEVEL_CELL = DEEP_SEA_LEVEL * CHUNK_CELL_WIDTH;
 
 constexpr u32 GEN_TREE_MAX_WIDTH = 1500;
 constexpr u32 AK_GEN_TREE_MAX_WIDTH = 450;
+
+constexpr s64 NICARAGUA_EAST_BORDER_CHUNK = -25;
+constexpr s64 FOREST_EAST_BORDER_CHUNK = 25;
+constexpr s64 ALASKA_EAST_BORDER_CHUNK = 50;
 
 u16 surface_det_rand(u64 seed);
 u16 interpolate_and_nudge(u16 y1, u16 y2, f64 fraction, u64 seed,
@@ -226,7 +179,8 @@ struct Dimension {
   std::set<Entity_ID>
       e_kinetic;  // Entities that should be updated in the kinetic step
   std::set<Entity_ID>
-      e_health;  // Entites that need to have their health checked
+      e_health;              // Entites that need to have their health checked
+  std::set<Entity_ID> e_ai;  // Entities with AI stuff
 };
 
 Cell *get_cell_at_world_pos(Dimension &dim, s64 x, s64 y);

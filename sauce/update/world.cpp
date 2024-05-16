@@ -10,55 +10,7 @@ bool Chunk_Coord::operator==(const Chunk_Coord &b) const {
 }
 
 // sublimation_points of -1.0f mean it cannot sublimate.
-const Cell_Type_Info CELL_TYPE_INFOS[CELL_TYPE_NUM] = {
-    {
-        255,      // solidity
-        0.70f,    // friction
-        -20.0f,   // passive_heat
-        3000.0f,  // sublimation_point
-    },            // DIRT
-    {
-        -100,  // solidity
-        0.8f,  // friction
-        0.0,   // passive_heat
-        -1.0   // sublimation_point
-    },         // AIR
-    {
-        50,     // solidity
-        0.90f,  // friction
-        -80.0,  // passive_heat
-        100.0   // sublimation_point
-    },          // WATER
-    {
-        255,     // solidity
-        0.70f,   // friction
-        -10.0,   // passive_heat
-        10000.0  // sublimation_point
-    },           // GOLD
-    {
-        200,     // solidity
-        0.70f,   // friction
-        -90.0f,  // passive_heat
-        200.0f   // sublimation_point
-    },           // SNOW
-    {
-        0, 1.0f,
-        0.0f,  // passive_heat
-        -1.0f  // sublimation_point
-    },         // NONE
-    {
-        -50,    // solidity
-        0.8f,   // friction
-        50.0f,  // passive_heat
-        -1.0f   // sublimation_point
-    },          // STEAM
-    {
-        -50,      // solidity
-        0.8f,     // friction
-        150.0f,   // passive_heat
-        10000.0f  // sublimation_point
-    }             // NICARAGUA
-};
+Cell_Type_Info CELL_TYPE_INFOS[MAX_CELL_TYPES];
 
 u16 surface_det_rand(u64 seed) {
   seed = (~seed) + (seed << 21);  // input = (input << 21) - input - 1;

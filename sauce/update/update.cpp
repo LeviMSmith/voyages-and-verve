@@ -7,6 +7,7 @@
 #include "SDL_mouse.h"
 #include "rapidjson/document.h"
 #include "render/texture.h"
+#include "update/ai.h"
 #include "update/entity.h"
 #include "update/world.h"
 #include "utils/config.h"
@@ -16,6 +17,173 @@
 namespace rj = rapidjson;
 
 namespace VV {
+
+Cell default_cells[MAX_CELL_TYPES];
+Cell_Type_Info cell_type_infos[MAX_CELL_TYPES];
+
+Result init_cell_factory(std::filesystem::path factory_json_path) {
+  std::ifstream f_fjson(factory_json_path, std::ifstream::ate);
+  if (!f_fjson.is_open() || !f_fjson.good()) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  std::streamsize size = f_fjson.tellg();
+  f_fjson.seekg(0, std::ios::beg);
+  std::vector<char> json_data(size);
+
+  if (!f_fjson.read(json_data.data(), size)) {
+    return Result::FILESYSTEM_ERROR;
+  }
+
+  // LOG_DEBUG("Cell factories: {}", json_data.data());
+
+  rj::Document d;
+  d.Parse(json_data.data());
+
+  u16 cell_types_processed = 0;
+  for (auto &cell_desc : d.GetObject()) {
+    cell_types_processed++;
+    if (!cell_desc.value.IsObject()) {
+      LOG_WARN("Cell descriptor {} is not an object!",
+               cell_desc.name.GetString());
+      continue;
+    }
+
+    const char *cell_type_name = cell_desc.name.GetString();
+    Cell_Type this_cell_type = string_to_cell_type(cell_type_name);
+
+    LOG_DEBUG("Initializing cell factory for cell {} (Type: {})",
+              cell_type_name, (u16)this_cell_type);
+
+    Cell_Type_Info &cell_info = cell_type_infos[(u16)this_cell_type];
+
+    Cell_Color default_color = {
+        0,    // r_base
+        12,   // r_variety
+        0,    // g_base
+        12,   // g_variety
+        0,    // b_base
+        12,   // b_variety
+        255,  // a_base
+        0,    // a_variety
+        100,  // probability
+    };
+
+    // Fill out a default
+    cell_info = {
+        Cell_State::SOLID,
+        0,
+        0.0,
+        0.0,
+        -1.0,
+        Cell_Type::NONE,  // sublimation_cell
+        0,                // viscosity
+        {default_color},  // colors
+        1,                // num_colors
+    };
+
+    for (auto &cell_item : cell_desc.value.GetObject()) {
+      std::string cell_item_name = cell_item.name.GetString();
+
+      if (cell_item_name == "state") {
+        const char *cell_state_name = cell_item.value.GetString();
+        cell_info.state = string_to_cell_state(cell_state_name);
+      } else if (cell_item_name == "solidity") {
+        cell_info.solidity = cell_item.value.GetInt();
+      } else if (cell_item_name == "friction") {
+        cell_info.friction = cell_item.value.GetDouble();
+      } else if (cell_item_name == "passive_heat") {
+        cell_info.passive_heat = cell_item.value.GetDouble();
+      } else if (cell_item_name == "sublimation_point") {
+        cell_info.sublimation_point = cell_item.value.GetDouble();
+        if (cell_info.sublimation_point > -1.1 &&
+            cell_info.sublimation_point < -0.9) {
+          cell_info.state = Cell_State::GAS;
+        }
+      } else if (cell_item_name == "sublimation_cell") {
+        const char *o_cell_type = cell_item.value.GetString();
+        cell_info.sublimation_cell = string_to_cell_type(o_cell_type);
+      } else if (cell_item_name == "viscosity") {
+        cell_info.viscosity = cell_item.value.GetInt();
+      } else if (cell_item_name == "r_base") {
+        cell_info.colors[0].r_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "r_variety") {
+        cell_info.colors[0].r_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "g_base") {
+        cell_info.colors[0].g_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "g_variety") {
+        cell_info.colors[0].g_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "b_base") {
+        cell_info.colors[0].b_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "b_variety") {
+        cell_info.colors[0].b_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "a_base") {
+        cell_info.colors[0].a_base = cell_item.value.GetInt();
+      } else if (cell_item_name == "a_variety") {
+        cell_info.colors[0].a_variety = cell_item.value.GetInt();
+      } else if (cell_item_name == "colors") {
+        if (!cell_item.value.IsArray()) {
+          LOG_WARN("Cell colors {} is not an array!",
+                   cell_item.name.GetString());
+          continue;
+        }
+
+        u8 i = 0;
+        for (auto &cell_color_item : cell_item.value.GetArray()) {
+          if (!cell_color_item.IsObject()) {
+            LOG_WARN("Cell colors member is not an object!");
+            continue;
+          }
+          if (i >= MAX_CELL_TYPE_COLORS) {
+            LOG_WARN("Too many cell colors.");
+            continue;
+          }
+          Cell_Color &color = cell_info.colors[i];
+
+          color = default_color;
+
+          for (auto &cell_color_object : cell_color_item.GetObject()) {
+            std::string cell_color_object_desc =
+                cell_color_object.name.GetString();
+
+            if (cell_color_object_desc == "r_base") {
+              color.r_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "r_variety") {
+              color.r_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "g_base") {
+              color.g_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "g_variety") {
+              color.g_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "b_base") {
+              color.b_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "b_variety") {
+              color.b_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "a_base") {
+              color.a_base = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "a_variety") {
+              color.a_variety = cell_color_object.value.GetInt();
+            } else if (cell_color_object_desc == "probability") {
+              color.probability = cell_color_object.value.GetInt();
+            }
+          }
+
+          i++;
+        }  // Cell color loop
+        LOG_DEBUG("Cell has {} colors", i);
+
+        if (i == 0) {
+          LOG_WARN("Bad color array from cell descriptor. Using default color");
+          i = 1;
+        }
+        cell_info.num_colors = i;
+      }  // Cell else if chain
+    }    // Cell item loop
+  }      // Cell loop
+
+  LOG_INFO("Parsed {} cell objects from cell factory file",
+           cell_types_processed);
+  return Result::SUCCESS;
+}
 
 Result init_entity_factory(Update_State &us,
                            std::filesystem::path factory_json) {
@@ -54,8 +222,20 @@ Result init_entity_factory(Update_State &us,
       entity_type = Entity_Factory_Type::BUSH;
     } else if (entity_name == "grass") {
       entity_type = Entity_Factory_Type::GRASS;
-    } else if (entity_name == "neitzsche") {
+    } else if (entity_name == "nietzsche") {
       entity_type = Entity_Factory_Type::NIETZSCHE;
+    } else if (entity_name == "aknietzsche") {
+      entity_type = Entity_Factory_Type::AKNIETZSCHE;
+    } else if (entity_name == "ecnietzsche") {
+      entity_type = Entity_Factory_Type::ECNIETZSCHE;
+    } else if (entity_name == "sdnietzsche") {
+      entity_type = Entity_Factory_Type::SDNIETZSCHE;
+    } else if (entity_name == "jellyfish") {
+      entity_type = Entity_Factory_Type::JELLYFISH;
+    } else if (entity_name == "seaweed") {
+      entity_type = Entity_Factory_Type::SEAWEED;
+    } else if (entity_name == "fish") {
+      entity_type = Entity_Factory_Type::FISH;
     } else {
       LOG_WARN("Unknown entity in descriptor file: {}", entity_name);
       continue;
@@ -63,6 +243,7 @@ Result init_entity_factory(Update_State &us,
 
     // TODO: Warn if we're overwritting an entity of the same name
     Entity_Factory &new_entity_factory = us.entity_factories[entity_type];
+    memset(&new_entity_factory, 0, sizeof(Entity_Factory));
     Entity &new_entity = new_entity_factory.e;
 
     for (auto &entity_item : entity_desc.value.GetObject()) {
@@ -115,8 +296,13 @@ Result init_entity_factory(Update_State &us,
         new_entity.status |= (u16)Entity_Status::ANIMATED;
       } else if (entity_item_name == "anim_delay") {
         new_entity.anim_delay = entity_item.value.GetUint();
+      } else if (entity_item_name == "anim_delay_variety") {
+        new_entity.anim_delay_variety = entity_item.value.GetUint();
       } else if (entity_item_name == "anim_frames") {
         new_entity.anim_frames = entity_item.value.GetUint();
+      } else if (entity_item_name == "ai_id") {
+        new_entity.ai_id = static_cast<AI_ID>(entity_item.value.GetUint());
+        new_entity_factory.register_ai = true;
       }
     }
   }
@@ -154,6 +340,12 @@ Result init_updating(Update_State &update_state, const Config &config,
     LOG_ERROR("Updater failed to initialize entity factories");
     return res_dir_res;
   }
+  std::filesystem::path cell_factory_path = res_dir / "cell_factory.json";
+  Result cell_factory_res = init_cell_factory(cell_factory_path);
+  if (cell_factory_res != Result::SUCCESS) {
+    LOG_ERROR("Updater failed to initialize cell factories");
+    return res_dir_res;
+  }
 
   Result ap_res =
       create_entity(update_state, update_state.active_dimension,
@@ -186,6 +378,7 @@ Result update(Update_State &update_state) {
     LOG_INFO("Got close from keyboard");
     return res;
   }
+  update_ai(update_state);
   update_kinetic(update_state);
   Chunk_Coord current_player_chunk =
       get_chunk_coord(active_player.coord.x, active_player.coord.y);
@@ -230,16 +423,21 @@ Result update_mouse(Update_State &us) {
     c.x = static_cast<s32>(mouse_x / us.screen_cell_size) + tl.x;
     c.y = tl.y - static_cast<s32>(mouse_y / us.screen_cell_size);
 
-    Chunk_Coord cc = get_chunk_coord(c.x, c.y);
+    const u8 CELL_PLACE_RADIUS = 3;
+    for (s64 x = c.x - CELL_PLACE_RADIUS; x < c.x + CELL_PLACE_RADIUS; x++) {
+      for (s64 y = c.y - CELL_PLACE_RADIUS; y < c.y + CELL_PLACE_RADIUS; y++) {
+        Chunk_Coord cc = get_chunk_coord(x, y);
 
-    Chunk &chunk = active_dimension.chunks[cc];
-    u16 cx = std::abs((cc.x * CHUNK_CELL_WIDTH) - c.x);
-    u16 cy = c.y - (cc.y * CHUNK_CELL_WIDTH);
-    u32 cell_index = cx + cy * CHUNK_CELL_WIDTH;
+        Chunk &chunk = active_dimension.chunks[cc];
+        u16 cx = std::abs((cc.x * CHUNK_CELL_WIDTH) - x);
+        u16 cy = y - (cc.y * CHUNK_CELL_WIDTH);
+        u32 cell_index = cx + cy * CHUNK_CELL_WIDTH;
 
-    assert(cell_index < CHUNK_CELLS);
+        assert(cell_index < CHUNK_CELLS);
 
-    chunk.cells[cell_index] = default_water_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
+      }
+    }
 
     us.events.emplace(Update_Event::CELL_CHANGE);
   }
@@ -337,22 +535,22 @@ void update_kinetic(Update_State &update_state) {
     Entity &entity = update_state.entities[entity_index];
 
     if (entity.status & (u8)Entity_Status::IN_WATER) {
-      entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
-      entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
-      entity.vx *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
-      entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::WATER].friction;
+      entity.ax *= cell_type_infos[(u8)Cell_Type::WATER].friction;
+      entity.ay *= cell_type_infos[(u8)Cell_Type::WATER].friction;
+      entity.vx *= cell_type_infos[(u8)Cell_Type::WATER].friction;
+      entity.vy *= cell_type_infos[(u8)Cell_Type::WATER].friction;
 
       entity.vy += entity.bouyancy;
     } else if (entity.status & (u8)Entity_Status::ON_GROUND) {
-      entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
-      entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
-      entity.vx *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
-      entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::DIRT].friction;
+      entity.ax *= cell_type_infos[(u8)Cell_Type::DIRT].friction;
+      entity.ay *= cell_type_infos[(u8)Cell_Type::DIRT].friction;
+      entity.vx *= cell_type_infos[(u8)Cell_Type::DIRT].friction;
+      entity.vy *= cell_type_infos[(u8)Cell_Type::DIRT].friction;
     } else {
-      entity.ax *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
-      entity.ay *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
-      entity.vx *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
-      entity.vy *= CELL_TYPE_INFOS[(u8)Cell_Type::AIR].friction;
+      entity.ax *= cell_type_infos[(u8)Cell_Type::AIR].friction;
+      entity.ay *= cell_type_infos[(u8)Cell_Type::AIR].friction;
+      entity.vx *= cell_type_infos[(u8)Cell_Type::AIR].friction;
+      entity.vy *= cell_type_infos[(u8)Cell_Type::AIR].friction;
     }
 
     entity.vx += entity.ax;
@@ -415,13 +613,15 @@ void update_kinetic(Update_State &update_state) {
           switch (chunk.cells[cell].type) {
             case Cell_Type::NICARAGUA: {
               if (!nica_damage) {
-                entity.health--;
+                entity.health -= 10;
                 nica_damage = true;
               }
               [[fallthrough]];
             }
             case Cell_Type::SNOW:
             case Cell_Type::GOLD:
+            case Cell_Type::SAND:
+            case Cell_Type::GRASS:
             case Cell_Type::DIRT: {
               if (entity.coord.y - entity.boundingh <= cell_coord.y) {
                 entity.status |= (u8)Entity_Status::ON_GROUND;
@@ -475,6 +675,10 @@ void update_kinetic(Update_State &update_state) {
             case Cell_Type::AIR: {
               break;
             }
+            case Cell_Type::LAVA: {
+              entity.health -= 1;
+              [[fallthrough]];
+            }
             case Cell_Type::WATER: {
               entity.status = entity.status | (u8)Entity_Status::IN_WATER;
               break;
@@ -509,8 +713,8 @@ bool process_steam_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
       dim, cx, cy + (rand_dir % 4 == 0 ? 1 : 0));  // Start with bottom
   if (o_cell != nullptr) {
     // Giving the steam some bonus upward power
-    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-        CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity + 50.0f) {
+    if (cell_type_infos[(u16)o_cell->type].solidity <
+        cell_type_infos[(u16)Cell_Type::STEAM].solidity + 30.0f) {
       std::swap(cell, *o_cell);
       return true;
     }
@@ -525,8 +729,8 @@ break;
   if (rand_dir & 1) {
     o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
     if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity) {
+      if (cell_type_infos[(u16)o_cell->type].solidity <
+          cell_type_infos[(u16)Cell_Type::STEAM].solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
@@ -534,8 +738,8 @@ break;
   } else {
     o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
     if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::STEAM].solidity) {
+      if (cell_type_infos[(u16)o_cell->type].solidity <
+          cell_type_infos[(u16)Cell_Type::STEAM].solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
@@ -545,54 +749,94 @@ break;
   return false;
 }
 
-bool process_water_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
-  s64 cx = chunk.coord.x * CHUNK_CELL_WIDTH +
-           static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
-  s64 cy = chunk.coord.y * CHUNK_CELL_WIDTH +
-           static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
-
+bool process_fluid_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
   Cell &cell = chunk.cells[cell_index];
-  // Start at bottom then sides
+  const Cell_Type_Info &cell_info = *cell.cell_info;
+
   u32 rand_dir = std::rand();
-  s8 side_mod = rand_dir % 7;
+#ifndef NDEBUG
+  static bool suppressed = false;
+  if (cell_info.viscosity == 0 && !suppressed) {
+    LOG_WARN(
+        "process_fluid_cell called on non fluid cell! Cell type {} with 0 "
+        "viscosity",
+        (int)cell.type);
+    suppressed = true;
+    return false;
+  }
+#endif
+  s8 side_mod = rand_dir % cell_info.viscosity;
 
-  // Normally this would just be a for loop going through the
-  // directions, but this has to be so wicked fast
-
-  Cell *o_cell = get_cell_at_world_pos(dim, cx, cy - 1);  // Start with bottom
+  // if in first row, the next cell we get needs to be from the chunk below us.
+  Cell *o_cell = nullptr;
+  if (cell_index < CHUNK_CELL_WIDTH) {
+    Chunk_Coord o_cc = {chunk.coord.x, chunk.coord.y - 1};
+    const auto &o_chunk_iter = dim.chunks.find(o_cc);
+    if (o_chunk_iter != dim.chunks.end()) {
+      o_cell = &o_chunk_iter->second
+                    .cells[CHUNK_CELLS - (CHUNK_CELL_WIDTH - cell_index)];
+    }
+  } else {
+    o_cell = &chunk.cells[cell_index - CHUNK_CELL_WIDTH];
+  }
   if (o_cell != nullptr) {
-    if (CELL_TYPE_INFOS[(u16)o_cell->type].passive_heat >
-        CELL_TYPE_INFOS[(u16)Cell_Type::WATER].sublimation_point) {
-      cell = default_steam_cell();
+    if (cell_type_infos[(u16)o_cell->type].passive_heat >
+        cell_info.sublimation_point) {
+      // TODO: Need a map of cell functions that we can call with
+      // cell_info.sublimation_cell
+      cell = create_cell(Cell_Type::STEAM);
       return true;
     }
-    if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-        CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
+    if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
       std::swap(cell, *o_cell);
       return true;
     }
   }
 
   // Only check one direction and do so randomly
-  /*
-if (rand_dir % 10 < 5) {  // Some of the time skip moving
-break;
-}
-  */
-  if (rand_dir & 1) {
-    o_cell = get_cell_at_world_pos(dim, cx - side_mod, cy);  // Left
+  if (rand_dir & 1) {  // Move left
+    Cell *o_cell = nullptr;
+    if ((cell_index - side_mod) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index == 0) {  // We're on the leftmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x - 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index - side_mod + CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index - side_mod < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index - side_mod];
+    }
+
     if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
+      if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
     }
-  } else {
-    o_cell = get_cell_at_world_pos(dim, cx + side_mod, cy);  // Right
+  } else {  // Move right
+    Cell *o_cell = nullptr;
+    if ((cell_index + side_mod) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index ==
+            CHUNK_CELLS - 1) {  // We're on the rightmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x + 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index + side_mod - CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index + side_mod < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index + side_mod];
+    }
+
     if (o_cell != nullptr) {
-      if (CELL_TYPE_INFOS[(u16)o_cell->type].solidity <
-          CELL_TYPE_INFOS[(u16)Cell_Type::WATER].solidity) {
+      if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
         std::swap(cell, *o_cell);
         return true;
       }
@@ -602,13 +846,91 @@ break;
   return false;
 }
 
+bool process_powder_cell(Dimension &dim, Chunk &chunk, u32 cell_index) {
+  Cell &cell = chunk.cells[cell_index];
+  const Cell_Type_Info &cell_info = *cell.cell_info;
+
+  // if in first row, the next cell we get needs to be from the chunk below us.
+  Cell *o_cell = nullptr;
+  if (cell_index < CHUNK_CELL_WIDTH) {
+    Chunk_Coord o_cc = {chunk.coord.x, chunk.coord.y - 1};
+    const auto &o_chunk_iter = dim.chunks.find(o_cc);
+    if (o_chunk_iter != dim.chunks.end()) {
+      o_cell = &o_chunk_iter->second
+                    .cells[CHUNK_CELLS - (CHUNK_CELL_WIDTH - cell_index)];
+    }
+  } else {
+    o_cell = &chunk.cells[cell_index - CHUNK_CELL_WIDTH];
+  }
+  if (o_cell != nullptr) {
+    if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
+      std::swap(cell, *o_cell);
+      return true;
+    }
+  }
+
+  // Only check one direction and do so randomly
+  u32 rand_dir = std::rand();
+  if (rand_dir & 1) {  // Move left
+    Cell *o_cell = nullptr;
+    if ((cell_index - 1) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index == 0) {  // We're on the leftmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x - 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index - 1 + CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index - 1 < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index - 1];
+    }
+
+    if (o_cell != nullptr) {
+      if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  } else {  // Move right
+    Cell *o_cell = nullptr;
+    if ((cell_index + 1) / CHUNK_CELL_WIDTH !=
+            (cell_index) / CHUNK_CELL_WIDTH ||
+        cell_index ==
+            CHUNK_CELLS - 1) {  // We're on the rightmost border of the chunk
+      Chunk_Coord o_cc = {chunk.coord.x + 1, chunk.coord.y};
+      const auto &o_chunk_iter = dim.chunks.find(o_cc);
+      if (o_chunk_iter != dim.chunks.end()) {
+        u32 o_cell_index = cell_index + 1 - CHUNK_CELL_WIDTH;
+        assert(o_cell_index < CHUNK_CELLS);
+        o_cell = &o_chunk_iter->second.cells[o_cell_index];
+      }
+    } else {
+      assert(cell_index + 1 < CHUNK_CELLS);
+      o_cell = &chunk.cells[cell_index + 1];
+    }
+
+    if (o_cell != nullptr) {
+      if (cell_type_infos[(u16)o_cell->type].solidity < cell_info.solidity) {
+        std::swap(cell, *o_cell);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 void update_all_water_chunk(Dimension &dim, Chunk &chunk) {
   // Iterate over the bottom row of cells in the chunk
   bool still_all_water = true;
   for (u32 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     u32 bottom_index = (CHUNK_CELL_WIDTH - 1) * CHUNK_CELL_WIDTH + x;
-    if (process_water_cell(dim, chunk, bottom_index)) {
-      still_all_water = false;
+    if (chunk.cells[bottom_index].type == Cell_Type::WATER) {
+      if (process_fluid_cell(dim, chunk, bottom_index)) {
+        still_all_water = false;
+      }
     }
   }
 
@@ -617,11 +939,15 @@ void update_all_water_chunk(Dimension &dim, Chunk &chunk) {
   for (u32 y = 1; y < CHUNK_CELL_WIDTH - 1; y++) {
     u32 left_index = y * CHUNK_CELL_WIDTH;
     u32 right_index = y * CHUNK_CELL_WIDTH + (CHUNK_CELL_WIDTH - 1);
-    if (process_water_cell(dim, chunk, left_index)) {
-      still_all_water = false;
+    if (chunk.cells[left_index].type == Cell_Type::WATER) {
+      if (process_fluid_cell(dim, chunk, left_index)) {
+        still_all_water = false;
+      }
     }
-    if (process_water_cell(dim, chunk, right_index)) {
-      still_all_water = false;
+    if (chunk.cells[right_index].type == Cell_Type::WATER) {
+      if (process_fluid_cell(dim, chunk, right_index)) {
+        still_all_water = false;
+      }
     }
   }
 
@@ -630,7 +956,7 @@ void update_all_water_chunk(Dimension &dim, Chunk &chunk) {
   }
 }
 
-void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
+void update_cells_chunk(Dimension &dim, Chunk &chunk) {
   switch (chunk.all_cell) {
     case (Cell_Type::WATER): {
       update_all_water_chunk(dim, chunk);
@@ -638,53 +964,22 @@ void update_cells_chunk(Dimension &dim, Chunk &chunk, const Chunk_Coord &cc) {
     }
     default: {
       for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-        switch (chunk.cells[cell_index].type) {
-          case Cell_Type::GOLD: {  // Basic sand movement
-            s64 cx = cc.x * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index % CHUNK_CELL_WIDTH);
-            s64 cy = cc.y * CHUNK_CELL_WIDTH +
-                     static_cast<s64>(cell_index / CHUNK_CELL_WIDTH);
+        const Cell_Type_Info &cell_info = *chunk.cells[cell_index].cell_info;
 
-            Cell *below = get_cell_at_world_pos(dim, cx, cy - 1);
-
-            if (CELL_TYPE_INFOS[(u8)below->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *below);
-              break;
-            }
-
-            // Which side to try first
-            s8 dir = std::rand() % 2;
-            if (dir == 0) {
-              dir = -1;
-            }
-
-            Cell *side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
-            if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *side_cell);
-              break;
-            }
-
-            if (dir == 1) {
-              dir = -1;
-            }
-            if (dir == -1) {
-              dir = 1;
-            }
-
-            side_cell = get_cell_at_world_pos(dim, cx + dir, cy - 1);
-            if (CELL_TYPE_INFOS[(u8)side_cell->type].solidity < 200) {
-              std::swap(chunk.cells[cell_index], *side_cell);
-              break;
-            }
-
+        switch (cell_info.state) {
+          case Cell_State::POWDER: {  // Basic sand movement
+            process_powder_cell(dim, chunk, cell_index);
             break;
           }
-          case Cell_Type::WATER: {
-            process_water_cell(dim, chunk, cell_index);
+          case Cell_State::LIQUID: {
+            process_fluid_cell(dim, chunk, cell_index);
             break;
           }
-          case Cell_Type::STEAM: {
-            process_steam_cell(dim, chunk, cell_index);
+          case Cell_State::GAS: {
+            if (chunk.cells[cell_index].type == Cell_Type::STEAM) {
+              process_steam_cell(dim, chunk, cell_index);
+            }
+            break;
           }
           default:
             break;
@@ -766,7 +1061,7 @@ void update_cells(Update_State &update_state) {
           auto chunk_iter = dim.chunks.find(chunk_coord);
           if (chunk_iter !=
               dim.chunks.end()) {  // Double-check in case of race conditions
-            update_cells_chunk(dim, chunk_iter->second, chunk_coord);
+            update_cells_chunk(dim, chunk_iter->second);
           }
           chunk_stack.mark_done(
               chunk_coord);  // Mark this chunk as done processing
@@ -789,9 +1084,100 @@ void update_cells(Update_State &update_state) {
   }
 }
 
+void update_ai(Update_State &us) {
+  Entity &active_player = *get_active_player(us);
+  Dimension &dim = *get_active_dimension(us);
+
+  static u64 ai_frame = 0;
+
+  // Coordinates of the player
+  f64 player_x = active_player.coord.x;
+  f64 player_y = active_player.coord.y;
+
+  for (Entity_ID e_id : dim.e_ai) {
+    Entity &e = us.entities[e_id];
+
+    // Calculate the vector difference between the entity and the player
+    f64 dx = e.coord.x - player_x;
+    f64 dy = e.coord.y - player_y;
+    f64 distance = sqrt(dx * dx + dy * dy);
+
+    if (distance <= AI_CELL_RADIUS &&
+        distance > 0) {  // Ensure distance is not zero
+      switch (e.ai_id) {
+        case AI_ID::FOLLOW_PLAYER_SLOW: {
+          // Normalize the direction vector and scale it by a desired
+          // acceleration amount
+          f64 accel_magnitude = -0.1;  // Set the acceleration magnitude
+          f64 ax = (dx / distance) * accel_magnitude;
+          f64 ay = (dy / distance) * accel_magnitude;
+
+          e.flipped = ax < 0;
+
+          // Apply acceleration to velocity
+          e.vx += ax;
+          e.vy += ay;
+
+          // Optionally apply a damping factor to prevent excessive speeds
+          f64 damping_factor = 0.95;
+          e.vx *= damping_factor;
+          e.vy *= damping_factor;
+
+          // Update the position
+          e.coord.x += e.vx;
+          e.coord.y += e.vy;
+
+          break;
+        }
+        case AI_ID::WANDER_IN_PLACE: {
+          // Check if it's time to pick a new target position
+          if (e.wander_target_frame <= ai_frame) {
+            // Set a new target frame count and position
+            int random_frame_count =
+                60 + rand() % 120;  // 1 to 3 seconds at 60 FPS
+            e.wander_target_frame = ai_frame + random_frame_count;
+
+            // Choose a random position within a 50 units radius
+            double angle = ((double)rand() / RAND_MAX) * 2 * M_PI;
+            double radius = ((double)rand() / RAND_MAX) * 50;
+            e.wander_target.x = e.coord.x + radius * cos(angle);
+            e.wander_target.y = e.coord.y + radius * sin(angle);
+          }
+
+          // Compute vector to target
+          double tx = e.wander_target.x - e.coord.x;
+          double ty = e.wander_target.y - e.coord.y;
+          double to_target_dist = sqrt(tx * tx + ty * ty);
+
+          // Calculate normalized vector and scale by max speed
+          double max_speed = 1.0;  // Can be adjusted
+          double norm_factor =
+              (to_target_dist > 0) ? max_speed / to_target_dist : 0;
+          double target_vx = tx * norm_factor;
+          double target_vy = ty * norm_factor;
+
+          // Smooth velocity change with ease-in-out
+          double blend_factor = 0.1;  // Smoothing factor
+          e.vx = (e.vx * (1 - blend_factor)) + (target_vx * blend_factor);
+          e.vy = (e.vy * (1 - blend_factor)) + (target_vy * blend_factor);
+
+          // Update position
+          e.coord.x += e.vx;
+          e.coord.y += e.vy;
+
+          break;
+        }
+      }
+    }
+  }
+
+  ai_frame++;
+}
+
 void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
   bool all_water = true;
+  bool all_air = true;
 
   for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
@@ -806,25 +1192,31 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
 
       s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
       if (height < SEA_LEVEL_CELL && our_height <= height) {
-        chunk.cells[cell_index] = default_sand_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::SAND);
         all_water = false;
+        all_air = false;
       } else if (height < SEA_LEVEL_CELL && our_height > height &&
                  our_height < SEA_LEVEL_CELL) {
-        chunk.cells[cell_index] = default_water_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
+        all_air = false;
       } else if (our_height < height && our_height >= height - grass_depth) {
-        chunk.cells[cell_index] = default_grass_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::GRASS);
         all_water = false;
+        all_air = false;
       } else if (our_height < height - grass_depth) {
-        chunk.cells[cell_index] = default_dirt_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::DIRT);
         all_water = false;
+        all_air = false;
       } else {
-        chunk.cells[cell_index] = default_air_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
         all_water = false;
       }
     }
 
     if (all_water) {
       chunk.all_cell = Cell_Type::WATER;
+    } else if (all_air) {
+      chunk.all_cell = Cell_Type::AIR;
     }
 
     // added distance between tree's to prevent overlap
@@ -959,6 +1351,7 @@ void gen_ov_forest_ch(Update_State &update_state, Chunk &chunk,
 
 void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
+  bool all_air = true;
   for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
     s32 height = static_cast<s32>(surface_height(
@@ -971,17 +1364,18 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
 
       s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
       if (our_height > height) {
-        chunk.cells[cell_index] = default_air_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
       } else {
         u8 snow_depth = 60 + surface_det_rand(static_cast<u64>(abs_x) ^
                                               update_state.world_seed) %
                                  25;
 
         if (our_height > height - snow_depth) {
-          chunk.cells[cell_index] = default_snow_cell();
+          chunk.cells[cell_index] = create_cell(Cell_Type::SNOW);
         } else {
-          chunk.cells[cell_index] = default_dirt_cell();
+          chunk.cells[cell_index] = create_cell(Cell_Type::DIRT);
         }
+        all_air = false;
       }
     }
 
@@ -1009,30 +1403,98 @@ void gen_ov_alaska_ch(Update_State &update_state, Chunk &chunk,
         tree.coord.x = abs_x;
       }
     }
+
+    // Alaska Nietzsche spawner
+    if (abs_x == 250 + FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH &&
+        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+      Entity_ID id;
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::AKNIETZSCHE, id);
+
+      Entity &akneitzsche = update_state.entities[id];
+      akneitzsche.coord.x = abs_x;
+      akneitzsche.coord.y = height + 85.0f;
+      LOG_DEBUG("AKNIETZSCHE spawned at {}, {}", abs_x, akneitzsche.coord.y);
+    }
+  }
+
+  if (all_air) {
+    chunk.all_cell = Cell_Type::AIR;
   }
 }
 
 void gen_ov_ocean_chunk(Update_State &update_state, Chunk &chunk,
                         const Chunk_Coord &chunk_coord) {
-  // void cast these to promise the compiler we're going to use them in this
-  // function eventually
-  (void)update_state;
+  bool all_water = true;
+  bool all_air = true;
+  bool all_sand = true;
 
-  if (chunk_coord.y < SEA_LEVEL) {
-    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-      chunk.cells[cell_index] = default_water_cell();
-    }
+  s32 off_shore_chunk = chunk_coord.x - ALASKA_EAST_BORDER_CHUNK;
+  for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
+    f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
+    s32 height_offset =
+        static_cast<s32>(surface_height(abs_x, 64, update_state.world_seed));
 
+    f64 height_lerp_t =
+        static_cast<f64>(x) / static_cast<f64>(CHUNK_CELL_WIDTH);
+    f64 height_lerp = height_lerp_t + 1.0 * off_shore_chunk;
+
+    s64 height = height_offset + (SURFACE_Y_MIN * CHUNK_CELL_WIDTH) -
+                 static_cast<s64>(height_lerp * CHUNK_CELL_WIDTH *
+                                  1);  // Scale the decrease
+
+    for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
+      u16 cell_index = x + (y * CHUNK_CELL_WIDTH);
+
+      s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
+
+      if (our_height >= SEA_LEVEL_CELL) {
+        chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
+        all_water = false;
+        all_sand = false;
+      } else if (our_height > height) {
+        chunk.cells[cell_index] = create_cell(Cell_Type::WATER);
+        all_air = false;
+        all_sand = false;
+      } else {
+        chunk.cells[cell_index] = create_cell(Cell_Type::SAND);
+        all_air = false;
+        all_water = false;
+      }
+
+      // Spawn some flora
+      if (our_height == height) {
+        u32 entity_rand = surface_det_rand(height);
+        if (entity_rand % 300 < 10) {
+          Entity_ID fauna_id;
+          Result fauna_create_res =
+              create_entity(update_state, DimensionIndex::OVERWORLD,
+                            Entity_Factory_Type::SEAWEED, fauna_id);
+          if (fauna_create_res == Result::SUCCESS) {
+            Entity &e = update_state.entities[fauna_id];
+            e.coord.x = abs_x;
+            e.coord.y = our_height + 50;
+          }
+        }
+      }  // Flora
+    }    // y loop
+  }      // x loop
+
+  if (all_water) {
     chunk.all_cell = Cell_Type::WATER;
-  } else {
-    for (u32 cell_index = 0; cell_index < CHUNK_CELLS; cell_index++) {
-      chunk.cells[cell_index] = default_air_cell();
-    }
+  }
+  if (all_air) {
+    chunk.all_cell = Cell_Type::AIR;
+  }
+  if (all_sand) {
+    chunk.all_cell = Cell_Type::SAND;
   }
 }
 
 void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
                       const Chunk_Coord &chunk_coord) {
+  bool all_air = true;
   for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
     f64 abs_x = x + chunk_coord.x * CHUNK_CELL_WIDTH;
     s32 height = static_cast<s32>(surface_height(
@@ -1045,12 +1507,31 @@ void gen_ov_nicaragua(Update_State &update_state, Chunk &chunk,
 
       s32 our_height = (y + (chunk_coord.y * CHUNK_CELL_WIDTH));
       if (our_height < height) {
-        chunk.cells[cell_index] =
-            default_nicaragua_cell(y, CHUNK_CELL_WIDTH * 26);
+        chunk.cells[cell_index] = create_cell(Cell_Type::NICARAGUA);
+        all_air = false;
+      } else if (our_height < SEA_LEVEL_CELL + (CHUNK_CELL_WIDTH * 2)) {
+        chunk.cells[cell_index] = create_cell(Cell_Type::LAVA);
       } else {
-        chunk.cells[cell_index] = default_air_cell();
+        chunk.cells[cell_index] = create_cell(Cell_Type::AIR);
       }
     }
+
+    // Sand Nietzsche spawner
+    if (abs_x == NICARAGUA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH - 250 &&
+        height > chunk_coord.y * CHUNK_CELL_WIDTH &&
+        height < (chunk_coord.y + 1) * CHUNK_CELL_WIDTH) {
+      Entity_ID id;
+      create_entity(update_state, update_state.active_dimension,
+                    Entity_Factory_Type::SDNIETZSCHE, id);
+
+      Entity &sdneitzsche = update_state.entities[id];
+      sdneitzsche.coord.x = abs_x;
+      sdneitzsche.coord.y = height + 85.0f + chunk_coord.y * CHUNK_CELL_WIDTH;
+    }
+  }
+
+  if (all_air) {
+    chunk.all_cell = Cell_Type::AIR;
   }
 }
 
@@ -1096,7 +1577,7 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
       break;
     }
     case DimensionIndex::WATERWORLD: {
-      const Cell base_air = default_air_cell();
+      const Cell base_air = create_cell(Cell_Type::AIR);
       if (chunk_coord.y > SEA_LEVEL) {
         for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
           for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
@@ -1106,7 +1587,8 @@ Result gen_chunk(Update_State &update_state, DimensionIndex dim, Chunk &chunk,
       } else {
         for (u8 x = 0; x < CHUNK_CELL_WIDTH; x++) {
           for (u8 y = 0; y < CHUNK_CELL_WIDTH; y++) {
-            chunk.cells[x + y * CHUNK_CELL_WIDTH] = default_water_cell();
+            chunk.cells[x + y * CHUNK_CELL_WIDTH] =
+                create_cell(Cell_Type::WATER);
           }
         }
       }
@@ -1168,6 +1650,56 @@ Result get_entity_id(std::unordered_set<Entity_ID> &entity_id_pool,
   return Result::ENTITY_POOL_FULL;
 }
 
+Cell create_cell(Cell_Type type) {
+  const Cell_Type_Info &CELL_INFO = cell_type_infos[static_cast<u16>(type)];
+
+  // Ensure there are color configurations available
+  if (CELL_INFO.num_colors == 0) {
+    return {type, &CELL_INFO, 0xff, 0, 0xff, 255};  // Default to magenta
+  }
+
+  const Cell_Color *selected_color = nullptr;
+
+  // Iterate through each color and select based on probability
+  for (u8 i = 0; i < CELL_INFO.num_colors; ++i) {
+    const Cell_Color &color = CELL_INFO.colors[i];
+    int random_value =
+        std::rand() % 100 + 1;  // Generate a number from 1 to 100
+    if (random_value <= color.probability) {
+      selected_color = &color;
+      break;
+    }
+  }
+
+  // If no color was selected by probability, default to the last color
+  if (!selected_color) {
+    selected_color = &CELL_INFO.colors[CELL_INFO.num_colors - 1];
+  }
+
+  // Compute color components with variation
+  u8 r =
+      selected_color->r_variety == 0
+          ? selected_color->r_base
+          : selected_color->r_base + std::rand() % (selected_color->r_variety);
+  u8 g =
+      selected_color->g_variety == 0
+          ? selected_color->g_base
+          : selected_color->g_base + std::rand() % (selected_color->g_variety);
+  u8 b =
+      selected_color->b_variety == 0
+          ? selected_color->b_base
+          : selected_color->b_base + std::rand() % (selected_color->b_variety);
+  u8 a =
+      selected_color->a_variety == 0
+          ? selected_color->a_base
+          : selected_color->a_base + std::rand() % (selected_color->a_variety);
+
+  // Create and return the cell
+  Cell ret_cell = {type, &CELL_INFO, r, g, b, a};
+
+  return ret_cell;
+}
+
 Result create_entity(Update_State &us, DimensionIndex dim,
                      Entity_Factory_Type type, Entity_ID &id) {
   Result id_res = get_entity_id(us.entity_id_pool, id);
@@ -1193,6 +1725,9 @@ Result create_entity(Update_State &us, DimensionIndex dim,
     }
     if (factory.register_render) {
       dimension_iter->second.e_render.emplace(us.entities[id].zdepth, id);
+    }
+    if (factory.register_ai) {
+      dimension_iter->second.e_ai.insert(id);
     }
   } else {
     LOG_WARN(

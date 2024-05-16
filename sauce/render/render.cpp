@@ -4,6 +4,9 @@
 #include <regex>
 #include <sstream>
 
+#include "SDL_surface.h"
+#include "render/render_utils.h"
+#include "render/texture.h"
 #include "update/update.h"
 #include "update/world.h"
 
@@ -145,13 +148,19 @@ Result render(Render_State &render_state, Update_State &update_state,
   if (update_state.events.find(Update_Event::PLAYER_MOVED_CHUNK) ==
       update_state.events.end()) {
     f64 player_x = active_player.coord.x + active_player.camx;
-    if (player_x > ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
-      render_state.biome = Biome::OCEAN;
-    } else if (player_x > FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH &&
-               player_x <= ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
-      render_state.biome = Biome::ALASKA;
-    } else if (player_x <= FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+    f64 player_y = active_player.coord.y + active_player.camy;
+    if (player_x < NICARAGUA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::NICARAGUA;
+    } else if (player_x < FOREST_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
       render_state.biome = Biome::FOREST;
+    } else if (player_x < ALASKA_EAST_BORDER_CHUNK * CHUNK_CELL_WIDTH) {
+      render_state.biome = Biome::ALASKA;
+    } else {
+      if (player_y < DEEP_SEA_LEVEL_CELL) {
+        render_state.biome = Biome::DEEP_OCEAN;
+      } else {
+        render_state.biome = Biome::OCEAN;
+      }
     }
   }
 
@@ -176,6 +185,7 @@ Result render(Render_State &render_state, Update_State &update_state,
 
   // Background
   switch (render_state.biome) {
+    case Biome::NICARAGUA:
     case Biome::FOREST: {
       SDL_RenderCopy(render_state.renderer,
                      render_state.textures[(u8)Texture_Id::SKY].texture, NULL,
@@ -189,10 +199,14 @@ Result render(Render_State &render_state, Update_State &update_state,
                      NULL, NULL);
       break;
     }
+    case Biome::DEEP_OCEAN: {
+      break;
+    }
   }
 
   // Mountains
-  if (update_state.active_dimension == DimensionIndex::OVERWORLD) {
+  if (update_state.active_dimension == DimensionIndex::OVERWORLD &&
+      render_state.biome != Biome::DEEP_OCEAN) {
     Res_Texture &mountain_tex =
         render_state.textures[(u8)Texture_Id::MOUNTAINS];
     SDL_Rect dest_rect = {
@@ -209,6 +223,9 @@ Result render(Render_State &render_state, Update_State &update_state,
     SDL_RenderCopy(render_state.renderer,
                    render_state.textures[(u8)Texture_Id::MOUNTAINS].texture,
                    NULL, &dest_rect);
+  } else if (render_state.biome == Biome::DEEP_OCEAN) {
+    SDL_SetRenderDrawColor(render_state.renderer, 0x03, 0x01, 0x1e, 255);
+    SDL_RenderFillRect(render_state.renderer, NULL);
   }
 
   // Cells and entities
@@ -295,6 +312,9 @@ void destroy_rendering(Render_State &render_state) {
 }
 
 Result init_render_textures(Render_State &render_state, const Config &config) {
+  render_state.debug_overlay_texture =
+      nullptr;  // refresh function handles creation
+
   try {
     if (!std::filesystem::is_directory(config.tex_dir)) {
       LOG_ERROR("Can't initialize textures. {} is not a directory!",
@@ -378,8 +398,10 @@ Result init_render_textures(Render_State &render_state, const Config &config) {
 
               auto emplace_res = render_state.textures.emplace(id, new_tex);
               if (!emplace_res.second) {
-                LOG_ERROR("Couldn't create texture of id {}. Already exists",
-                          id);
+                LOG_ERROR(
+                    "Couldn't create texture of id {} from texture {}. ID "
+                    "already exists",
+                    id, entry.path().string());
                 SDL_DestroyTexture(new_tex.texture);
                 break;
               }
@@ -413,11 +435,13 @@ Result handle_window_resize(Render_State &render_state, Update_State &us) {
   SDL_ClearError();
   render_state.surface = SDL_GetWindowSurface(render_state.window);
   if (render_state.surface == nullptr) {
-    // We never actually use this surface so if it doesn't work keep going
-    LOG_ERROR("Failed to get sdl surface: {}", SDL_GetError());
-    // return Result::SDL_ERROR;
+    // Log error but continue since the surface is not used
+    LOG_ERROR("Failed to get SDL surface: {}", SDL_GetError());
+    // return Result::SDL_ERROR; // Uncomment if you decide to handle this as an
+    // error
   }
 
+  // Get new window size
   SDL_GetWindowSize(render_state.window, &render_state.window_width,
                     &render_state.window_height);
   LOG_INFO("SDL window resized to {}, {}", render_state.window_width,
@@ -425,6 +449,7 @@ Result handle_window_resize(Render_State &render_state, Update_State &us) {
   us.window_width = render_state.window_width;
   us.window_height = render_state.window_height;
 
+  // Update screen cell size based on new dimensions
   render_state.screen_cell_size =
       render_state.window_width / (SCREEN_CELL_SIZE_FULL - SCREEN_CELL_PADDING);
   us.screen_cell_size = render_state.screen_cell_size;
@@ -493,7 +518,11 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
   u8 cr, cg, cb, ca;
   for (ic.y = center.y - radius; ic.y < ic_max.y; ic.y++) {
     for (ic.x = center.x - radius; ic.x < ic_max.x; ic.x++) {
-      Chunk &chunk = active_dimension.chunks[ic];
+      const auto &chunk_iter = active_dimension.chunks.find(ic);
+      if (chunk_iter == active_dimension.chunks.end()) {
+        continue;
+      }
+      const Chunk &chunk = chunk_iter->second;
 #ifndef NDEBUG
       if (!(chunk.coord == ic)) {
         LOG_WARN(
@@ -533,18 +562,26 @@ Result gen_world_texture(Render_State &render_state, Update_State &update_state,
 #endif
 
           size_t cell_index = cell_x + cell_y * CHUNK_CELL_WIDTH;
-          Cell &cell = chunk.cells[cell_index];
+          const Cell &cell = chunk.cells[cell_index];
 
-          if (cell.type == Cell_Type::WATER) {
-            cr = cell.cr * static_cast<f32>(cell.density / 8.0f);
-            cg = cell.cg * static_cast<f32>(cell.density / 8.0f);
-            cb = cell.cb * static_cast<f32>(cell.density / 8.0f);
-            ca = cell.ca;
-          } else {
-            cr = cell.cr;
-            cg = cell.cg;
-            cb = cell.cb;
-            ca = cell.ca;
+          cr = cell.cr;
+          cg = cell.cg;
+          cb = cell.cb;
+          ca = cell.ca;
+
+          if (ic.x >= ALASKA_EAST_BORDER_CHUNK) {
+            const s64 BONUS_DEEP_OCEAN_DEPTH = -30 * CHUNK_CELL_WIDTH;
+            f32 t =
+                1.0f -
+                std::max(
+                    std::min(((ic.y * CHUNK_CELL_WIDTH) + cell_y -
+                              DEEP_SEA_LEVEL_CELL - BONUS_DEEP_OCEAN_DEPTH) /
+                                 static_cast<f32>(SEA_LEVEL_CELL -
+                                                  (DEEP_SEA_LEVEL_CELL +
+                                                   BONUS_DEEP_OCEAN_DEPTH)),
+                             1.0f),
+                    0.0f);
+            lerp(cr, cg, cb, ca, 0, 0, 0, 240, t);
           }
 
           if (config.debug_overlay) {
@@ -682,9 +719,8 @@ Result render_cell_texture(Render_State &render_state,
   /*
 #ifndef NDEBUG
   if (offset_y > 0 || offset_x > 0) {
-    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are "
-             "above 0: x:{}, y:{}",
-             offset_x, offset_y);
+    LOG_WARN("Texture appears to be copied incorrectly. One of the offsets are
+" "above 0: x:{}, y:{}", offset_x, offset_y);
   }
 #endif
 */
@@ -781,10 +817,15 @@ Result render_entities(Render_State &render_state, Update_State &update_state,
           }
         }
 
-        if (entity.anim_timer > entity.anim_delay) {
+        if (entity.anim_timer >
+            entity.anim_delay + entity.anim_delay_current_spice) {
           entity.anim_current_frame = (entity.anim_current_frame + 1) %
                                       (texture.width / entity.anim_width);
           entity.anim_timer = 0;
+          if (entity.anim_delay_variety > 0) {
+            entity.anim_delay_current_spice =
+                rand() % entity.anim_delay_variety;
+          }
         }
         entity.anim_timer++;
       } else {
@@ -825,10 +866,10 @@ Result render_hud(Render_State &render_state, Update_State &update_state) {
   SDL_SetRenderDrawColor(render_state.renderer, 0x33, 0x33, 0x33, 0xFF);
 
   const s64 HEALTH_MAX_WIDTH = 1000;
-  int bar_width = std::min(active_player.max_health, HEALTH_MAX_WIDTH);
+  int bar_width = std::min(active_player.max_health / 100, HEALTH_MAX_WIDTH);
 
   const int BAR_MARGIN = 30;
-  const int BAR_HEIGHT = 40;
+  const int BAR_HEIGHT = 20;
   SDL_Rect health_back_rect = {
       render_state.window_width - bar_width - BAR_MARGIN,  // x position
       BAR_MARGIN,                                          // y position
@@ -839,9 +880,10 @@ Result render_hud(Render_State &render_state, Update_State &update_state) {
 
   // Now the red filling
   const int HEALTH_MARGIN = 2;
-  int disp_health_width = std::max(
-      std::min(active_player.health, HEALTH_MAX_WIDTH - (HEALTH_MARGIN * 2)),
-      (s64)0);
+  int disp_health_width =
+      std::max(std::min(active_player.health / 100,
+                        HEALTH_MAX_WIDTH - (HEALTH_MARGIN * 2)),
+               (s64)0);
   SDL_SetRenderDrawColor(render_state.renderer, 0xff, 0x33, 0x33, 0xFF);
   SDL_Rect health_bar = {render_state.window_width - bar_width - BAR_MARGIN -
                              HEALTH_MARGIN,           // x position
